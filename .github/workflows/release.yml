@@ -29,12 +29,12 @@ jobs:
       - name: Zip Component
         if: ${{ steps.release.outputs.release_created }}
         run: |
-          cd custom_components/grub_os_selector
-          zip -r ../../grub_os_selector.zip .
+          cd custom_components/grubstation
+          zip -r ../../grubstation.zip .
 
       - name: Upload Release Asset
         if: ${{ steps.release.outputs.release_created }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload ${{ steps.release.outputs.tag_name }} grub_os_selector.zip
+          gh release upload ${{ steps.release.outputs.tag_name }} grubstation.zip

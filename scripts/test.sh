@@ -4,4 +4,4 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-pytest --cov=custom_components.grub_os_selector "$@"
+pytest --cov=custom_components.grubstation "$@"

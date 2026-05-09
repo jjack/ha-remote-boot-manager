@@ -30,7 +30,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          pytest --cov=custom_components.grub_os_selector --cov-report=xml --cov-report=term-missing tests/
+          pytest --cov=custom_components.grubstation --cov-report=xml --cov-report=term-missing tests/
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5

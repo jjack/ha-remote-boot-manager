@@ -1,4 +1,4 @@
-"""A simple agent for telling the GRUB OS Selector daemon to turn off."""
+"""A simple agent for telling the GrubStation daemon to turn off."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 async def async_send_turn_off_command(
     hass: HomeAssistant, address: str, agent_port: int, api_key: str
 ) -> None:
-    """Send shutdown command to the GRUB OS Selector agent."""
+    """Send shutdown command to the GrubStation agent."""
     session = async_get_clientsession(hass)
     url = URL.build(scheme="http", host=address, port=agent_port, path="/shutdown")
     headers = {"Authorization": f"Bearer {api_key}"}
@@ -40,7 +40,7 @@ async def async_send_turn_off_command(
 async def async_check_agent_status(
     hass: HomeAssistant, address: str, agent_port: int, api_key: str
 ) -> bool:
-    """Check if the GRUB OS Selector agent is accessible."""
+    """Check if the GrubStation agent is accessible."""
     session = async_get_clientsession(hass)
     url = URL.build(scheme="http", host=address, port=agent_port, path="/healthcheck")
     headers = {"Authorization": f"Bearer {api_key}"}

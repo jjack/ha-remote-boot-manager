@@ -1,4 +1,4 @@
-"""DataUpdateCoordinator for grub_os_selector."""
+"""DataUpdateCoordinator for GrubStation."""
 
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
 
-class GrubOSSelectManager:
+class GrubStationManager:
     """Class to manage remote boot options."""
 
     def __init__(self, hass: HomeAssistant) -> None:
@@ -141,7 +141,7 @@ class GrubOSSelectManager:
     def async_process_webhook_payload(
         self, mac_address: str, payload: dict[str, Any]
     ) -> None:
-        """Process payloads from the bare-metal GO grub os reporters."""
+        """Process payloads from the bare-metal GrubStation cli reporters."""
         mac_address = format_mac(mac_address)
 
         is_new_host = mac_address not in self.hosts

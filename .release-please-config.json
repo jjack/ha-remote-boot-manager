@@ -5,7 +5,7 @@
       "extra-files": [
         {
           "type": "json",
-          "path": "custom_components/grub_os_selector/manifest.json",
+          "path": "custom_components/grubstation/manifest.json",
           "jsonpath": "$.version"
         }
       ]

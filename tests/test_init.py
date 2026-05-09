@@ -1,18 +1,18 @@
-"""Tests for grub_os_selector __init__.py."""
+"""Tests for grubstation __init__.py."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.const import CONF_ADDRESS, CONF_API_KEY, CONF_PORT
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.grub_os_selector import (
+from custom_components.grubstation import (
     async_reload_entry,
     async_remove_config_entry_device,
     async_remove_entry,
     async_setup,
     async_setup_entry,
 )
-from custom_components.grub_os_selector.const import DOMAIN
+from custom_components.grubstation.const import DOMAIN
 
 
 async def test_async_remove_entry_with_runtime_data(hass):
@@ -32,7 +32,7 @@ async def test_async_remove_entry_without_runtime_data(hass):
     mock_entry = MagicMock()
     del mock_entry.runtime_data  # Ensure hasattr returns False
 
-    with patch("custom_components.grub_os_selector.Store") as mock_store_class:
+    with patch("custom_components.grubstation.Store") as mock_store_class:
         mock_store_instance = AsyncMock()
         mock_store_class.return_value = mock_store_instance
 
@@ -92,9 +92,7 @@ async def test_async_setup_entry(hass):
     entry.add_to_hass(hass)
 
     with (
-        patch(
-            "custom_components.grub_os_selector.manager.GrubOSSelectManager.async_load"
-        ),
+        patch("custom_components.grubstation.manager.GrubStationManager.async_load"),
         patch("homeassistant.components.webhook.async_register") as mock_register,
         patch.object(hass.config_entries, "async_forward_entry_setups"),
         patch.object(entry, "add_update_listener") as mock_add_listener,
@@ -113,7 +111,7 @@ async def test_async_setup_registers_send_turn_off_service(hass):
     with (
         patch.object(hass.http, "register_view") as mock_register_view,
         patch(
-            "custom_components.grub_os_selector.async_send_turn_off_command",
+            "custom_components.grubstation.async_send_turn_off_command",
             new_callable=AsyncMock,
         ) as mock_send_off,
     ):

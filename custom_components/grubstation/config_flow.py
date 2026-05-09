@@ -1,4 +1,4 @@
-"""Adds config flow for GrubOSSelectManager."""
+"""Adds config flow for GrubStationManager."""
 
 from __future__ import annotations
 
@@ -20,11 +20,11 @@ from homeassistant.loader import async_get_loaded_integration
 from .const import DOMAIN, GRUB_OS_REPORTER_URL
 
 if TYPE_CHECKING:
-    from .data import GrubOSSelectManagerConfigEntry
+    from .data import GrubStationManagerConfigEntry
 
 
-class GrubOSSelectManagerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
-    """Config flow for GrubOSSelectManager."""
+class GrubStationManagerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
+    """Config flow for GrubStationManager."""
 
     VERSION = 1
 
@@ -38,7 +38,7 @@ class GrubOSSelectManagerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         config_entry: config_entries.ConfigEntry,
     ) -> config_entries.OptionsFlow:
         """Get the options flow for this handler."""
-        return GrubOSSelectManagerOptionsFlow(config_entry)
+        return GrubStationManagerOptionsFlow(config_entry)
 
     async def async_step_user(
         self,
@@ -72,7 +72,7 @@ class GrubOSSelectManagerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         """Show the generated webhook ID to the user."""
         if user_input is not None:
             return self.async_create_entry(
-                title="Grub OS Selector", data={"webhook_id": self._webhook_id}
+                title="GrubStation", data={"webhook_id": self._webhook_id}
             )
 
         webhook_url = webhook.async_generate_url(self.hass, self._webhook_id)
@@ -125,10 +125,10 @@ class GrubOSSelectManagerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
 
-class GrubOSSelectManagerOptionsFlow(config_entries.OptionsFlow):
-    """Options flow for Grub OS Selector."""
+class GrubStationManagerOptionsFlow(config_entries.OptionsFlow):
+    """Options flow for GrubStation."""
 
-    def __init__(self, config_entry: GrubOSSelectManagerConfigEntry) -> None:
+    def __init__(self, config_entry: GrubStationManagerConfigEntry) -> None:
         """Initialize options flow."""
         self._config_entry = config_entry
         self.selected_mac: str | None = None
@@ -227,7 +227,7 @@ class GrubOSSelectManagerOptionsFlow(config_entries.OptionsFlow):
         ] = selector.ActionSelector({})
 
         # Address values can be edited here for debugging but will be overwritten the
-        # next time the reporter checks in.
+        # next time the agent checks in.
         data_schema[
             vol.Optional(CONF_ADDRESS, description={"suggested_value": host.address})
             if host.address is not None

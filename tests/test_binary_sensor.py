@@ -1,4 +1,4 @@
-"""Tests for the Grub OS Selector binary sensor platform."""
+"""Tests for the GrubStation binary sensor platform."""
 
 from unittest.mock import MagicMock, patch
 
@@ -7,12 +7,12 @@ from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from custom_components.grub_os_selector.binary_sensor import (
-    GrubOSSelectManagerBinarySensor,
+from custom_components.grubstation.binary_sensor import (
+    GrubStationManagerBinarySensor,
     async_setup_entry,
 )
-from custom_components.grub_os_selector.const import DOMAIN, SIGNAL_NEW_HOST
-from custom_components.grub_os_selector.data import RemoteHost
+from custom_components.grubstation.const import DOMAIN, SIGNAL_NEW_HOST
+from custom_components.grubstation.data import RemoteHost
 
 
 @pytest.fixture
@@ -28,7 +28,7 @@ def mock_host():
 
 async def test_binary_sensor_properties(hass: HomeAssistant, mock_host: RemoteHost):
     """Test binary sensor properties."""
-    sensor = GrubOSSelectManagerBinarySensor(hass, mock_host)
+    sensor = GrubStationManagerBinarySensor(hass, mock_host)
 
     assert sensor.unique_id == "00:11:22:33:44:55_health_status"
     assert sensor.name == "Agent Status"
@@ -58,7 +58,7 @@ async def test_async_setup_entry(hass: HomeAssistant):
     mock_add_entities = MagicMock(spec=AddEntitiesCallback)
 
     with patch(
-        "custom_components.grub_os_selector.binary_sensor.async_dispatcher_connect"
+        "custom_components.grubstation.binary_sensor.async_dispatcher_connect"
     ) as mock_dispatch:
         await async_setup_entry(hass, mock_entry, mock_add_entities)
 
@@ -66,7 +66,7 @@ async def test_async_setup_entry(hass: HomeAssistant):
         mock_add_entities.assert_called_once()
         added_entities = mock_add_entities.call_args[0][0]
         assert len(added_entities) == 1
-        assert isinstance(added_entities[0], GrubOSSelectManagerBinarySensor)
+        assert isinstance(added_entities[0], GrubStationManagerBinarySensor)
         assert added_entities[0].host.mac == "00:11:22:33:44:55"
 
         # Should connect to the new host signal
@@ -84,18 +84,18 @@ async def test_async_setup_entry(hass: HomeAssistant):
         mock_add_entities.assert_called_once()
         added_entities = mock_add_entities.call_args[0][0]
         assert len(added_entities) == 1
-        assert isinstance(added_entities[0], GrubOSSelectManagerBinarySensor)
+        assert isinstance(added_entities[0], GrubStationManagerBinarySensor)
         assert added_entities[0].host.mac == "AA:BB:CC:DD:EE:FF"
 
 
 async def test_async_added_to_hass(hass: HomeAssistant, mock_host: RemoteHost):
     """Test entity added to hass connects to dispatcher."""
-    sensor = GrubOSSelectManagerBinarySensor(hass, mock_host)
+    sensor = GrubStationManagerBinarySensor(hass, mock_host)
     sensor.hass = hass
 
     with (
         patch(
-            "custom_components.grub_os_selector.binary_sensor.async_dispatcher_connect"
+            "custom_components.grubstation.binary_sensor.async_dispatcher_connect"
         ) as mock_dispatch,
         patch.object(sensor, "async_on_remove") as mock_on_remove,
     ):

@@ -2,7 +2,7 @@
     "config": {
         "step": {
             "user": {
-                "title": "Configure Grub OS Selector",
+                "title": "Configure GrubStation",
                 "description": "If you need help with the configuration have a look here: {documentation_url}\n\nA secure, random Webhook ID will be automatically generated for you in the next step to protect your system from unauthorized access.",
                 "data": {}
             },
@@ -11,7 +11,7 @@
                 "description": "Here is your securely generated Webhook ID. **Please copy this now as it will not be shown again.**\n\n```text\n{webhook_id}\n```\n\nFor full instructions on configuring and installing the Grub OS Reporter, visit the [Grub OS Reporter]({agent_url}) repository."
             },
             "reconfigure": {
-                "title": "Reconfigure Grub OS Selector",
+                "title": "Reconfigure GrubStation",
                 "description": "**Warning:** Regenerating the webhook ID will break the connection with your existing Grub OS Reporters until they are updated with the new ID.",
                 "data": {}
             },
@@ -30,7 +30,7 @@
     "options": {
         "step": {
             "init": {
-                "title": "Grub OS Selector Options",
+                "title": "GrubStation Options",
                 "description": "{menu_description}",
                 "menu_options": {
                     "select_host": "Configure a Host",

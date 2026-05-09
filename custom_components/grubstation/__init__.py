@@ -1,8 +1,8 @@
 """
-Custom integration to integrate grub_os_selector with Home Assistant.
+Custom integration to integrate GrubStation with Home Assistant.
 
 For more details about this integration, please refer to
-https://github.com/jjack/ha-grub-os-selector
+https://github.com/jjack/ha-grubstation
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ from .const import (
     LOGGER,
     WEBHOOK_NAME,
 )
-from .manager import GrubOSSelectManager
+from .manager import GrubStationManager
 from .views import GrubConfigView
 from .webhook import async_validate_webhook_payload
 
@@ -42,7 +42,7 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant, ServiceCall
     from homeassistant.helpers.device_registry import DeviceEntry
 
-    from .data import GrubOSSelectManagerConfigEntry
+    from .data import GrubStationManagerConfigEntry
 
 SERVICE_SEND_TURN_ON_COMMAND = "send_turn_on_command"
 SERVICE_SEND_TURN_OFF_COMMAND = "send_turn_off_command"
@@ -75,9 +75,9 @@ PLATFORMS: list[Platform] = [
 
 # https://developers.home-assistant.io/docs/config_entries_index/#setting-up-an-entry
 async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:  # noqa: ARG001
-    """Set up the grub_os_selector component."""
+    """Set up the GrubStation component."""
     # Register the unauthenticated GRUB get request view
-    # (ie - GET /api/grub_os_selector/{mac_address})   # noqa: ERA001
+    # (ie - GET /api/grubstation/{mac_address})   # noqa: ERA001
     hass.http.register_view(GrubConfigView())
 
     async def send_turn_on_command(call: ServiceCall) -> None:
@@ -124,10 +124,10 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:  # n
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: GrubOSSelectManagerConfigEntry,
+    entry: GrubStationManagerConfigEntry,
 ) -> bool:
     """Set up this integration using UI."""
-    manager = GrubOSSelectManager(hass)
+    manager = GrubStationManager(hass)
     await manager.async_load()
     entry.runtime_data = manager
 
@@ -180,7 +180,7 @@ async def async_setup_entry(
 
 async def async_unload_entry(
     hass: HomeAssistant,
-    entry: GrubOSSelectManagerConfigEntry,
+    entry: GrubStationManagerConfigEntry,
 ) -> bool:
     """Handle removal of an entry."""
     webhook_id = entry.data.get("webhook_id")
@@ -195,7 +195,7 @@ async def async_unload_entry(
 
 async def async_reload_entry(
     hass: HomeAssistant,
-    entry: GrubOSSelectManagerConfigEntry,
+    entry: GrubStationManagerConfigEntry,
 ) -> None:
     """Reload config entry."""
     await hass.config_entries.async_reload(entry.entry_id)
@@ -203,7 +203,7 @@ async def async_reload_entry(
 
 async def async_remove_entry(
     hass: HomeAssistant,
-    entry: GrubOSSelectManagerConfigEntry,
+    entry: GrubStationManagerConfigEntry,
 ) -> None:
     """Handle removal of an entry."""
     # Since async_unload_entry unregisters the webhook and Home Assistant automatically
@@ -217,7 +217,7 @@ async def async_remove_entry(
 
 async def async_remove_config_entry_device(
     hass: HomeAssistant,  # noqa: ARG001
-    config_entry: GrubOSSelectManagerConfigEntry,
+    config_entry: GrubStationManagerConfigEntry,
     device_entry: DeviceEntry,
 ) -> bool:
     """Remove a device from a config entry and clean up manager data."""

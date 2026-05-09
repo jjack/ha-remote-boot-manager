@@ -1,4 +1,4 @@
-"""Views for the grub_os_selector custom component."""
+"""Views for the GrubStation custom component."""
 
 from __future__ import annotations
 

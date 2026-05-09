@@ -1,4 +1,4 @@
-"""Test views for grub_os_selector."""
+"""Test views for grubstation."""
 
 from http import HTTPStatus
 from unittest.mock import MagicMock, patch
@@ -6,9 +6,9 @@ from unittest.mock import MagicMock, patch
 from aiohttp import web
 from homeassistant.core import HomeAssistant
 
-from custom_components.grub_os_selector.const import DEFAULT_BOOT_OPTION_NONE
-from custom_components.grub_os_selector.data import RemoteHost
-from custom_components.grub_os_selector.views import GrubConfigView
+from custom_components.grubstation.const import DEFAULT_BOOT_OPTION_NONE
+from custom_components.grubstation.data import RemoteHost
+from custom_components.grubstation.views import GrubConfigView
 
 
 async def test_grub_config_view_invalid_mac(hass: HomeAssistant) -> None:
@@ -16,7 +16,7 @@ async def test_grub_config_view_invalid_mac(hass: HomeAssistant) -> None:
     view = GrubConfigView()
     mock_request = MagicMock(spec=web.Request)
     mock_request.app = {"hass": hass}
-    with patch("custom_components.grub_os_selector.views.format_mac", return_value=""):
+    with patch("custom_components.grubstation.views.format_mac", return_value=""):
         resp = await view.get(mock_request, "invalid")
         assert resp.status == HTTPStatus.BAD_REQUEST
         assert resp.text == "Invalid MAC address format"
@@ -162,7 +162,7 @@ async def test_grub_config_view_malformed_mac_error_path(hass: HomeAssistant) ->
     mock_request.app = {"hass": hass}
 
     with patch(
-        "custom_components.grub_os_selector.views.format_mac",
+        "custom_components.grubstation.views.format_mac",
         side_effect=ValueError("Invalid MAC"),
     ):
         resp = await view.get(mock_request, "not-a-mac")

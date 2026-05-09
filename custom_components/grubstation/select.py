@@ -1,4 +1,4 @@
-"""Select platform for Grub OS Selector."""
+"""Select platform for GrubStation."""
 
 from __future__ import annotations
 
@@ -23,13 +23,13 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-    from .data import GrubOSSelectManagerConfigEntry
-    from .manager import GrubOSSelectManager
+    from .data import GrubStationManagerConfigEntry
+    from .manager import GrubStationManager
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: GrubOSSelectManagerConfigEntry,
+    entry: GrubStationManagerConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the select platform."""
@@ -39,7 +39,7 @@ async def async_setup_entry(
     def async_add_host_select(mac_address: str) -> None:
         """Add a select entity for a newly discovered host."""
         LOGGER.debug("Adding select entity for %s", mac_address)
-        async_add_entities([GrubOSSelectManagerSelect(manager, mac_address)])
+        async_add_entities([GrubStationManagerSelect(manager, mac_address)])
 
     # Add entities for hosts that already exist in the manager
     for mac in manager.hosts:
@@ -51,10 +51,10 @@ async def async_setup_entry(
     )
 
 
-class GrubOSSelectManagerSelect(SelectEntity):
-    """grub_os_selector select class."""
+class GrubStationManagerSelect(SelectEntity):
+    """GrubStation select class."""
 
-    def __init__(self, manager: GrubOSSelectManager, mac_address: str) -> None:
+    def __init__(self, manager: GrubStationManager, mac_address: str) -> None:
         """Initialize the select entity."""
         self.manager = manager
         self.mac_address = mac_address
@@ -83,7 +83,7 @@ class GrubOSSelectManagerSelect(SelectEntity):
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, mac_address)},
             name=host_data.name,
-            manufacturer="Grub OS Selector",
+            manufacturer="GrubStation",
             model=model_name,
             sw_version=host_data.agent_version,
             connections={(CONNECTION_NETWORK_MAC, mac_address)},

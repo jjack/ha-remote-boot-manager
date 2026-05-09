@@ -1,1 +1,1 @@
-"""Tests for the Grub OS Selector integration."""
+"""Tests for the GrubStation integration."""

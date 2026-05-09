@@ -1,4 +1,4 @@
-"""Custom types for grub_os_selector."""
+"""Custom types for GrubStation."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ from .const import (
 )
 
 if TYPE_CHECKING:
-    from .manager import GrubOSSelectManager
+    from .manager import GrubStationManager
 
 
 @dataclass(slots=True)
@@ -66,4 +66,4 @@ class RemoteHost:
         self.os_service = payload.get(CONF_OS_SERVICE, self.os_service)
 
 
-type GrubOSSelectManagerConfigEntry = ConfigEntry["GrubOSSelectManager"]
+type GrubStationManagerConfigEntry = ConfigEntry["GrubStationManager"]

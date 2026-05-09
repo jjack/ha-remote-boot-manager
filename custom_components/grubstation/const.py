@@ -1,4 +1,4 @@
-"""Constants for grub_os_selector."""
+"""Constants for GrubStation."""
 
 from logging import Logger, getLogger
 from typing import Final
@@ -12,18 +12,18 @@ CONF_BOOT_OPTIONS: Final = "boot_options"
 CONF_OS_SERVICE: Final = "os_service"
 CONF_TURN_OFF: Final = "turn_off"
 
-DEFAULT_NAME: Final = "Grub OS Selector"
+DEFAULT_NAME: Final = "GrubStation"
 
-DOMAIN: Final = "grub_os_selector"
+DOMAIN: Final = "GrubStation"
 
 DEFAULT_AGENT_PORT: Final = 8081
 DEFAULT_BOOT_OPTION_NONE: Final = "(none)"
 
-WEBHOOK_NAME: Final = "Grub OS Selector Ingest"
+WEBHOOK_NAME: Final = "GrubStation Ingest"
 WEBHOOK_MAX_PAYLOAD_BYTES: Final = 102400  # 100 KB limit
 
-GRUB_OS_REPORTER_URL: Final = "https://github.com/jjack/grub-os-reporter"
-GRUB_VIEW_URL: Final = "/api/grub_os_selector/{mac_address}"
+GRUB_OS_REPORTER_URL: Final = "https://github.com/jjack/grubstation-cli"
+GRUB_VIEW_URL: Final = "/api/grubstation/{mac_address}"
 
 SAVE_DELAY: Final = 15.0  # seconds to debounce saving to storage after changes
 

@@ -1,4 +1,4 @@
-"""Webhook handlers for grub_os_selector."""
+"""Webhook handlers for GrubStation."""
 
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ async def async_validate_webhook_payload(
     """Validate and parse incoming webhook payload."""
     body = await request.text()
     if not body:
-        LOGGER.warning("Ignoring Grub OS Selector push request webhook with empty body")
+        LOGGER.warning("Ignoring GrubStation push request webhook with empty body")
         return None, web.Response(status=HTTPStatus.BAD_REQUEST, text="empty body")
 
     if len(body) > WEBHOOK_MAX_PAYLOAD_BYTES:
@@ -69,7 +69,7 @@ async def async_validate_webhook_payload(
             status=HTTPStatus.BAD_REQUEST, text="Invalid JSON payload"
         )
 
-    LOGGER.debug("Received Grub OS Selector webhook with payload: %s", raw_payload)
+    LOGGER.debug("Received GrubStation webhook with payload: %s", raw_payload)
 
     try:
         # Use cast to force the type checker to treat the output as a dict
@@ -82,7 +82,7 @@ async def async_validate_webhook_payload(
 
     if not payload.get(CONF_NAME):
         # Ensure a name exists for UI presentation, falling back to the network address
-        # if the reporter omitted it.
+        # if the agent omitted it.
         payload[CONF_NAME] = payload[CONF_ADDRESS]
 
     return payload, None

@@ -1,19 +1,19 @@
-"""Tests for the GrubOSSelectManager."""
+"""Tests for the GrubStationManager."""
 
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from custom_components.grub_os_selector.const import DEFAULT_BOOT_OPTION_NONE
-from custom_components.grub_os_selector.data import RemoteHost
-from custom_components.grub_os_selector.manager import GrubOSSelectManager
+from custom_components.grubstation.const import DEFAULT_BOOT_OPTION_NONE
+from custom_components.grubstation.data import RemoteHost
+from custom_components.grubstation.manager import GrubStationManager
 
 
 @pytest.fixture
 def mock_store():
     """Mock the HA Store implementation."""
-    with patch("custom_components.grub_os_selector.manager.Store") as mock_store_class:
+    with patch("custom_components.grubstation.manager.Store") as mock_store_class:
         mock_instance = MagicMock()
         mock_instance.async_load = AsyncMock(return_value={})
         mock_instance.async_remove = AsyncMock()
@@ -23,8 +23,8 @@ def mock_store():
 
 @pytest.fixture
 def manager(hass, mock_store):
-    """Fixture for providing a clean GrubOSSelectManager."""
-    manager = GrubOSSelectManager(hass)
+    """Fixture for providing a clean GrubStationManager."""
+    manager = GrubStationManager(hass)
     yield manager
     manager.async_unload()
 
@@ -40,7 +40,7 @@ async def test_async_process_webhook_payload_new_host(manager, hass):
     }
 
     with patch(
-        "custom_components.grub_os_selector.manager.async_dispatcher_send"
+        "custom_components.grubstation.manager.async_dispatcher_send"
     ) as mock_dispatch:
         manager.async_process_webhook_payload("00:11:22:33:44:55", payload)
 
@@ -89,7 +89,7 @@ async def test_async_process_webhook_payload_update_existing_host(manager, hass)
         "broadcast_port": 7,
     }
 
-    with patch("custom_components.grub_os_selector.manager.dr.async_get") as mock_dr:
+    with patch("custom_components.grubstation.manager.dr.async_get") as mock_dr:
         mock_registry = MagicMock()
         mock_dr.return_value = mock_registry
         mock_device = MagicMock()
@@ -181,9 +181,7 @@ async def test_async_load_invalid_data_format(manager, mock_store):
         "hosts": {"00:11:22:33:44:55": ["list", "instead", "of", "dict"]}
     }
 
-    with patch(
-        "custom_components.grub_os_selector.manager.LOGGER.warning"
-    ) as mock_warn:
+    with patch("custom_components.grubstation.manager.LOGGER.warning") as mock_warn:
         await manager.async_load()
 
     assert "00:11:22:33:44:55" not in manager.hosts
@@ -237,7 +235,7 @@ async def test_async_process_webhook_payload_update_no_rename(manager, hass):
         "boot_options": ["ubuntu", "arch"],
     }
 
-    with patch("custom_components.grub_os_selector.manager.dr.async_get") as mock_dr:
+    with patch("custom_components.grubstation.manager.dr.async_get") as mock_dr:
         mock_registry = MagicMock()
         mock_dr.return_value = mock_registry
 
@@ -259,7 +257,7 @@ async def test_async_process_webhook_payload_update_device_not_found(manager, ha
     )
     payload = {"address": "old-hostname.local", "name": "new-hostname"}
 
-    with patch("custom_components.grub_os_selector.manager.dr.async_get") as mock_dr:
+    with patch("custom_components.grubstation.manager.dr.async_get") as mock_dr:
         mock_registry = MagicMock()
         mock_dr.return_value = mock_registry
         mock_registry.async_get_device.return_value = None  # Device not found
@@ -296,7 +294,7 @@ async def test_async_process_webhook_payload_resets_invalid_next_boot(manager, h
 async def test_async_set_next_boot_option_invalid_mac(manager, hass):
     """Test setting a boot option for a non-existent MAC does nothing."""
     with patch(
-        "custom_components.grub_os_selector.manager.async_dispatcher_send"
+        "custom_components.grubstation.manager.async_dispatcher_send"
     ) as mock_dispatch:
         manager.async_set_next_boot_option("FF:FF:FF:FF:FF:FF", "windows")
         assert "FF:FF:FF:FF:FF:FF" not in manager.hosts
@@ -351,11 +349,11 @@ async def test_async_poll_agent_status_success(manager, hass):
 
     with (
         patch(
-            "custom_components.grub_os_selector.manager.async_check_agent_status",
+            "custom_components.grubstation.manager.async_check_agent_status",
             return_value=True,
         ) as mock_check,
         patch(
-            "custom_components.grub_os_selector.manager.async_dispatcher_send"
+            "custom_components.grubstation.manager.async_dispatcher_send"
         ) as mock_dispatch,
         patch.object(manager, "save") as mock_save,
     ):
@@ -369,7 +367,7 @@ async def test_async_poll_agent_status_success(manager, hass):
 
         mock_save.assert_called_once()
         mock_dispatch.assert_called_once_with(
-            hass, "grub_os_selector_update_00:11:22:33:44:55"
+            hass, "grubstation_update_00:11:22:33:44:55"
         )
 
 
@@ -388,11 +386,11 @@ async def test_async_poll_agent_status_failure(manager, hass):
 
     with (
         patch(
-            "custom_components.grub_os_selector.manager.async_check_agent_status",
+            "custom_components.grubstation.manager.async_check_agent_status",
             return_value=False,
         ) as mock_check,
         patch(
-            "custom_components.grub_os_selector.manager.async_dispatcher_send"
+            "custom_components.grubstation.manager.async_dispatcher_send"
         ) as mock_dispatch,
         patch.object(manager, "save") as mock_save,
     ):
@@ -408,5 +406,5 @@ async def test_async_poll_agent_status_failure(manager, hass):
 
         mock_save.assert_called_once()
         mock_dispatch.assert_called_once_with(
-            hass, "grub_os_selector_update_00:11:22:33:44:55"
+            hass, "grubstation_update_00:11:22:33:44:55"
         )

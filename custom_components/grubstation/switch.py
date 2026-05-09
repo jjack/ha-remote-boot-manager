@@ -1,4 +1,4 @@
-"""Switch platform for Grub OS Selector."""
+"""Switch platform for GrubStation."""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-    from .data import GrubOSSelectManagerConfigEntry, RemoteHost
+    from .data import GrubStationManagerConfigEntry, RemoteHost
 
 
 async def _async_ping_host(address: str) -> bool:
@@ -45,8 +45,8 @@ async def _async_ping_host(address: str) -> bool:
         return result.is_alive
 
 
-class GrubOSSelectManagerSwitch(SwitchEntity):
-    """Grub OS Selector switch class."""
+class GrubStationManagerSwitch(SwitchEntity):
+    """GrubStation switch class."""
 
     def __init__(
         self,
@@ -76,7 +76,7 @@ class GrubOSSelectManagerSwitch(SwitchEntity):
             broadcast_info.append(f"Port: {b_port}")
 
         model_name = (
-            f"({', '.join(broadcast_info)})" if broadcast_info else "Grub OS Selector"
+            f"({', '.join(broadcast_info)})" if broadcast_info else "GrubStation"
         )
         if self.host.os_service:
             model_name = f"{self.host.os_service} {model_name}"
@@ -84,7 +84,7 @@ class GrubOSSelectManagerSwitch(SwitchEntity):
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self.host.mac)},
             name=self.host.name,
-            manufacturer="Grub OS Selector",
+            manufacturer="GrubStation",
             model=model_name,
             sw_version=self.host.agent_version,
             connections={(CONNECTION_NETWORK_MAC, self.host.mac)},
@@ -200,7 +200,7 @@ class GrubOSSelectManagerSwitch(SwitchEntity):
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: GrubOSSelectManagerConfigEntry,
+    entry: GrubStationManagerConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the switch platform from a config entry."""
@@ -210,7 +210,7 @@ async def async_setup_entry(
     def async_add_host_switch(mac_address: str) -> None:
         """Add a switch entity for a newly discovered host."""
         host = manager.hosts[mac_address]
-        async_add_entities([GrubOSSelectManagerSwitch(hass, host)])
+        async_add_entities([GrubStationManagerSwitch(hass, host)])
 
     # Add entities for hosts that already exist in the manager
     for mac in manager.hosts:

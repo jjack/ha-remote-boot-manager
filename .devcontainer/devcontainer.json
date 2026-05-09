@@ -1,5 +1,5 @@
 {
-    "name": "jjack/ha-grub-os-selector",
+    "name": "jjack/ha-grubstation",
     "image": "mcr.microsoft.com/devcontainers/python:3.14",
     "postCreateCommand": "scripts/setup.sh",
     "forwardPorts": [

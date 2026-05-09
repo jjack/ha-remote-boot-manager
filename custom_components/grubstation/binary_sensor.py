@@ -1,10 +1,13 @@
-"""Sensor platform for Grub OS Selector."""
+"""Binary sensor platform for GrubStation."""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.binary_sensor import (
+    BinarySensorDeviceClass,
+    BinarySensorEntity,
+)
 from homeassistant.core import callback
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
@@ -15,13 +18,14 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-    from .data import GrubOSSelectManagerConfigEntry, RemoteHost
+    from .data import GrubStationManagerConfigEntry, RemoteHost
 
 
-class GrubOSSelectManagerSensor(SensorEntity):
-    """Grub OS Selector sensor class."""
+class GrubStationManagerBinarySensor(BinarySensorEntity):
+    """GrubStation binary sensor class."""
 
     _attr_has_entity_name = True
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
     _attr_should_poll = False
 
     def __init__(
@@ -29,12 +33,11 @@ class GrubOSSelectManagerSensor(SensorEntity):
         hass: HomeAssistant,  # noqa: ARG002
         host: RemoteHost,
     ) -> None:
-        """Initialize the sensor class."""
+        """Initialize the binary sensor class."""
         self.host = host
 
-        self._attr_unique_id = f"{self.host.mac}_last_agent_accessible"
-        self._attr_name = "Last Succesful Agent Healthcheck"
-        self._attr_icon = "mdi:heart-pulse"
+        self._attr_unique_id = f"{self.host.mac}_health_status"
+        self._attr_name = "Agent Status"
 
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self.host.mac)},
@@ -42,9 +45,16 @@ class GrubOSSelectManagerSensor(SensorEntity):
         )
 
     @property
-    def native_value(self) -> str | None:
-        """Return the value of the sensor."""
-        return self.host.last_agent_accessible
+    def is_on(self) -> bool:
+        """Return true if the binary sensor is on."""
+        return self.host.is_agent_accessible
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return the state attributes."""
+        return {
+            "last_agent_accessible": self.host.last_agent_accessible,
+        }
 
     async def async_added_to_hass(self) -> None:
         """Run when entity about to be added to hass."""
@@ -59,25 +69,23 @@ class GrubOSSelectManagerSensor(SensorEntity):
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: GrubOSSelectManagerConfigEntry,
+    entry: GrubStationManagerConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the sensor platform from a config entry."""
+    """Set up the binary sensor platform from a config entry."""
     manager = entry.runtime_data
 
     @callback
-    def async_add_host_sensor(mac_address: str) -> None:
-        """Add a sensor entity for a newly discovered host."""
+    def async_add_host_binary_sensor(mac_address: str) -> None:
+        """Add a binary sensor entity for a newly discovered host."""
         host = manager.hosts[mac_address]
-        # Only add sensor if host has agent configuration
-        if host.address and host.agent_port and host.api_key:
-            async_add_entities([GrubOSSelectManagerSensor(hass, host)])
+        async_add_entities([GrubStationManagerBinarySensor(hass, host)])
 
     # Add entities for hosts that already exist in the manager
     for mac in manager.hosts:
-        async_add_host_sensor(mac)
+        async_add_host_binary_sensor(mac)
 
     # Listen for the signal to add new hosts discovered via webhook
     entry.async_on_unload(
-        async_dispatcher_connect(hass, SIGNAL_NEW_HOST, async_add_host_sensor)
+        async_dispatcher_connect(hass, SIGNAL_NEW_HOST, async_add_host_binary_sensor)
     )

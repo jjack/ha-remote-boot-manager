@@ -1,4 +1,4 @@
-"""Tests for the Grub OS Selector sensor platform."""
+"""Tests for the GrubStation sensor platform."""
 
 from unittest.mock import MagicMock, patch
 
@@ -6,10 +6,10 @@ import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from custom_components.grub_os_selector.const import DOMAIN, SIGNAL_NEW_HOST
-from custom_components.grub_os_selector.data import RemoteHost
-from custom_components.grub_os_selector.sensor import (
-    GrubOSSelectManagerSensor,
+from custom_components.grubstation.const import DOMAIN, SIGNAL_NEW_HOST
+from custom_components.grubstation.data import RemoteHost
+from custom_components.grubstation.sensor import (
+    GrubStationManagerSensor,
     async_setup_entry,
 )
 
@@ -43,7 +43,7 @@ def mock_host_without_agent():
 
 async def test_sensor_properties(hass: HomeAssistant, mock_host_with_agent: RemoteHost):
     """Test sensor properties."""
-    sensor = GrubOSSelectManagerSensor(hass, mock_host_with_agent)
+    sensor = GrubStationManagerSensor(hass, mock_host_with_agent)
 
     assert sensor.unique_id == "00:11:22:33:44:55_last_agent_accessible"
     assert sensor.name == "Last Succesful Agent Healthcheck"
@@ -56,7 +56,7 @@ async def test_sensor_native_value(
     hass: HomeAssistant, mock_host_with_agent: RemoteHost
 ):
     """Test sensor native value."""
-    sensor = GrubOSSelectManagerSensor(hass, mock_host_with_agent)
+    sensor = GrubStationManagerSensor(hass, mock_host_with_agent)
 
     # Should return the timestamp when agent is accessible
     assert sensor.native_value == "2023-01-01T12:00:00+00:00"
@@ -70,7 +70,7 @@ async def test_sensor_device_info(
     hass: HomeAssistant, mock_host_with_agent: RemoteHost
 ):
     """Test sensor device info is set."""
-    sensor = GrubOSSelectManagerSensor(hass, mock_host_with_agent)
+    sensor = GrubStationManagerSensor(hass, mock_host_with_agent)
 
     # Check that device info is properly configured
     # (Home Assistant converts DeviceInfo to dict)
@@ -107,7 +107,7 @@ async def test_async_setup_entry_with_agent_hosts(hass: HomeAssistant):
     mock_add_entities = MagicMock(spec=AddEntitiesCallback)
 
     with patch(
-        "custom_components.grub_os_selector.sensor.async_dispatcher_connect"
+        "custom_components.grubstation.sensor.async_dispatcher_connect"
     ) as mock_dispatch:
         await async_setup_entry(hass, mock_entry, mock_add_entities)
 
@@ -115,7 +115,7 @@ async def test_async_setup_entry_with_agent_hosts(hass: HomeAssistant):
         mock_add_entities.assert_called_once()
         added_entities = mock_add_entities.call_args[0][0]
         assert len(added_entities) == 1
-        assert isinstance(added_entities[0], GrubOSSelectManagerSensor)
+        assert isinstance(added_entities[0], GrubStationManagerSensor)
         assert added_entities[0].host.mac == "00:11:22:33:44:55"
 
         # Should connect to the new host signal
@@ -141,7 +141,7 @@ async def test_async_setup_entry_no_agent_hosts(hass: HomeAssistant):
     mock_add_entities = MagicMock(spec=AddEntitiesCallback)
 
     with patch(
-        "custom_components.grub_os_selector.sensor.async_dispatcher_connect"
+        "custom_components.grubstation.sensor.async_dispatcher_connect"
     ) as mock_dispatch:
         await async_setup_entry(hass, mock_entry, mock_add_entities)
 
@@ -163,7 +163,7 @@ async def test_async_setup_entry_signal_callback_with_agent(hass: HomeAssistant)
     mock_add_entities = MagicMock(spec=AddEntitiesCallback)
 
     with patch(
-        "custom_components.grub_os_selector.sensor.async_dispatcher_connect"
+        "custom_components.grubstation.sensor.async_dispatcher_connect"
     ) as mock_dispatch:
         await async_setup_entry(hass, mock_entry, mock_add_entities)
 
@@ -188,7 +188,7 @@ async def test_async_setup_entry_signal_callback_with_agent(hass: HomeAssistant)
         mock_add_entities.assert_called_once()
         added_entities = mock_add_entities.call_args[0][0]
         assert len(added_entities) == 1
-        assert isinstance(added_entities[0], GrubOSSelectManagerSensor)
+        assert isinstance(added_entities[0], GrubStationManagerSensor)
         assert added_entities[0].host.mac == "00:11:22:33:44:55"
 
 
@@ -202,7 +202,7 @@ async def test_async_setup_entry_signal_callback_without_agent(hass: HomeAssista
     mock_add_entities = MagicMock(spec=AddEntitiesCallback)
 
     with patch(
-        "custom_components.grub_os_selector.sensor.async_dispatcher_connect"
+        "custom_components.grubstation.sensor.async_dispatcher_connect"
     ) as mock_dispatch:
         await async_setup_entry(hass, mock_entry, mock_add_entities)
 
@@ -228,12 +228,12 @@ async def test_async_setup_entry_signal_callback_without_agent(hass: HomeAssista
 
 async def test_async_added_to_hass(hass: HomeAssistant, mock_host_with_agent):
     """Test entity added to hass connects to dispatcher."""
-    sensor = GrubOSSelectManagerSensor(hass, mock_host_with_agent)
+    sensor = GrubStationManagerSensor(hass, mock_host_with_agent)
     sensor.hass = hass
 
     with (
         patch(
-            "custom_components.grub_os_selector.sensor.async_dispatcher_connect"
+            "custom_components.grubstation.sensor.async_dispatcher_connect"
         ) as mock_dispatch,
         patch.object(sensor, "async_on_remove") as mock_on_remove,
     ):
