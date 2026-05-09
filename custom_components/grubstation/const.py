@@ -14,7 +14,7 @@ CONF_TURN_OFF: Final = "turn_off"
 
 DEFAULT_NAME: Final = "GrubStation"
 
-DOMAIN: Final = "GrubStation"
+DOMAIN: Final = "grubstation"
 
 DEFAULT_AGENT_PORT: Final = 8081
 DEFAULT_BOOT_OPTION_NONE: Final = "(none)"
