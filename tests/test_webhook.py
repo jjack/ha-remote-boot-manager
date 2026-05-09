@@ -4,7 +4,6 @@ from http import HTTPStatus
 from unittest.mock import AsyncMock, MagicMock
 
 from aiohttp import web
-
 from custom_components.grub_os_selector.webhook import async_validate_webhook_payload
 
 
