@@ -3,58 +3,41 @@
 from __future__ import annotations
 
 import dataclasses
-from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
+import homeassistant.util.dt as dt_util
 from homeassistant.const import (
     CONF_ADDRESS,
+    CONF_API_KEY,
     CONF_BROADCAST_ADDRESS,
     CONF_BROADCAST_PORT,
+    CONF_NAME,
+    CONF_PORT,
 )
 from homeassistant.core import callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.storage import Store
 
+from .agent import async_check_agent_status
 from .const import (
+    CONF_AGENT_VERSION,
+    CONF_BOOT_OPTIONS,
+    CONF_OS_SERVICE,
+    DEFAULT_AGENT_PORT,
     DEFAULT_BOOT_OPTION_NONE,
     DOMAIN,
     LOGGER,
     SAVE_DELAY,
     SIGNAL_NEW_HOST,
 )
+from .data import RemoteHost
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
-
-
-@dataclass(slots=True)
-class RemoteHost:
-    """Represents the state of a remote bare-metal host."""
-
-    mac: str
-    name: str
-    address: str | None = None
-    boot_options: list[str] = field(default_factory=list)
-    broadcast_address: str | None = None
-    broadcast_port: int | None = None
-
-    # this comes from the UI, not the webhook
-    next_boot_option: str = DEFAULT_BOOT_OPTION_NONE
-
-    # this also comes from the UI
-    off_action: list[dict[str, Any]] | None = None
-
-    def update_from_payload(self, payload: dict[str, Any]) -> None:
-        """Safely update the host state from incoming webhook data."""
-        self.name = payload.get("name", self.name)
-        self.address = payload.get(CONF_ADDRESS, self.address)
-        self.boot_options = payload.get("boot_options", self.boot_options) or []
-        self.broadcast_address = payload.get(
-            CONF_BROADCAST_ADDRESS, self.broadcast_address
-        )
-        self.broadcast_port = payload.get(CONF_BROADCAST_PORT, self.broadcast_port)
 
 
 class GrubOSSelectManager:
@@ -66,9 +49,10 @@ class GrubOSSelectManager:
 
         self.hosts: dict[str, RemoteHost] = {}
         self._store = Store(hass, 1, f"{DOMAIN}.hosts")
+        self._unsub_agent_poll: Any | None = None
 
     async def async_load(self) -> None:
-        """Load data from storage."""
+        """Load data from storage and start agent accessibility polling."""
         data = await self._store.async_load()
         if data and "hosts" in data:
             self.hosts = {}
@@ -87,10 +71,51 @@ class GrubOSSelectManager:
                         "Discarding invalid host data for %s: %s", mac, host_data
                     )
 
+        # Stop existing polling if re-loading
+        if self._unsub_agent_poll:
+            self._unsub_agent_poll()
+
+        # Start background agent accessibility polling
+        self._unsub_agent_poll = async_track_time_interval(
+            self.hass, self.async_poll_agent_status, timedelta(seconds=60)
+        )
+
+        # Trigger an initial agent check asynchronously
+        self.hass.async_create_task(self.async_poll_agent_status(dt_util.utcnow()))
+
+    async def async_poll_agent_status(self, now: datetime) -> None:
+        """Poll the agent status endpoint for all known hosts."""
+        for mac, host in self.hosts.items():
+            if host.address and host.agent_port and host.api_key:
+                is_accessible = await async_check_agent_status(
+                    self.hass, host.address, host.agent_port, host.api_key
+                )
+
+                state_changed = host.is_agent_accessible != is_accessible
+                host.is_agent_accessible = is_accessible
+
+                if is_accessible:
+                    host.last_agent_accessible = now.isoformat()
+                    # always trigger update if accessible to update
+                    # last_agent_accessible
+                    state_changed = True
+
+                if state_changed:
+                    self.save()
+                    async_dispatcher_send(self.hass, f"{DOMAIN}_update_{mac}")
+
     async def async_purge_data(self) -> None:
         """Purge data from storage."""
+        self.async_unload()
         self.hosts.clear()
         await self._store.async_remove()
+
+    @callback
+    def async_unload(self) -> None:
+        """Stop polling and cleanup."""
+        if self._unsub_agent_poll:
+            self._unsub_agent_poll()
+            self._unsub_agent_poll = None
 
     @callback
     def async_remove_host(self, mac_address: str) -> None:
@@ -123,11 +148,15 @@ class GrubOSSelectManager:
         if is_new_host:
             self.hosts[mac_address] = RemoteHost(
                 mac=mac_address,
-                name=payload["name"],
+                name=payload[CONF_NAME],
                 address=payload.get(CONF_ADDRESS),
-                boot_options=payload.get("boot_options") or [],
+                agent_port=payload.get(CONF_PORT, DEFAULT_AGENT_PORT),
+                agent_version=payload.get(CONF_AGENT_VERSION),
+                api_key=payload.get(CONF_API_KEY),
+                boot_options=payload.get(CONF_BOOT_OPTIONS) or [],
                 broadcast_address=payload.get(CONF_BROADCAST_ADDRESS),
                 broadcast_port=payload.get(CONF_BROADCAST_PORT),
+                os_service=payload.get(CONF_OS_SERVICE),
             )
 
             LOGGER.info(

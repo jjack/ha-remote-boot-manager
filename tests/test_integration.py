@@ -1,7 +1,7 @@
 """Test integration for grub_os_selector."""
 
 from http import HTTPStatus
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.core import HomeAssistant
@@ -206,13 +206,13 @@ async def test_remove_integration_cleans_up(
 async def test_global_send_magic_packet_service(
     hass: HomeAssistant, setup_integration
 ) -> None:
-    """Test that the global send_magic_packet service works."""
+    """Test that the global send_turn_on_command service works."""
     with patch(
         "custom_components.grub_os_selector.wakeonlan.send_magic_packet"
     ) as mock_wake:
         await hass.services.async_call(
             DOMAIN,
-            "send_magic_packet",
+            "send_turn_on_command",
             {
                 "mac": "aa:bb:cc:dd:ee:ff",
                 "broadcast_address": "192.168.1.255",
@@ -224,6 +224,27 @@ async def test_global_send_magic_packet_service(
         mock_wake.assert_called_once_with(
             "aa:bb:cc:dd:ee:ff", ip_address="192.168.1.255", port=9
         )
+
+
+async def test_global_send_turn_off_command_service(
+    hass: HomeAssistant, setup_integration
+) -> None:
+    """Test that the global send_turn_off_command service works."""
+    with patch(
+        "custom_components.grub_os_selector.async_send_turn_off_command",
+        new_callable=AsyncMock,
+    ) as mock_agent_call:
+        await hass.services.async_call(
+            DOMAIN,
+            "send_turn_off_command",
+            {
+                "address": "1.2.3.4",
+                "port": 8081,
+                "api_key": "secret",
+            },
+            blocking=True,
+        )
+        mock_agent_call.assert_called_once_with(hass, "1.2.3.4", 8081, "secret")
 
 
 async def test_webhook_validation_error(hass: HomeAssistant, setup_integration) -> None:

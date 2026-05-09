@@ -1,30 +1,35 @@
 """Constants for grub_os_selector."""
 
 from logging import Logger, getLogger
+from typing import Final
 
 LOGGER: Logger = getLogger(__package__)
 
-CONF_BOOT_OPTIONS = "boot_options"
-CONF_TURN_OFF = "turn_off"
+ACTION_TURN_OFF: Final = "turn_off"
 
-DEFAULT_NAME = "Grub OS Selector"
+CONF_AGENT_VERSION: Final = "agent_version"
+CONF_BOOT_OPTIONS: Final = "boot_options"
+CONF_OS_SERVICE: Final = "os_service"
+CONF_TURN_OFF: Final = "turn_off"
 
-DOMAIN = "grub_os_selector"
-DOMAIN_DATA = f"{DOMAIN}.hosts"
+DEFAULT_NAME: Final = "Grub OS Selector"
 
-DEFAULT_BOOT_OPTION_NONE = "(none)"
+DOMAIN: Final = "grub_os_selector"
 
-WEBHOOK_NAME = "Grub OS Selector Ingest"
-WEBHOOK_MAX_PAYLOAD_BYTES = 102400  # 100 KB limit
+DEFAULT_AGENT_PORT: Final = 8081
+DEFAULT_BOOT_OPTION_NONE: Final = "(none)"
 
-GRUB_OS_REPORTER_URL = "https://github.com/jjack/grub-os-reporter"
-GRUB_VIEW_URL = "/api/grub_os_selector/{mac_address}"
+WEBHOOK_NAME: Final = "Grub OS Selector Ingest"
+WEBHOOK_MAX_PAYLOAD_BYTES: Final = 102400  # 100 KB limit
 
-SAVE_DELAY = 15.0  # seconds to debounce saving to storage after changes
+GRUB_OS_REPORTER_URL: Final = "https://github.com/jjack/grub-os-reporter"
+GRUB_VIEW_URL: Final = "/api/grub_os_selector/{mac_address}"
 
-SIGNAL_NEW_HOST = f"{DOMAIN}_new_host"
+SAVE_DELAY: Final = 15.0  # seconds to debounce saving to storage after changes
 
-WAIT_FOR_HOST_POWER_SECONDS = 10
+SIGNAL_NEW_HOST: Final = f"{DOMAIN}_new_host"
 
-PING_COUNT = 1
-PING_TIMEOUT_SECONDS = 1
+WAIT_FOR_HOST_POWER_SECONDS: Final = 10
+
+PING_COUNT: Final = 1
+PING_TIMEOUT_SECONDS: Final = 1

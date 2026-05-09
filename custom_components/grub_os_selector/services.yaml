@@ -1,4 +1,4 @@
-send_magic_packet:
+send_turn_on_command:
   fields:
     mac:
       required: true
@@ -13,5 +13,29 @@ send_magic_packet:
     broadcast_port:
       required: false
       example: 9
+      default: 9
       selector:
         number:
+          min: 0
+          max: 65535
+
+send_turn_off_command:
+  fields:
+    address:
+      required: true
+      example: "example.local"
+      selector:
+        text:
+    port:
+      required: true
+      example: 8081
+      default: 8081
+      selector:
+        number:
+          min: 0
+          max: 65535
+    api_key:
+      required: true
+      example: "my_secret_api_key"
+      selector:
+        text:

@@ -12,7 +12,12 @@ from homeassistant.helpers.device_registry import (
 )
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
-from .const import DEFAULT_BOOT_OPTION_NONE, DOMAIN, LOGGER, SIGNAL_NEW_HOST
+from .const import (
+    DEFAULT_BOOT_OPTION_NONE,
+    DOMAIN,
+    LOGGER,
+    SIGNAL_NEW_HOST,
+)
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -72,12 +77,15 @@ class GrubOSSelectManagerSelect(SelectEntity):
             if broadcast_info
             else "Wake-on-LAN"
         )
+        if host_data.os_service:
+            model_name = f"{host_data.os_service} {model_name}"
 
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, mac_address)},
             name=host_data.name,
             manufacturer="Grub OS Selector",
             model=model_name,
+            sw_version=host_data.agent_version,
             connections={(CONNECTION_NETWORK_MAC, mac_address)},
         )
 

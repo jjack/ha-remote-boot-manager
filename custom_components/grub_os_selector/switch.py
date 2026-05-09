@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from functools import partial
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import wakeonlan
 from homeassistant.components.switch import SwitchDeviceClass, SwitchEntity
@@ -14,6 +14,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.script import Script
 from icmplib import async_ping
 
+from .agent import async_send_turn_off_command
 from .const import (
     DOMAIN,
     PING_COUNT,
@@ -26,16 +27,17 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-    from .data import GrubOSSelectManagerConfigEntry
-    from .manager import RemoteHost
+    from .data import GrubOSSelectManagerConfigEntry, RemoteHost
 
 
-async def _async_ping_host(host: str) -> bool:
+async def _async_ping_host(address: str) -> bool:
     """Ping the given host asynchronously."""
     try:
         # privileged=False allows pinging without root privileges on most modern systems
-        result = await async_ping(
-            host, count=PING_COUNT, timeout=PING_TIMEOUT_SECONDS, privileged=False
+        # We cast to Any because icmplib lacks type hints, causing Pylance to
+        # misidentify the return type
+        result = await cast("Any", async_ping)(
+            address, count=PING_COUNT, timeout=PING_TIMEOUT_SECONDS, privileged=False
         )
     except Exception:  # noqa: BLE001
         return False
@@ -61,7 +63,7 @@ class GrubOSSelectManagerSwitch(SwitchEntity):
         self._attr_is_on = False
 
         self._ping_task: asyncio.Task | None = None
-        self._turn_off_script = (
+        self._turn_off_action = (
             Script(hass, self.host.off_action, self.host.name, DOMAIN)
             if self.host.off_action
             else None
@@ -76,12 +78,15 @@ class GrubOSSelectManagerSwitch(SwitchEntity):
         model_name = (
             f"({', '.join(broadcast_info)})" if broadcast_info else "Grub OS Selector"
         )
+        if self.host.os_service:
+            model_name = f"{self.host.os_service} {model_name}"
 
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self.host.mac)},
             name=self.host.name,
             manufacturer="Grub OS Selector",
             model=model_name,
+            sw_version=self.host.agent_version,
             connections={(CONNECTION_NETWORK_MAC, self.host.mac)},
         )
 
@@ -140,12 +145,16 @@ class GrubOSSelectManagerSwitch(SwitchEntity):
             )
 
     async def async_turn_off(self, **kwargs: Any) -> None:  # noqa: ARG002
-        """Turn the entity off if a turn_off script was defined."""
+        """Turn the entity off."""
         self._attr_is_on = False
         self.async_write_ha_state()
 
-        if self._turn_off_script:
-            await self._turn_off_script.async_run(context=self._context)
+        if self._turn_off_action:
+            await self._turn_off_action.async_run(context=self._context)
+        elif self.host.api_key and self.host.address and self.host.agent_port:
+            await async_send_turn_off_command(
+                self.hass, self.host.address, self.host.agent_port, self.host.api_key
+            )
 
         target = self._ping_target
         if target:

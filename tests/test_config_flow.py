@@ -11,7 +11,7 @@ from custom_components.grub_os_selector.config_flow import (
     GrubOSSelectManagerOptionsFlow,
 )
 from custom_components.grub_os_selector.const import DOMAIN
-from custom_components.grub_os_selector.manager import RemoteHost
+from custom_components.grub_os_selector.data import RemoteHost
 
 
 async def test_form(hass: HomeAssistant) -> None:
@@ -118,7 +118,7 @@ async def test_reconfigure_flow(hass: HomeAssistant) -> None:
 
 
 async def test_options_flow_no_hosts(hass: HomeAssistant) -> None:
-    """Test options flow aborts when there are no hosts available."""
+    """Test options flow shows the ID even when there are no hosts available."""
     entry = MockConfigEntry(domain=DOMAIN, data={"webhook_id": "test_id"})
     entry.add_to_hass(hass)
 
@@ -128,8 +128,22 @@ async def test_options_flow_no_hosts(hass: HomeAssistant) -> None:
 
     result = await hass.config_entries.options.async_init(entry.entry_id)
 
-    assert result.get("type") == FlowResultType.ABORT
-    assert result.get("reason") == "no_hosts"
+    assert result.get("type") == FlowResultType.MENU
+    assert result.get("step_id") == "init"
+
+    result2 = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={"next_step_id": "view_webhook"},
+    )
+    assert result2.get("type") == FlowResultType.FORM
+    assert result2.get("step_id") == "view_webhook"
+
+    result3 = await hass.config_entries.options.async_configure(
+        result2["flow_id"],
+        user_input={},
+    )
+    assert result3.get("type") == FlowResultType.CREATE_ENTRY
+    assert result3.get("data") == {}
 
 
 async def test_options_flow(hass: HomeAssistant) -> None:
@@ -148,28 +162,36 @@ async def test_options_flow(hass: HomeAssistant) -> None:
 
     result = await hass.config_entries.options.async_init(entry.entry_id)
 
-    assert result.get("type") == FlowResultType.FORM
+    assert result.get("type") == FlowResultType.MENU
     assert result.get("step_id") == "init"
 
     result2 = await hass.config_entries.options.async_configure(
         result["flow_id"],
-        user_input={"host": "00:11:22:33:44:55"},
+        user_input={"next_step_id": "select_host"},
     )
 
     assert result2.get("type") == FlowResultType.FORM
-    assert result2.get("step_id") == "host_config"
+    assert result2.get("step_id") == "select_host"
 
     result3 = await hass.config_entries.options.async_configure(
         result2["flow_id"],
+        user_input={"host": "00:11:22:33:44:55"},
+    )
+
+    assert result3.get("type") == FlowResultType.FORM
+    assert result3.get("step_id") == "host_config"
+
+    result4 = await hass.config_entries.options.async_configure(
+        result3["flow_id"],
         user_input={
-            "turn_off_script": "script.turn_off",
+            "turn_off_action": [{"action": "script.turn_off"}],
             "address": "new.local",
             "broadcast_address": "192.168.1.255",
             "broadcast_port": 9,
         },
     )
 
-    assert result3.get("type") == FlowResultType.CREATE_ENTRY
+    assert result4.get("type") == FlowResultType.CREATE_ENTRY
     assert mock_host.off_action == [{"action": "script.turn_off"}]
     assert mock_host.address == "new.local"
     assert mock_host.broadcast_address == "192.168.1.255"
@@ -198,19 +220,24 @@ async def test_options_flow_clear_script_and_service_fallback(
 
     result2 = await hass.config_entries.options.async_configure(
         result["flow_id"],
-        user_input={"host": "00:11:22:33:44:55"},
+        user_input={"next_step_id": "select_host"},
     )
-    assert result2.get("type") == FlowResultType.FORM
 
-    # Submit the form without specifying a turn_off_script to clear it
     result3 = await hass.config_entries.options.async_configure(
         result2["flow_id"],
+        user_input={"host": "00:11:22:33:44:55"},
+    )
+    assert result3.get("type") == FlowResultType.FORM
+
+    # Submit the form without specifying a turn_off_script to clear it
+    result4 = await hass.config_entries.options.async_configure(
+        result3["flow_id"],
         user_input={
             "address": "cleared.local",
         },
     )
 
-    assert result3.get("type") == FlowResultType.CREATE_ENTRY
+    assert result4.get("type") == FlowResultType.CREATE_ENTRY
     assert mock_host.off_action is None
     assert mock_host.address == "cleared.local"
     mock_manager.save.assert_called()
@@ -228,3 +255,40 @@ async def test_options_flow_host_config_no_mac(hass: HomeAssistant) -> None:
     result = await flow.async_step_host_config()
     assert result.get("type") == FlowResultType.ABORT
     assert result.get("reason") == "no_hosts"
+
+
+async def test_options_flow_submit_without_host(hass: HomeAssistant) -> None:
+    """Test the options flow select_host step when submitted without a host selection."""
+    mock_entry = MagicMock()
+    mock_manager = MagicMock()
+    mock_manager.hosts = {"00:11:22:33:44:55": MagicMock(name="Test Host")}
+    mock_entry.runtime_data = mock_manager
+    mock_entry.data = {"webhook_id": "test_id"}
+
+    flow = GrubOSSelectManagerOptionsFlow(mock_entry)
+    flow.hass = hass
+
+    # user_input is not None, but doesn't contain "host"
+    result = await flow.async_step_select_host(user_input={})
+
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
+    assert result.get("data") == {}
+
+
+async def test_options_flow_init_no_hosts_text(hass: HomeAssistant) -> None:
+    """Test the options flow init step when no hosts have checked in yet."""
+    mock_entry = MagicMock()
+    mock_manager = MagicMock()
+    mock_manager.hosts = {}
+    mock_entry.runtime_data = mock_manager
+    mock_entry.data = {"webhook_id": "test_id"}
+
+    flow = GrubOSSelectManagerOptionsFlow(mock_entry)
+    flow.hass = hass
+
+    result = await flow.async_step_init(user_input=None)
+
+    assert result.get("type") == FlowResultType.MENU
+    assert "No hosts have checked in yet" in (
+        (result.get("description_placeholders") or {}).get("menu_description") or ""
+    )

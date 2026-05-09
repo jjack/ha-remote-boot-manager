@@ -45,9 +45,6 @@ class GrubOSSelectManagerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         user_input: dict[str, Any] | None = None,
     ) -> config_entries.ConfigFlowResult:
         """Handle a flow initialized by the user."""
-        if self._async_current_entries():
-            return self.async_abort(reason="single_instance_allowed")
-
         integration = async_get_loaded_integration(self.hass, DOMAIN)
         if integration.documentation is None:
             return self.async_abort(reason="missing_documentation")
@@ -63,6 +60,7 @@ class GrubOSSelectManagerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema({}),
             errors={},
             description_placeholders={
+                "agent_url": GRUB_OS_REPORTER_URL,
                 "documentation_url": integration.documentation,
             },
         )
@@ -84,7 +82,7 @@ class GrubOSSelectManagerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             description_placeholders={
                 "webhook_id": self._webhook_id,
                 "webhook_url": webhook_url,
-                "reporter_url": GRUB_OS_REPORTER_URL,
+                "agent_url": GRUB_OS_REPORTER_URL,
             },
         )
 
@@ -122,7 +120,7 @@ class GrubOSSelectManagerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             description_placeholders={
                 "webhook_id": self._webhook_id,
                 "webhook_url": webhook_url,
-                "reporter_url": GRUB_OS_REPORTER_URL,
+                "agent_url": GRUB_OS_REPORTER_URL,
             },
         )
 
@@ -136,26 +134,58 @@ class GrubOSSelectManagerOptionsFlow(config_entries.OptionsFlow):
         self.selected_mac: str | None = None
 
     async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
+        self,
+        user_input: dict[str, Any] | None = None,  # noqa: ARG002
     ) -> config_entries.ConfigFlowResult:
         """Manage the options."""
         manager = self._config_entry.runtime_data
-        if not manager or not manager.hosts:
-            return self.async_abort(reason="no_hosts")
+
+        menu_options = ["view_webhook"]
+        if manager and manager.hosts:
+            menu_options.insert(0, "select_host")
+            menu_description = "What would you like to do?"
+        else:
+            menu_description = (
+                "No hosts have checked in yet. Once a host pings Home Assistant "
+                "using the Webhook ID, it will appear here for configuration."
+            )
+
+        return self.async_show_menu(
+            step_id="init",
+            menu_options=menu_options,
+            description_placeholders={"menu_description": menu_description},
+        )
+
+    async def async_step_select_host(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Select a host to configure."""
+        manager = self._config_entry.runtime_data
 
         if user_input is not None:
-            self.selected_mac = user_input["host"]
-            return await self.async_step_host_config()
+            if host := user_input.get("host"):
+                self.selected_mac = host
+                return await self.async_step_host_config()
+            return self.async_create_entry(title="", data={})
 
         hosts = {mac: f"{host.name} ({mac})" for mac, host in manager.hosts.items()}
 
         return self.async_show_form(
-            step_id="init",
-            data_schema=vol.Schema(
-                {
-                    vol.Required("host"): vol.In(hosts),
-                }
-            ),
+            step_id="select_host",
+            data_schema=vol.Schema({vol.Required("host"): vol.In(hosts)}),
+        )
+
+    async def async_step_view_webhook(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Show the webhook ID."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data={})
+
+        webhook_id = self._config_entry.data.get("webhook_id", "Unknown")
+        return self.async_show_form(
+            step_id="view_webhook",
+            description_placeholders={"webhook_id": webhook_id},
         )
 
     async def async_step_host_config(
@@ -170,10 +200,8 @@ class GrubOSSelectManagerOptionsFlow(config_entries.OptionsFlow):
         host = manager.hosts[self.selected_mac]
 
         if user_input is not None:
-            if turn_off_script := user_input.get("turn_off_script"):
-                # Save as a script sequence action
-                host.off_action = [{"action": turn_off_script}]
-            else:
+            host.off_action = user_input.get("turn_off_action")
+            if not host.off_action:
                 host.off_action = None
 
             host.address = user_input.get(CONF_ADDRESS)
@@ -187,27 +215,16 @@ class GrubOSSelectManagerOptionsFlow(config_entries.OptionsFlow):
             # the reload listener
             return self.async_create_entry(title="", data={"updated_at": time.time()})
 
-        default_script = vol.UNDEFINED
-        if (
-            host.off_action
-            and isinstance(host.off_action, list)
-            and len(host.off_action) > 0
-            and (action := host.off_action[0].get("action"))
-        ):
-            default_script = action
+        default_action = host.off_action or vol.UNDEFINED
 
         data_schema = {}
 
-        if default_script != vol.UNDEFINED:
-            data_schema[
-                vol.Optional(
-                    "turn_off_script", description={"suggested_value": default_script}
-                )
-            ] = selector.EntitySelector(selector.EntitySelectorConfig(domain="script"))
-        else:
-            data_schema[vol.Optional("turn_off_script")] = selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="script")
+        data_schema[
+            vol.Optional(
+                "turn_off_action",
+                description={"suggested_value": default_action},
             )
+        ] = selector.ActionSelector({})
 
         # Address values can be edited here for debugging but will be overwritten the
         # next time the reporter checks in.

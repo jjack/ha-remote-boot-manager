@@ -17,14 +17,23 @@ import wakeonlan
 from aiohttp import web
 from homeassistant.components import webhook as ha_webhook
 from homeassistant.const import (
+    CONF_ADDRESS,
+    CONF_API_KEY,
     CONF_BROADCAST_ADDRESS,
     CONF_BROADCAST_PORT,
     CONF_MAC,
+    CONF_PORT,
     Platform,
 )
 from homeassistant.helpers.storage import Store
 
-from .const import DOMAIN, LOGGER, WEBHOOK_NAME
+from .agent import async_send_turn_off_command
+from .const import (
+    DEFAULT_AGENT_PORT,
+    DOMAIN,
+    LOGGER,
+    WEBHOOK_NAME,
+)
 from .manager import GrubOSSelectManager
 from .views import GrubConfigView
 from .webhook import async_validate_webhook_payload
@@ -35,11 +44,12 @@ if TYPE_CHECKING:
 
     from .data import GrubOSSelectManagerConfigEntry
 
-SERVICE_SEND_MAGIC_PACKET = "send_magic_packet"
+SERVICE_SEND_TURN_ON_COMMAND = "send_turn_on_command"
+SERVICE_SEND_TURN_OFF_COMMAND = "send_turn_off_command"
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
-WAKE_ON_LAN_SEND_MAGIC_PACKET_SCHEMA = vol.Schema(
+TURN_ON_COMMAND_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_MAC): cv.string,
         vol.Optional(CONF_BROADCAST_ADDRESS): cv.string,
@@ -47,8 +57,18 @@ WAKE_ON_LAN_SEND_MAGIC_PACKET_SCHEMA = vol.Schema(
     }
 )
 
+TURN_OFF_COMMAND_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_ADDRESS): cv.string,
+        vol.Optional(CONF_PORT, default=DEFAULT_AGENT_PORT): cv.port,
+        vol.Required(CONF_API_KEY): cv.string,
+    }
+)
+
 PLATFORMS: list[Platform] = [
+    Platform.BINARY_SENSOR,
     Platform.SELECT,
+    Platform.SENSOR,
     Platform.SWITCH,
 ]
 
@@ -56,9 +76,12 @@ PLATFORMS: list[Platform] = [
 # https://developers.home-assistant.io/docs/config_entries_index/#setting-up-an-entry
 async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:  # noqa: ARG001
     """Set up the grub_os_selector component."""
+    # Register the unauthenticated GRUB get request view
+    # (ie - GET /api/grub_os_selector/{mac_address})   # noqa: ERA001
+    hass.http.register_view(GrubConfigView())
 
-    async def send_magic_packet(call: ServiceCall) -> None:
-        """Send magic packet to wake up a device."""
+    async def send_turn_on_command(call: ServiceCall) -> None:
+        """Handle service call to send wake-on-LAN command to a host."""
         mac_address = call.data[CONF_MAC]
         kwargs = {}
         if CONF_BROADCAST_ADDRESS in call.data:
@@ -72,19 +95,29 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:  # n
             partial(wakeonlan.send_magic_packet, mac_address, **kwargs)
         )
 
-    # Register the send_magic_packet service to duplicate the functionality of the
-    # built-in Wake on LAN integration so this can be called directly from
-    # automations, scripts, or other integrations.
+    async def send_turn_off_command(call: ServiceCall) -> None:
+        """Handle service call to send shutdown command to a host."""
+        # Required parameters are guaranteed by TURN_OFF_COMMAND_SCHEMA validation
+        address: str = call.data[CONF_ADDRESS]
+        agent_port: int = call.data[CONF_PORT]
+        api_key: str = call.data[CONF_API_KEY]
+
+        await async_send_turn_off_command(hass, address, agent_port, api_key)
+
     hass.services.async_register(
         DOMAIN,
-        SERVICE_SEND_MAGIC_PACKET,
-        send_magic_packet,
-        schema=WAKE_ON_LAN_SEND_MAGIC_PACKET_SCHEMA,
+        SERVICE_SEND_TURN_ON_COMMAND,
+        send_turn_on_command,
+        schema=TURN_ON_COMMAND_SCHEMA,
     )
 
-    # Register the unauthenticated GRUB get request view
-    # (ie - GET /api/grub_os_selector/{mac_address})   # noqa: ERA001
-    hass.http.register_view(GrubConfigView())
+    # Register our agent's shutdown action
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SEND_TURN_OFF_COMMAND,
+        send_turn_off_command,
+        schema=TURN_OFF_COMMAND_SCHEMA,
+    )
 
     return True
 
@@ -153,6 +186,10 @@ async def async_unload_entry(
     webhook_id = entry.data.get("webhook_id")
     if webhook_id:
         ha_webhook.async_unregister(hass, webhook_id)
+
+    if hasattr(entry, "runtime_data") and entry.runtime_data:
+        entry.runtime_data.async_unload()
+
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 

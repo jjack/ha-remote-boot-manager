@@ -3,7 +3,9 @@
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from custom_components.grub_os_selector.manager import RemoteHost
+from homeassistant.core import HomeAssistant
+
+from custom_components.grub_os_selector.data import RemoteHost
 from custom_components.grub_os_selector.switch import (
     GrubOSSelectManagerSwitch,
     _async_ping_host,
@@ -43,13 +45,13 @@ async def test_switch_async_turn_on_starts_task(hass):
     }
     switch = GrubOSSelectManagerSwitch(hass, manager.hosts["00:11:22:33:44:55"])
     switch.hass = hass
-    switch.async_write_ha_state = MagicMock()
 
     with (
         patch(
             "custom_components.grub_os_selector.switch.wakeonlan.send_magic_packet"
         ) as mock_send,
         patch.object(hass, "async_create_background_task") as mock_task,
+        patch.object(switch, "async_write_ha_state") as mock_write,
     ):
         await switch.async_turn_on()
         await hass.async_block_till_done()
@@ -57,7 +59,7 @@ async def test_switch_async_turn_on_starts_task(hass):
         mock_send.assert_called_once_with("00:11:22:33:44:55")
         mock_task.assert_called_once()
         assert switch.is_on is True
-        switch.async_write_ha_state.assert_called_once()
+        mock_write.assert_called_once()
 
         # Close the coroutine that was passed into the mock to prevent RuntimeWarnings
         mock_task.call_args[0][0].close()
@@ -99,7 +101,6 @@ async def test_switch_async_turn_on_with_broadcast_and_cancels_task(hass):
     }
     switch = GrubOSSelectManagerSwitch(hass, manager.hosts["00:11:22:33:44:55"])
     switch.hass = hass
-    switch.async_write_ha_state = MagicMock()
 
     # Mock an existing active ping task
     mock_task = MagicMock()
@@ -111,6 +112,7 @@ async def test_switch_async_turn_on_with_broadcast_and_cancels_task(hass):
             "custom_components.grub_os_selector.switch.wakeonlan.send_magic_packet"
         ) as mock_send,
         patch.object(hass, "async_create_background_task") as mock_create_task,
+        patch.object(switch, "async_write_ha_state") as mock_write,
     ):
         await switch.async_turn_on()
         await hass.async_block_till_done()
@@ -121,7 +123,7 @@ async def test_switch_async_turn_on_with_broadcast_and_cancels_task(hass):
         mock_task.cancel.assert_called_once()
         mock_create_task.assert_called_once()
         assert switch.is_on is True
-        switch.async_write_ha_state.assert_called_once()
+        mock_write.assert_called_once()
 
         # Close the coroutine that was passed into the mock to prevent RuntimeWarnings
         mock_create_task.call_args[0][0].close()
@@ -139,19 +141,54 @@ async def test_switch_async_turn_off(hass):
     }
     switch = GrubOSSelectManagerSwitch(hass, manager.hosts["00:11:22:33:44:55"])
     switch.hass = hass
-    switch.async_write_ha_state = MagicMock()
     switch._attr_is_on = True
 
     mock_script = MagicMock()
     mock_script.async_run = AsyncMock()
-    switch._turn_off_script = mock_script
+    switch._turn_off_action = mock_script
 
-    with patch.object(hass, "async_create_background_task") as mock_task:
+    with (
+        patch.object(hass, "async_create_background_task") as mock_task,
+        patch.object(switch, "async_write_ha_state") as mock_write,
+    ):
         await switch.async_turn_off()
         assert switch.is_on is False
-        switch.async_write_ha_state.assert_called_once()
+        mock_write.assert_called_once()
         mock_script.async_run.assert_called_once()
         mock_task.assert_called_once()
+        mock_task.call_args[0][0].close()
+
+
+async def test_switch_async_turn_off_via_agent(hass: HomeAssistant) -> None:
+    """Test the turn off action when it calls the remote agent directly."""
+    host = RemoteHost(
+        mac="00:11:22:33:44:55",
+        name="Agent Host",
+        address="192.168.1.50",
+        agent_port=8081,
+        api_key="agent_secret",
+        off_action=None,  # No script configured
+    )
+    switch = GrubOSSelectManagerSwitch(hass, host)
+    switch.hass = hass
+    switch._attr_is_on = True
+
+    with (
+        patch(
+            "custom_components.grub_os_selector.switch.async_send_turn_off_command",
+            new_callable=AsyncMock,
+        ) as mock_agent_call,
+        patch.object(switch, "async_write_ha_state") as mock_write,
+        patch.object(hass, "async_create_background_task") as mock_task,
+    ):
+        await switch.async_turn_off()
+
+        assert switch.is_on is False
+        mock_agent_call.assert_called_once_with(
+            hass, "192.168.1.50", 8081, "agent_secret"
+        )
+        mock_task.assert_called_once()
+        mock_write.assert_called_once()
         mock_task.call_args[0][0].close()
 
 
@@ -167,16 +204,19 @@ async def test_switch_async_turn_off_cancels_task(hass):
     }
     switch = GrubOSSelectManagerSwitch(hass, manager.hosts["00:11:22:33:44:55"])
     switch.hass = hass
-    switch.async_write_ha_state = MagicMock()
 
     mock_task = MagicMock()
     mock_task.done.return_value = False
     switch._ping_task = mock_task
 
-    with patch.object(hass, "async_create_background_task") as mock_task_create:
+    with (
+        patch.object(hass, "async_create_background_task") as mock_task_create,
+        patch.object(switch, "async_write_ha_state") as mock_write,
+    ):
         await switch.async_turn_off()
         mock_task.cancel.assert_called_once()
         mock_task_create.assert_called_once()
+        mock_write.assert_called_once()
         mock_task_create.call_args[0][0].close()
 
 
@@ -192,11 +232,11 @@ async def test_switch_async_ping_loop_success(hass):
     }
     switch = GrubOSSelectManagerSwitch(hass, manager.hosts["00:11:22:33:44:55"])
     switch.hass = hass
-    switch.async_write_ha_state = MagicMock()
     switch._attr_is_on = True
 
     with (
         patch("asyncio.sleep"),
+        patch.object(switch, "async_write_ha_state") as mock_write,
         patch(
             "custom_components.grub_os_selector.switch._async_ping_host",
             side_effect=[False, True],
@@ -205,7 +245,7 @@ async def test_switch_async_ping_loop_success(hass):
         await switch._async_ping_loop("192.168.1.100", target_state=True)
         assert mock_ping.call_count == 2
         assert switch._attr_is_on is True
-        switch.async_write_ha_state.assert_not_called()
+        mock_write.assert_not_called()
 
 
 async def test_switch_async_ping_loop_timeout(hass):
@@ -220,11 +260,11 @@ async def test_switch_async_ping_loop_timeout(hass):
     }
     switch = GrubOSSelectManagerSwitch(hass, manager.hosts["00:11:22:33:44:55"])
     switch.hass = hass
-    switch.async_write_ha_state = MagicMock()
     switch._attr_is_on = True
 
     with (
         patch("asyncio.sleep"),
+        patch.object(switch, "async_write_ha_state") as mock_write,
         patch(
             "custom_components.grub_os_selector.switch._async_ping_host",
             return_value=False,
@@ -233,7 +273,7 @@ async def test_switch_async_ping_loop_timeout(hass):
         await switch._async_ping_loop("192.168.1.100", target_state=True)
         assert mock_ping.call_count == 36
         assert switch._attr_is_on is False
-        switch.async_write_ha_state.assert_called_once()
+        mock_write.assert_called_once()
 
 
 async def test_switch_async_ping_loop_off_success(hass):
@@ -248,11 +288,11 @@ async def test_switch_async_ping_loop_off_success(hass):
     }
     switch = GrubOSSelectManagerSwitch(hass, manager.hosts["00:11:22:33:44:55"])
     switch.hass = hass
-    switch.async_write_ha_state = MagicMock()
     switch._attr_is_on = False
 
     with (
         patch("asyncio.sleep"),
+        patch.object(switch, "async_write_ha_state") as mock_write,
         patch(
             "custom_components.grub_os_selector.switch._async_ping_host",
             side_effect=[True, False],
@@ -261,7 +301,7 @@ async def test_switch_async_ping_loop_off_success(hass):
         await switch._async_ping_loop("192.168.1.100", target_state=False)
         assert mock_ping.call_count == 2
         assert switch._attr_is_on is False
-        switch.async_write_ha_state.assert_not_called()
+        mock_write.assert_not_called()
 
 
 async def test_switch_async_ping_loop_off_timeout(hass):
@@ -276,11 +316,11 @@ async def test_switch_async_ping_loop_off_timeout(hass):
     }
     switch = GrubOSSelectManagerSwitch(hass, manager.hosts["00:11:22:33:44:55"])
     switch.hass = hass
-    switch.async_write_ha_state = MagicMock()
     switch._attr_is_on = False
 
     with (
         patch("asyncio.sleep"),
+        patch.object(switch, "async_write_ha_state") as mock_write,
         patch(
             "custom_components.grub_os_selector.switch._async_ping_host",
             return_value=True,
@@ -289,7 +329,7 @@ async def test_switch_async_ping_loop_off_timeout(hass):
         await switch._async_ping_loop("192.168.1.100", target_state=False)
         assert mock_ping.call_count == 36
         assert switch._attr_is_on is True
-        switch.async_write_ha_state.assert_called_once()
+        mock_write.assert_called_once()
 
 
 async def test_async_setup_entry(hass):
@@ -452,13 +492,14 @@ async def test_switch_async_ping_loop_cancelled_initial_sleep(hass):
     }
     switch = GrubOSSelectManagerSwitch(hass, manager.hosts["00:11:22:33:44:55"])
     switch.hass = hass
-    switch.async_write_ha_state = MagicMock()
 
-    with patch("asyncio.sleep", side_effect=asyncio.CancelledError):
+    with (
+        patch("asyncio.sleep", side_effect=asyncio.CancelledError),
+        patch.object(switch, "async_write_ha_state") as mock_write,
+    ):
         await switch._async_ping_loop("192.168.1.100", target_state=True)
-
         # Should exit cleanly without throwing an exception or writing state
-        switch.async_write_ha_state.assert_not_called()
+        mock_write.assert_not_called()
 
 
 async def test_switch_async_ping_loop_cancelled_inner_sleep(hass):
@@ -473,17 +514,16 @@ async def test_switch_async_ping_loop_cancelled_inner_sleep(hass):
     }
     switch = GrubOSSelectManagerSwitch(hass, manager.hosts["00:11:22:33:44:55"])
     switch.hass = hass
-    switch.async_write_ha_state = MagicMock()
 
     with (
         patch("asyncio.sleep", side_effect=[None, asyncio.CancelledError]),
+        patch.object(switch, "async_write_ha_state") as mock_write,
         patch(
             "custom_components.grub_os_selector.switch._async_ping_host",
             return_value=False,
         ) as mock_ping,
     ):
         await switch._async_ping_loop("192.168.1.100", target_state=True)
-
         # Ping should be called once, then CancelledError breaks the loop cleanly
         mock_ping.assert_called_once()
-        switch.async_write_ha_state.assert_not_called()
+        mock_write.assert_not_called()

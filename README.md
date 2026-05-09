@@ -19,6 +19,10 @@ Manage and automate the booting of your remote bare-metal hosts in Home Assistan
 This integration creates a new Home Assistant Device for each host discovered by the agent. Each device will have the following entities:
 
 *   **Switch**: A `switch` entity named `[Host Name] Wake` that sends the Wake-on-LAN magic packet and tracks the host's power state via ping.
+
+> [!NOTE]
+> **Ping (ICMP) Requirements:** This integration uses the `icmplib` library for tracking host power state. In some environments (like Home Assistant Container or Docker), you may need to grant Home Assistant permission to send ICMP packets by setting the following sysctl on the host machine: `sysctl -w net.ipv4.ping_group_range="0 2147483647"`.
+
 *   **Select**: A `select` entity named `[Host Name] Next Boot Option` that allows you to choose which OS the host should boot into on its next restart.
 
 ## Installation
@@ -48,18 +52,18 @@ For this integration to work, you must install a bare-metal GO agent on **every*
 1. Download the latest [grub-os-reporter](https://github.com/jjack/grub-os-reporter/releases/latest).
 2. Install the agent on your target host.
 3. Run `grub-os-reporter setup` to auto-detect as much of the configuration as possible (GRUB, init system, network info, etc.) and configure it with GRUB and your init system. This uses the `webhook_id` you saved during the integration setup.
-4. Run the agent manually with `grub-os-reporter options push`. It will automatically ping Home Assistant, and your host will instantly appear as a new Device!
+4. Run the agent manually with `grub-os-reporter options push`. The integration uses a **Trust On First Use (TOFU)** model; the first time an agent pings Home Assistant with your secure Webhook ID, it will be automatically registered and appear instantly as a new Device!
 
 *(For detailed installation instructions, see the grub-os-reporter repository).*
 
 ## Usage
 
 ### Configuring Graceful Shutdowns
-By default, turning off a host's `switch` entity will only mark the host as "off" in Home Assistant. To execute a graceful shutdown, you can map a Home Assistant script to the host's turn-off action:
+By default, turning off a host's `switch` entity will attempt to use the built-in agent shutdown command (which requires the host's IP and API Key to be accessible). However, you can also map a custom Home Assistant **Action** to the host:
 1. Go to **Settings** -> **Devices & Services** and find the Grub OS Selector integration.
 2. Click **Configure** on the integration card to open the options flow.
 3. Select your desired host.
-4. Choose a Home Assistant script to act as the `turn_off_script`. This script will be automatically triggered when you turn off the host's switch.
+4. Define a **Shutdown Action**. This action (which can be a script, a shell command, or any other HA service call) will be triggered when you toggle the host's switch to "off".
 
 ### Regenerating the Webhook ID
 If you suspect your Webhook ID has been compromised, you can securely regenerate it:
@@ -71,7 +75,7 @@ If you suspect your Webhook ID has been compromised, you can securely regenerate
 ### API Endpoints
 This integration exposes two primary endpoints for managing remote hosts:
 * **Agent Webhook Endpoint** (`/api/webhook/{webhook_id}`): Used by the `grub-os-reporter` to securely push OS lists, network states, and metadata to Home Assistant.
-* **GRUB Endpoint** (`/api/grub_os_selector/{mac_address}`): A smart endpoint queried by GRUB at startup to determine the next boot option.
+* **GRUB Endpoint** (`/api/grub_os_selector/{mac_address}`): A smart endpoint queried by GRUB at startup to determine the next boot option. **Note:** To prevent unauthorized state resets during testing, this endpoint is read-only unless the correct `token` (your Webhook ID) is provided.
 
 ## Tips & Hints
 

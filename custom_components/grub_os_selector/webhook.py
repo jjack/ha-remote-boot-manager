@@ -11,15 +11,20 @@ import voluptuous as vol
 from aiohttp import web
 from homeassistant.const import (
     CONF_ADDRESS,
+    CONF_API_KEY,
     CONF_BROADCAST_ADDRESS,
     CONF_BROADCAST_PORT,
     CONF_MAC,
     CONF_NAME,
+    CONF_PORT,
 )
 from homeassistant.helpers.device_registry import format_mac
 
 from .const import (
+    CONF_AGENT_VERSION,
     CONF_BOOT_OPTIONS,
+    CONF_OS_SERVICE,
+    DEFAULT_AGENT_PORT,
     LOGGER,
     WEBHOOK_MAX_PAYLOAD_BYTES,
 )
@@ -30,8 +35,12 @@ WEBHOOK_SCHEMA = vol.Schema(
         vol.Required(CONF_MAC): format_mac,
         vol.Required(CONF_ADDRESS): cv.string,
         vol.Required(CONF_BOOT_OPTIONS): vol.All(cv.ensure_list, [cv.string]),
+        vol.Optional(CONF_AGENT_VERSION): cv.string,
+        vol.Optional(CONF_OS_SERVICE): cv.string,
         vol.Optional(CONF_BROADCAST_ADDRESS): cv.string,
         vol.Optional(CONF_BROADCAST_PORT): cv.port,
+        vol.Optional(CONF_PORT, default=DEFAULT_AGENT_PORT): cv.port,
+        vol.Optional(CONF_API_KEY): cv.string,
     }
 )
 

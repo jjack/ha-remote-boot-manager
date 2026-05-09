@@ -9,6 +9,7 @@ pytest-asyncio
 pytest-homeassistant-custom-component
 
 # misc dependencies for home assistant
+aioesphomeapi
 aiodhcpwatcher
 aiousbwatcher
 async-upnp-client

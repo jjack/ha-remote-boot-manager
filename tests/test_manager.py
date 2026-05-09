@@ -1,14 +1,13 @@
 """Tests for the GrubOSSelectManager."""
 
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from custom_components.grub_os_selector.const import DEFAULT_BOOT_OPTION_NONE
-from custom_components.grub_os_selector.manager import (
-    GrubOSSelectManager,
-    RemoteHost,
-)
+from custom_components.grub_os_selector.data import RemoteHost
+from custom_components.grub_os_selector.manager import GrubOSSelectManager
 
 
 @pytest.fixture
@@ -25,7 +24,9 @@ def mock_store():
 @pytest.fixture
 def manager(hass, mock_store):
     """Fixture for providing a clean GrubOSSelectManager."""
-    return GrubOSSelectManager(hass)
+    manager = GrubOSSelectManager(hass)
+    yield manager
+    manager.async_unload()
 
 
 async def test_async_process_webhook_payload_new_host(manager, hass):
@@ -334,3 +335,78 @@ async def test_save(manager, mock_store):
     data = save_callback()
     assert "00:11:22:33:44:55" in data["hosts"]
     assert data["hosts"]["00:11:22:33:44:55"]["name"] == "test-host"
+
+
+async def test_async_poll_agent_status_success(manager, hass):
+    """Test polling agent status sets is_agent_accessible and last_agent_accessible correctly."""
+    manager.hosts["00:11:22:33:44:55"] = RemoteHost(
+        mac="00:11:22:33:44:55",
+        address="test.local",
+        name="test-host",
+        agent_port=8081,
+        api_key="secret",
+        is_agent_accessible=False,
+    )
+    now = datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC)
+
+    with (
+        patch(
+            "custom_components.grub_os_selector.manager.async_check_agent_status",
+            return_value=True,
+        ) as mock_check,
+        patch(
+            "custom_components.grub_os_selector.manager.async_dispatcher_send"
+        ) as mock_dispatch,
+        patch.object(manager, "save") as mock_save,
+    ):
+        await manager.async_poll_agent_status(now)
+
+        mock_check.assert_called_once_with(hass, "test.local", 8081, "secret")
+
+        host = manager.hosts["00:11:22:33:44:55"]
+        assert host.is_agent_accessible is True
+        assert host.last_agent_accessible == now.isoformat()
+
+        mock_save.assert_called_once()
+        mock_dispatch.assert_called_once_with(
+            hass, "grub_os_selector_update_00:11:22:33:44:55"
+        )
+
+
+async def test_async_poll_agent_status_failure(manager, hass):
+    """Test polling agent status handles failure and updates state."""
+    manager.hosts["00:11:22:33:44:55"] = RemoteHost(
+        mac="00:11:22:33:44:55",
+        address="test.local",
+        name="test-host",
+        agent_port=8081,
+        api_key="secret",
+        is_agent_accessible=True,
+        last_agent_accessible="2023-01-01T12:00:00+00:00",
+    )
+    now = datetime(2023, 1, 1, 12, 1, 0, tzinfo=UTC)
+
+    with (
+        patch(
+            "custom_components.grub_os_selector.manager.async_check_agent_status",
+            return_value=False,
+        ) as mock_check,
+        patch(
+            "custom_components.grub_os_selector.manager.async_dispatcher_send"
+        ) as mock_dispatch,
+        patch.object(manager, "save") as mock_save,
+    ):
+        await manager.async_poll_agent_status(now)
+
+        mock_check.assert_called_once_with(hass, "test.local", 8081, "secret")
+
+        host = manager.hosts["00:11:22:33:44:55"]
+        assert host.is_agent_accessible is False
+        assert (
+            host.last_agent_accessible == "2023-01-01T12:00:00+00:00"
+        )  # should remain unchanged
+
+        mock_save.assert_called_once()
+        mock_dispatch.assert_called_once_with(
+            hass, "grub_os_selector_update_00:11:22:33:44:55"
+        )

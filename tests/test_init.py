@@ -2,12 +2,14 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from homeassistant.const import CONF_ADDRESS, CONF_API_KEY, CONF_PORT
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.grub_os_selector import (
     async_reload_entry,
     async_remove_config_entry_device,
     async_remove_entry,
+    async_setup,
     async_setup_entry,
 )
 from custom_components.grub_os_selector.const import DOMAIN
@@ -102,3 +104,32 @@ async def test_async_setup_entry(hass):
         mock_register.assert_called_once()
         mock_add_listener.assert_called_once_with(async_reload_entry)
         mock_on_unload.assert_called()
+
+
+async def test_async_setup_registers_send_turn_off_service(hass):
+    """Test that async_setup registers the send_turn_off_command service."""
+    hass.http = MagicMock()
+
+    with (
+        patch.object(hass.http, "register_view") as mock_register_view,
+        patch(
+            "custom_components.grub_os_selector.async_send_turn_off_command",
+            new_callable=AsyncMock,
+        ) as mock_send_off,
+    ):
+        assert await async_setup(hass, {}) is True
+
+        mock_register_view.assert_called_once()
+
+        await hass.services.async_call(
+            DOMAIN,
+            "send_turn_off_command",
+            {
+                CONF_ADDRESS: "1.2.3.4",
+                CONF_PORT: 1234,
+                CONF_API_KEY: "secret_key",
+            },
+            blocking=True,
+        )
+
+        mock_send_off.assert_awaited_once_with(hass, "1.2.3.4", 1234, "secret_key")

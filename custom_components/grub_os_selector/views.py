@@ -11,7 +11,7 @@ from homeassistant.helpers.http import HomeAssistantView
 
 from .const import DEFAULT_BOOT_OPTION_NONE, DOMAIN, GRUB_VIEW_URL
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__package__)
 
 
 class GrubConfigView(HomeAssistantView):
@@ -31,7 +31,13 @@ class GrubConfigView(HomeAssistantView):
             to prevent boot loops, as GRUB only supports HTTP GET.
         """
         hass = request.app["hass"]
-        mac_address = format_mac(mac_address)
+
+        try:
+            mac_address = format_mac(mac_address)
+        except ValueError:
+            return web.Response(
+                text="Invalid MAC address format", status=HTTPStatus.BAD_REQUEST
+            )
 
         error_msg = None
         status = HTTPStatus.INTERNAL_SERVER_ERROR

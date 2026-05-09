@@ -3,7 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 from custom_components.grub_os_selector.const import DEFAULT_BOOT_OPTION_NONE
-from custom_components.grub_os_selector.manager import RemoteHost
+from custom_components.grub_os_selector.data import RemoteHost
 from custom_components.grub_os_selector.select import (
     GrubOSSelectManagerSelect,
     async_setup_entry,
