@@ -17,7 +17,8 @@ from homeassistant.const import (
 from .const import (
     CONF_AGENT_VERSION,
     CONF_BOOT_OPTIONS,
-    CONF_OS_MANAGER,
+    CONF_OS,
+    CONF_SERVICE_MANAGER,
     DEFAULT_BOOT_OPTION_NONE,
 )
 
@@ -37,7 +38,8 @@ class RemoteHost:
     boot_options: list[str] = field(default_factory=list)
     broadcast_address: str | None = None
     broadcast_port: int | None = None
-    os_manager: str | None = None
+    os: str | None = None
+    service_manager: str | None = None
 
     # Agent accessibility status
     is_agent_accessible: bool = False
@@ -61,7 +63,8 @@ class RemoteHost:
             CONF_BROADCAST_ADDRESS, self.broadcast_address
         )
         self.broadcast_port = payload.get(CONF_BROADCAST_PORT, self.broadcast_port)
-        self.os_manager = payload.get(CONF_OS_MANAGER, self.os_manager)
+        self.os = payload.get(CONF_OS, self.os)
+        self.service_manager = payload.get(CONF_SERVICE_MANAGER, self.service_manager)
 
 
 type GrubStationManagerConfigEntry = ConfigEntry["GrubStationManager"]

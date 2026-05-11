@@ -20,6 +20,7 @@ from .const import (
     SIGNAL_NEW_HOST,
 )
 from .coordinator import GrubStationCoordinator
+from .utils import generate_model_name
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -72,25 +73,11 @@ class GrubStationManagerSelect(CoordinatorEntity[GrubStationCoordinator], Select
 
         host_data = coordinator.data
 
-        broadcast_info = []
-        if broadcast_address := host_data.broadcast_address:
-            broadcast_info.append(f"Broadcast: {broadcast_address}")
-        if broadcast_port := host_data.broadcast_port:
-            broadcast_info.append(f"Port: {broadcast_port}")
-
-        model_name = (
-            f"Wake-on-LAN ({', '.join(broadcast_info)})"
-            if broadcast_info
-            else "Wake-on-LAN"
-        )
-        if host_data.os_manager:
-            model_name = f"{host_data.os_manager} {model_name}"
-
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self.mac_address)},
             name=self.mac_address,
             manufacturer="GrubStation",
-            model=model_name,
+            model=generate_model_name(host_data),
             sw_version=host_data.agent_version,
             connections={(CONNECTION_NETWORK_MAC, self.mac_address)},
         )

@@ -85,6 +85,22 @@ async def test_async_process_webhook_payload_none_option_already_present(
     mock_coordinator.async_set_updated_data.assert_called_once_with(host)
 
 
+async def test_async_process_webhook_payload_empty_boot_options(
+    manager, hass, mock_coordinator
+):
+    """Test that DEFAULT_BOOT_OPTION_NONE is added when boot_options is empty."""
+    payload = {
+        "address": "test.local",
+        "boot_options": [],
+    }
+
+    manager.async_process_webhook_payload("00:11:22:33:44:55", payload)
+
+    host = manager.hosts["00:11:22:33:44:55"]
+    assert host.boot_options == [DEFAULT_BOOT_OPTION_NONE]
+    mock_coordinator.async_set_updated_data.assert_called_once_with(host)
+
+
 async def test_async_process_webhook_payload_update_existing_host(
     manager, hass, mock_coordinator
 ):

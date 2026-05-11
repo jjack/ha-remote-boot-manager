@@ -21,6 +21,7 @@ from .const import (
     WAIT_FOR_HOST_POWER_SECONDS,
 )
 from .coordinator import GrubStationCoordinator, _async_ping_host
+from .utils import generate_model_name
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -47,7 +48,11 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
         self._attr_device_class = SwitchDeviceClass.SWITCH
 
         # Use the initial state from the coordinator
-        self._attr_is_on = self.coordinator.data.is_powered_on
+        self._attr_is_on: bool = (
+            bool(self.coordinator.data.is_powered_on)
+            if self.coordinator.data
+            else False
+        )
 
         self._ping_task: asyncio.Task | None = None
         self._turn_off_action = (
@@ -56,23 +61,11 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
             else None
         )
 
-        broadcast_info = []
-        if b_addr := self.host.broadcast_address:
-            broadcast_info.append(f"Broadcast: {b_addr}")
-        if b_port := self.host.broadcast_port:
-            broadcast_info.append(f"Port: {b_port}")
-
-        model_name = (
-            f"({', '.join(broadcast_info)})" if broadcast_info else "GrubStation"
-        )
-        if self.host.os_manager:
-            model_name = f"{self.host.os_manager} {model_name}"
-
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self.host.mac)},
             name=self.host.mac,
             manufacturer="GrubStation",
-            model=model_name,
+            model=generate_model_name(self.host),
             sw_version=self.host.agent_version,
             connections={(CONNECTION_NETWORK_MAC, self.host.mac)},
         )

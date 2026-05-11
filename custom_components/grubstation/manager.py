@@ -20,7 +20,8 @@ from homeassistant.helpers.storage import Store
 from .const import (
     CONF_AGENT_VERSION,
     CONF_BOOT_OPTIONS,
-    CONF_OS_MANAGER,
+    CONF_OS,
+    CONF_SERVICE_MANAGER,
     DEFAULT_AGENT_PORT,
     DEFAULT_BOOT_OPTION_NONE,
     DOMAIN,
@@ -122,7 +123,8 @@ class GrubStationManager:
                 boot_options=payload.get(CONF_BOOT_OPTIONS) or [],
                 broadcast_address=payload.get(CONF_BROADCAST_ADDRESS),
                 broadcast_port=payload.get(CONF_BROADCAST_PORT),
-                os_manager=payload.get(CONF_OS_MANAGER),
+                os=payload.get(CONF_OS),
+                service_manager=payload.get(CONF_SERVICE_MANAGER),
             )
             self.hosts[mac_address] = host
             self.coordinators[mac_address] = GrubStationCoordinator(self.hass, host)
