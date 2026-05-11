@@ -1,4 +1,4 @@
-"""DataUpdateCoordinator for GrubStation."""
+"""Coordinator for GrubStation."""
 
 from __future__ import annotations
 
