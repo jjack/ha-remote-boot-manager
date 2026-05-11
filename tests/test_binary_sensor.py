@@ -20,7 +20,6 @@ def mock_host():
     """Return a mock RemoteHost."""
     return RemoteHost(
         mac="00:11:22:33:44:55",
-        name="test-host",
         is_agent_accessible=True,
         last_agent_accessible="2023-01-01T12:00:00+00:00",
     )
@@ -50,9 +49,7 @@ async def test_async_setup_entry(hass: HomeAssistant):
     """Test setting up the binary sensor platform."""
     mock_entry = MagicMock()
     mock_manager = MagicMock()
-    mock_manager.hosts = {
-        "00:11:22:33:44:55": RemoteHost(mac="00:11:22:33:44:55", name="host1")
-    }
+    mock_manager.hosts = {"00:11:22:33:44:55": RemoteHost(mac="00:11:22:33:44:55")}
     mock_entry.runtime_data = mock_manager
 
     mock_add_entities = MagicMock(spec=AddEntitiesCallback)
@@ -75,9 +72,7 @@ async def test_async_setup_entry(hass: HomeAssistant):
 
         # Test signal callback
         callback = mock_dispatch.call_args[0][2]
-        mock_manager.hosts["AA:BB:CC:DD:EE:FF"] = RemoteHost(
-            mac="AA:BB:CC:DD:EE:FF", name="host2"
-        )
+        mock_manager.hosts["AA:BB:CC:DD:EE:FF"] = RemoteHost(mac="AA:BB:CC:DD:EE:FF")
         mock_add_entities.reset_mock()
         callback("AA:BB:CC:DD:EE:FF")
 

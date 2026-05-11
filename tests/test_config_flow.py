@@ -154,7 +154,6 @@ async def test_options_flow(hass: HomeAssistant) -> None:
     mock_manager = MagicMock()
     mock_host = RemoteHost(
         mac="00:11:22:33:44:55",
-        name="Test Host",
         address="test.local",
     )
     mock_manager.hosts = {"00:11:22:33:44:55": mock_host}
@@ -209,7 +208,6 @@ async def test_options_flow_clear_script_and_service_fallback(
     mock_manager = MagicMock()
     mock_host = RemoteHost(
         mac="00:11:22:33:44:55",
-        name="Test Host",
         address="test.local",
         off_action=[{"service": "script.turn_off"}],
     )
@@ -261,7 +259,7 @@ async def test_options_flow_submit_without_host(hass: HomeAssistant) -> None:
     """Test the options flow select_host step when submitted without a host selection."""
     mock_entry = MagicMock()
     mock_manager = MagicMock()
-    mock_manager.hosts = {"00:11:22:33:44:55": MagicMock(name="Test Host")}
+    mock_manager.hosts = {"00:11:22:33:44:55": MagicMock()}
     mock_entry.runtime_data = mock_manager
     mock_entry.data = {"webhook_id": "test_id"}
 

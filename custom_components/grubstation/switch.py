@@ -64,7 +64,7 @@ class GrubStationManagerSwitch(SwitchEntity):
 
         self._ping_task: asyncio.Task | None = None
         self._turn_off_action = (
-            Script(hass, self.host.off_action, self.host.name, DOMAIN)
+            Script(hass, self.host.off_action, self.host.mac, DOMAIN)
             if self.host.off_action
             else None
         )
@@ -83,7 +83,7 @@ class GrubStationManagerSwitch(SwitchEntity):
 
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self.host.mac)},
-            name=self.host.name,
+            name=self.host.mac,
             manufacturer="GrubStation",
             model=model_name,
             sw_version=self.host.agent_version,

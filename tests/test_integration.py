@@ -45,7 +45,6 @@ async def discovered_client(hass: HomeAssistant, setup_integration):
     payload = {
         "mac": "aa:bb:cc:dd:ee:ff",
         "address": "test.local",
-        "name": "test-host",
         "boot_options": ["ubuntu", "windows"],
     }
     resp = await client.post(webhook_url, json=payload)
@@ -61,7 +60,6 @@ async def test_webhook_discovery(hass: HomeAssistant, setup_integration) -> None
     payload = {
         "mac": "aa:bb:cc:dd:ee:ff",
         "address": "test.local",
-        "name": "test-host",
         "boot_options": ["ubuntu", "windows"],
     }
 
@@ -69,8 +67,9 @@ async def test_webhook_discovery(hass: HomeAssistant, setup_integration) -> None
     assert resp.status == HTTPStatus.OK
     await hass.async_block_till_done()
 
-    entity_id_select = "select.test_host_next_boot_option"
-    entity_id_switch = "switch.test_host_wake"
+    # The entity ID is based on the MAC address since 'name' is removed from webhook
+    entity_id_select = "select.aa_bb_cc_dd_ee_ff_next_boot_option"
+    entity_id_switch = "switch.aa_bb_cc_dd_ee_ff_wake"
 
     state = hass.states.get(entity_id_select)
     assert state is not None
@@ -83,13 +82,12 @@ async def test_webhook_discovery(hass: HomeAssistant, setup_integration) -> None
 async def test_minimal_webhook_discovery_and_switch(
     hass: HomeAssistant, setup_integration
 ) -> None:
-    """Test discovery and switch functionality with a minimal payload (mac and name)."""
+    """Test discovery and switch functionality with a minimal payload (mac)."""
     client = setup_integration
     webhook_url = "/api/webhook/test_webhook_id"
     payload = {
         "mac": "de:ad:be:ef:00:01",
         "address": "minimal.local",
-        "name": "minimal-host",
         "boot_options": ["ubuntu"],
     }
 
@@ -98,8 +96,8 @@ async def test_minimal_webhook_discovery_and_switch(
     await hass.async_block_till_done()
 
     # Verify entities are created
-    entity_id_switch = "switch.minimal_host_wake"
-    entity_id_select = "select.minimal_host_next_boot_option"
+    entity_id_switch = "switch.de_ad_be_ef_00_01_wake"
+    entity_id_select = "select.de_ad_be_ef_00_01_next_boot_option"
 
     assert hass.states.get(entity_id_switch) is not None
     select_state = hass.states.get(entity_id_select)
@@ -125,7 +123,7 @@ async def test_select_and_grub_config_view(
 ) -> None:
     """Test selecting a boot option and retrieving the GRUB config view."""
     client = discovered_client
-    entity_id_select = "select.test_host_next_boot_option"
+    entity_id_select = "select.aa_bb_cc_dd_ee_ff_next_boot_option"
 
     await hass.services.async_call(
         "select",
@@ -148,8 +146,8 @@ async def test_switch_turn_on_does_not_reset_boot_option(
     hass: HomeAssistant, discovered_client
 ) -> None:
     """Test that turning on the wake host switch sends magic packet and does not reset boot option."""
-    entity_id_select = "select.test_host_next_boot_option"
-    entity_id_switch = "switch.test_host_wake"
+    entity_id_select = "select.aa_bb_cc_dd_ee_ff_next_boot_option"
+    entity_id_switch = "switch.aa_bb_cc_dd_ee_ff_wake"
 
     # First, select a boot option
     await hass.services.async_call(
@@ -185,8 +183,8 @@ async def test_remove_integration_cleans_up(
     hass: HomeAssistant, discovered_client, mock_config_entry
 ) -> None:
     """Test that removing the integration cleans up devices and entities."""
-    entity_id_select = "select.test_host_next_boot_option"
-    entity_id_switch = "switch.test_host_wake"
+    entity_id_select = "select.aa_bb_cc_dd_ee_ff_next_boot_option"
+    entity_id_switch = "switch.aa_bb_cc_dd_ee_ff_wake"
 
     assert await hass.config_entries.async_remove(mock_config_entry.entry_id)
     await hass.async_block_till_done()
@@ -284,7 +282,7 @@ async def test_webhook_missing_mac_address(
 
     with patch(
         "custom_components.grubstation.async_validate_webhook_payload",
-        return_value=({"address": "test.local", "name": "test-server"}, None),
+        return_value=({"address": "test.local"}, None),
     ):
         resp = await client.post(webhook_url, data="dummy")
         assert resp.status == HTTPStatus.BAD_REQUEST
@@ -301,7 +299,6 @@ async def test_webhook_internal_server_error(
     payload = {
         "mac": "aa:bb:cc:dd:ee:ff",
         "address": "test.local",
-        "name": "test-host",
         "boot_options": ["ubuntu", "windows"],
     }
 

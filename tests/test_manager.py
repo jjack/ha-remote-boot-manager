@@ -33,7 +33,6 @@ async def test_async_process_webhook_payload_new_host(manager, hass):
     """Test that a new host is added correctly from a payload."""
     payload = {
         "address": "test.local",
-        "name": "test-host",
         "boot_options": ["ubuntu", "windows"],
         "broadcast_address": "192.168.1.255",
         "broadcast_port": 9,
@@ -47,7 +46,6 @@ async def test_async_process_webhook_payload_new_host(manager, hass):
         assert "00:11:22:33:44:55" in manager.hosts
         host = manager.hosts["00:11:22:33:44:55"]
         assert isinstance(host, RemoteHost)
-        assert host.name == "test-host"
         assert host.address == "test.local"
         # make sure that (none) is prepended
         assert host.boot_options == [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "windows"]
@@ -61,7 +59,6 @@ async def test_async_process_webhook_payload_none_option_already_present(manager
     """Test that the default none boot option is not duplicated if already present."""
     payload = {
         "address": "test.local",
-        "name": "test-host",
         "boot_options": [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "windows"],
     }
 
@@ -72,43 +69,28 @@ async def test_async_process_webhook_payload_none_option_already_present(manager
 
 
 async def test_async_process_webhook_payload_update_existing_host(manager, hass):
-    """Test that an existing host is updated correctly, including device registry rename."""
+    """Test that an existing host is updated correctly and does NOT rename in HA."""
     # Setup existing host
     manager.hosts["00:11:22:33:44:55"] = RemoteHost(
         mac="00:11:22:33:44:55",
         address="old-hostname.local",
-        name="old-hostname",
         boot_options=["ubuntu"],
     )
 
     payload = {
         "address": "new-hostname.local",
-        "name": "new-hostname",
         "boot_options": ["ubuntu", "arch"],
         "broadcast_address": "10.0.0.255",
         "broadcast_port": 7,
     }
 
-    with patch("custom_components.grubstation.manager.dr.async_get") as mock_dr:
-        mock_registry = MagicMock()
-        mock_dr.return_value = mock_registry
-        mock_device = MagicMock()
-        mock_device.id = "device_123"
-        mock_registry.async_get_device.return_value = mock_device
+    manager.async_process_webhook_payload("00:11:22:33:44:55", payload)
 
-        manager.async_process_webhook_payload("00:11:22:33:44:55", payload)
-
-        host = manager.hosts["00:11:22:33:44:55"]
-        assert host.name == "new-hostname"
-        assert host.address == "new-hostname.local"
-        assert host.boot_options == [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "arch"]
-        assert host.broadcast_address == "10.0.0.255"
-        assert host.broadcast_port == 7
-
-        # Verify device registry was updated with the new hostname
-        mock_registry.async_update_device.assert_called_once_with(
-            "device_123", name="new-hostname"
-        )
+    host = manager.hosts["00:11:22:33:44:55"]
+    assert host.address == "new-hostname.local"
+    assert host.boot_options == [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "arch"]
+    assert host.broadcast_address == "10.0.0.255"
+    assert host.broadcast_port == 7
 
 
 async def test_async_set_and_consume_next_boot_option(manager, hass):
@@ -116,7 +98,6 @@ async def test_async_set_and_consume_next_boot_option(manager, hass):
     manager.hosts["00:11:22:33:44:55"] = RemoteHost(
         mac="00:11:22:33:44:55",
         address="test.local",
-        name="test-host",
         boot_options=[DEFAULT_BOOT_OPTION_NONE, "ubuntu", "windows"],
     )
 
@@ -137,7 +118,6 @@ async def test_async_remove_host_invalid_mac(manager, hass):
     manager.hosts["00:11:22:33:44:55"] = RemoteHost(
         mac="00:11:22:33:44:55",
         address="test.local",
-        name="test-host",
     )
     with patch.object(manager, "save") as mock_save:
         manager.async_remove_host("FF:FF:FF:FF:FF:FF")
@@ -172,7 +152,6 @@ async def test_async_load_valid_data(manager, mock_store):
     assert "00:11:22:33:44:55" in manager.hosts
     host = manager.hosts["00:11:22:33:44:55"]
     assert host.address == "stored.local"
-    assert host.name == "Stored Host"
 
 
 async def test_async_load_invalid_data_format(manager, mock_store):
@@ -206,67 +185,17 @@ async def test_async_load_filters_extra_keys(manager, mock_store):
 
     assert "00:11:22:33:44:55" in manager.hosts
     host = manager.hosts["00:11:22:33:44:55"]
-    assert host.name == "Filtered Host"
     assert not hasattr(host, "unknown_future_key")
 
 
 async def test_async_purge_data(manager, mock_store):
     """Test that purging data clears hosts and removes the store file."""
     manager.hosts["00:11:22:33:44:55"] = RemoteHost(
-        mac="00:11:22:33:44:55", name="test", address="test.local"
+        mac="00:11:22:33:44:55", address="test.local"
     )
     await manager.async_purge_data()
     assert not manager.hosts
     mock_store.async_remove.assert_awaited_once()
-
-
-async def test_async_process_webhook_payload_update_no_rename(manager, hass):
-    """Test that an existing host is updated without renaming the device."""
-    manager.hosts["00:11:22:33:44:55"] = RemoteHost(
-        mac="00:11:22:33:44:55",
-        address="same-hostname.local",
-        name="same-hostname",
-        boot_options=["ubuntu"],
-    )
-
-    payload = {
-        "address": "same-hostname.local",
-        "name": "same-hostname",  # name is the same
-        "boot_options": ["ubuntu", "arch"],
-    }
-
-    with patch("custom_components.grubstation.manager.dr.async_get") as mock_dr:
-        mock_registry = MagicMock()
-        mock_dr.return_value = mock_registry
-
-        manager.async_process_webhook_payload("00:11:22:33:44:55", payload)
-
-        host = manager.hosts["00:11:22:33:44:55"]
-        assert host.boot_options == [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "arch"]
-
-        # Verify device registry was NOT updated
-        mock_registry.async_update_device.assert_not_called()
-
-
-async def test_async_process_webhook_payload_update_device_not_found(manager, hass):
-    """Test that an update with a rename does not fail if the device is not found."""
-    manager.hosts["00:11:22:33:44:55"] = RemoteHost(
-        mac="00:11:22:33:44:55",
-        address="old-hostname.local",
-        name="old-hostname",
-    )
-    payload = {"address": "old-hostname.local", "name": "new-hostname"}
-
-    with patch("custom_components.grubstation.manager.dr.async_get") as mock_dr:
-        mock_registry = MagicMock()
-        mock_dr.return_value = mock_registry
-        mock_registry.async_get_device.return_value = None  # Device not found
-
-        manager.async_process_webhook_payload("00:11:22:33:44:55", payload)
-
-        host = manager.hosts["00:11:22:33:44:55"]
-        assert host.name == "new-hostname"
-        mock_registry.async_update_device.assert_not_called()
 
 
 async def test_async_process_webhook_payload_resets_invalid_next_boot(manager, hass):
@@ -274,13 +203,11 @@ async def test_async_process_webhook_payload_resets_invalid_next_boot(manager, h
     manager.hosts["00:11:22:33:44:55"] = RemoteHost(
         mac="00:11:22:33:44:55",
         address="test.local",
-        name="test-host",
         boot_options=["ubuntu", "windows"],
         next_boot_option="windows",  # This will become invalid
     )
     payload = {
         "address": "test.local",
-        "name": "test-host",
         "boot_options": ["ubuntu", "fedora"],
     }
 
@@ -312,7 +239,6 @@ async def test_async_remove_host(manager, hass):
     manager.hosts["00:11:22:33:44:55"] = RemoteHost(
         mac="00:11:22:33:44:55",
         address="test.local",
-        name="test-host",
     )
 
     manager.async_remove_host("00:11:22:33:44:55")
@@ -324,7 +250,6 @@ async def test_save(manager, mock_store):
     manager.hosts["00:11:22:33:44:55"] = RemoteHost(
         mac="00:11:22:33:44:55",
         address="test.local",
-        name="test-host",
     )
     manager.save()
     mock_store.async_delay_save.assert_called_once()
@@ -332,7 +257,6 @@ async def test_save(manager, mock_store):
     save_callback = mock_store.async_delay_save.call_args[0][0]
     data = save_callback()
     assert "00:11:22:33:44:55" in data["hosts"]
-    assert data["hosts"]["00:11:22:33:44:55"]["name"] == "test-host"
 
 
 async def test_async_poll_agent_status_success(manager, hass):
@@ -340,7 +264,6 @@ async def test_async_poll_agent_status_success(manager, hass):
     manager.hosts["00:11:22:33:44:55"] = RemoteHost(
         mac="00:11:22:33:44:55",
         address="test.local",
-        name="test-host",
         agent_port=8081,
         api_key="secret",
         is_agent_accessible=False,
@@ -376,7 +299,6 @@ async def test_async_poll_agent_status_failure(manager, hass):
     manager.hosts["00:11:22:33:44:55"] = RemoteHost(
         mac="00:11:22:33:44:55",
         address="test.local",
-        name="test-host",
         agent_port=8081,
         api_key="secret",
         is_agent_accessible=True,

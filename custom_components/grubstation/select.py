@@ -82,7 +82,7 @@ class GrubStationManagerSelect(SelectEntity):
 
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, mac_address)},
-            name=host_data.name,
+            name=mac_address,
             manufacturer="GrubStation",
             model=model_name,
             sw_version=host_data.agent_version,

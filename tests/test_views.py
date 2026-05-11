@@ -50,7 +50,6 @@ async def test_grub_config_view_exception(hass: HomeAssistant) -> None:
         "aa:bb:cc:dd:ee:ff": RemoteHost(
             mac="aa:bb:cc:dd:ee:ff",
             address="test.local",
-            name="test",
         )
     }
     mock_manager.async_consume_next_boot_option.side_effect = Exception("Boom")
@@ -78,7 +77,6 @@ async def test_grub_config_view_success(hass: HomeAssistant) -> None:
         "aa:bb:cc:dd:ee:ff": RemoteHost(
             mac="aa:bb:cc:dd:ee:ff",
             address="test.local",
-            name="test",
             next_boot_option="windows",
         )
     }
@@ -108,7 +106,6 @@ async def test_grub_config_view_success_empty(hass: HomeAssistant) -> None:
         "aa:bb:cc:dd:ee:ff": RemoteHost(
             mac="aa:bb:cc:dd:ee:ff",
             address="test.local",
-            name="test",
             next_boot_option=DEFAULT_BOOT_OPTION_NONE,
         )
     }

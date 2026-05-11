@@ -12,11 +12,9 @@ from homeassistant.const import (
     CONF_API_KEY,
     CONF_BROADCAST_ADDRESS,
     CONF_BROADCAST_PORT,
-    CONF_NAME,
     CONF_PORT,
 )
 from homeassistant.core import callback
-from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_time_interval
@@ -148,7 +146,6 @@ class GrubStationManager:
         if is_new_host:
             self.hosts[mac_address] = RemoteHost(
                 mac=mac_address,
-                name=payload[CONF_NAME],
                 address=payload.get(CONF_ADDRESS),
                 agent_port=payload.get(CONF_PORT, DEFAULT_AGENT_PORT),
                 agent_version=payload.get(CONF_AGENT_VERSION),
@@ -160,38 +157,17 @@ class GrubStationManager:
             )
 
             LOGGER.info(
-                "Discovered new host: %s (%s)",
-                self.hosts[mac_address].name,
+                "Discovered new host: %s",
                 mac_address,
             )
         else:
-            old_name = self.hosts[mac_address].name
-
             self.hosts[mac_address].update_from_payload(payload)
 
-            # Update the HA device registry so the entity name updates in the UI
-            if old_name != self.hosts[mac_address].name:
-                LOGGER.info(
-                    "Host renamed: %s -> %s (%s)",
-                    old_name,
-                    self.hosts[mac_address].name,
-                    mac_address,
-                )
-                device_reg = dr.async_get(self.hass)
-                device = device_reg.async_get_device(
-                    identifiers={(DOMAIN, mac_address)}
-                )
-                if device:
-                    device_reg.async_update_device(
-                        device.id, name=self.hosts[mac_address].name
-                    )
-            else:
-                LOGGER.info(
-                    "Received update for host: %s (%s) - boot options: %s",
-                    self.hosts[mac_address].name,
-                    mac_address,
-                    self.hosts[mac_address].boot_options,
-                )
+            LOGGER.info(
+                "Received update for host: %s - boot options: %s",
+                mac_address,
+                self.hosts[mac_address].boot_options,
+            )
 
         # add "(none)" option to the front of the list if it's not already there
         current_options = self.hosts[mac_address].boot_options

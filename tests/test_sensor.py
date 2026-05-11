@@ -19,7 +19,6 @@ def mock_host_with_agent():
     """Return a mock RemoteHost with agent config."""
     return RemoteHost(
         mac="00:11:22:33:44:55",
-        name="test-host",
         address="192.168.1.100",
         agent_port=8080,
         api_key="test-key",
@@ -33,7 +32,6 @@ def mock_host_without_agent():
     """Return a mock RemoteHost without agent config."""
     return RemoteHost(
         mac="AA:BB:CC:DD:EE:FF",
-        name="wol-only-host",
         broadcast_address="192.168.1.255",
         broadcast_port=9,
         is_agent_accessible=False,
@@ -86,14 +84,12 @@ async def test_async_setup_entry_with_agent_hosts(hass: HomeAssistant):
     # Create hosts with and without agent config
     host_with_agent = RemoteHost(
         mac="00:11:22:33:44:55",
-        name="host1",
         address="192.168.1.100",
         agent_port=8080,
         api_key="test-key",
     )
     host_without_agent = RemoteHost(
         mac="AA:BB:CC:DD:EE:FF",
-        name="host2",
         broadcast_address="192.168.1.255",
         broadcast_port=9,
     )
@@ -131,7 +127,6 @@ async def test_async_setup_entry_no_agent_hosts(hass: HomeAssistant):
     # Only add hosts without agent config
     host_without_agent = RemoteHost(
         mac="AA:BB:CC:DD:EE:FF",
-        name="host1",
         broadcast_address="192.168.1.255",
         broadcast_port=9,
     )
@@ -173,7 +168,6 @@ async def test_async_setup_entry_signal_callback_with_agent(hass: HomeAssistant)
         # Add a new host with agent config
         new_host = RemoteHost(
             mac="00:11:22:33:44:55",
-            name="new-host",
             address="192.168.1.100",
             agent_port=8080,
             api_key="test-key",
@@ -212,7 +206,6 @@ async def test_async_setup_entry_signal_callback_without_agent(hass: HomeAssista
         # Add a new host without agent config
         new_host = RemoteHost(
             mac="AA:BB:CC:DD:EE:FF",
-            name="wol-host",
             broadcast_address="192.168.1.255",
             broadcast_port=9,
         )

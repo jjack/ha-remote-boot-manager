@@ -15,7 +15,6 @@ from homeassistant.const import (
     CONF_BROADCAST_ADDRESS,
     CONF_BROADCAST_PORT,
     CONF_MAC,
-    CONF_NAME,
     CONF_PORT,
 )
 from homeassistant.helpers.device_registry import format_mac
@@ -31,7 +30,6 @@ from .const import (
 
 WEBHOOK_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_NAME): cv.string,
         vol.Required(CONF_MAC): format_mac,
         vol.Required(CONF_ADDRESS): cv.string,
         vol.Required(CONF_BOOT_OPTIONS): vol.All(cv.ensure_list, [cv.string]),
@@ -41,7 +39,8 @@ WEBHOOK_SCHEMA = vol.Schema(
         vol.Optional(CONF_BROADCAST_PORT): cv.port,
         vol.Optional(CONF_PORT, default=DEFAULT_AGENT_PORT): cv.port,
         vol.Optional(CONF_API_KEY): cv.string,
-    }
+    },
+    extra=vol.REMOVE_EXTRA,
 )
 
 
@@ -79,10 +78,5 @@ async def async_validate_webhook_payload(
         return None, web.Response(
             status=HTTPStatus.BAD_REQUEST, text=f"Invalid payload format: {err}"
         )
-
-    if not payload.get(CONF_NAME):
-        # Ensure a name exists for UI presentation, falling back to the network address
-        # if the agent omitted it.
-        payload[CONF_NAME] = payload[CONF_ADDRESS]
 
     return payload, None

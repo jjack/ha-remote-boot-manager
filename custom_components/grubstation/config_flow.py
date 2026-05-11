@@ -168,7 +168,7 @@ class GrubStationManagerOptionsFlow(config_entries.OptionsFlow):
                 return await self.async_step_host_config()
             return self.async_create_entry(title="", data={})
 
-        hosts = {mac: f"{host.name} ({mac})" for mac, host in manager.hosts.items()}
+        hosts = {mac: mac for mac in manager.hosts}
 
         return self.async_show_form(
             step_id="select_host",
@@ -254,6 +254,6 @@ class GrubStationManagerOptionsFlow(config_entries.OptionsFlow):
             step_id="host_config",
             data_schema=vol.Schema(data_schema),
             description_placeholders={
-                "host_name": host.name,
+                "host_name": self.selected_mac,
             },
         )

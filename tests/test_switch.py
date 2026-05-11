@@ -33,13 +33,24 @@ async def test_async_ping_host_dead():
         assert await _async_ping_host("192.168.1.10") is False
 
 
+async def test_switch_device_info(hass: HomeAssistant):
+    """Test the device info for the switch."""
+    host = RemoteHost(
+        mac="00:11:22:33:44:55",
+        address="test.local",
+    )
+    switch = GrubStationManagerSwitch(hass, host)
+    assert switch.device_info is not None
+    assert switch.device_info.get("name") == "00:11:22:33:44:55"
+    assert switch.device_info.get("manufacturer") == "GrubStation"
+
+
 async def test_switch_async_turn_on_starts_task(hass):
     """Test switch async_turn_on sends packet and starts the background ping loop."""
     manager = MagicMock()
     manager.hosts = {
         "00:11:22:33:44:55": RemoteHost(
             mac="00:11:22:33:44:55",
-            name="Test Host",
             address="test.local",
         )
     }
@@ -71,7 +82,6 @@ async def test_switch_no_address_no_poll(hass):
     manager.hosts = {
         "00:11:22:33:44:55": RemoteHost(
             mac="00:11:22:33:44:55",
-            name="Test Host",
             address="",
         )
     }
@@ -91,7 +101,6 @@ async def test_switch_async_turn_on_with_broadcast_and_cancels_task(hass):
     manager.hosts = {
         "00:11:22:33:44:55": RemoteHost(
             mac="00:11:22:33:44:55",
-            name="Test Host",
             address="test.local",
             broadcast_address="192.168.1.255",
             broadcast_port=9,
@@ -133,7 +142,6 @@ async def test_switch_async_turn_off(hass):
     manager.hosts = {
         "00:11:22:33:44:55": RemoteHost(
             mac="00:11:22:33:44:55",
-            name="Test Host",
             address="test.local",
         )
     }
@@ -161,7 +169,6 @@ async def test_switch_async_turn_off_via_agent(hass: HomeAssistant) -> None:
     """Test the turn off action when it calls the remote agent directly."""
     host = RemoteHost(
         mac="00:11:22:33:44:55",
-        name="Agent Host",
         address="192.168.1.50",
         agent_port=8081,
         api_key="agent_secret",
@@ -196,7 +203,6 @@ async def test_switch_async_turn_off_cancels_task(hass):
     manager.hosts = {
         "00:11:22:33:44:55": RemoteHost(
             mac="00:11:22:33:44:55",
-            name="Test Host",
             address="test.local",
         )
     }
@@ -224,7 +230,6 @@ async def test_switch_async_ping_loop_success(hass):
     manager.hosts = {
         "00:11:22:33:44:55": RemoteHost(
             mac="00:11:22:33:44:55",
-            name="Test",
             address="test.local",
         )
     }
@@ -252,7 +257,6 @@ async def test_switch_async_ping_loop_timeout(hass):
     manager.hosts = {
         "00:11:22:33:44:55": RemoteHost(
             mac="00:11:22:33:44:55",
-            name="Test",
             address="test.local",
         )
     }
@@ -280,7 +284,6 @@ async def test_switch_async_ping_loop_off_success(hass):
     manager.hosts = {
         "00:11:22:33:44:55": RemoteHost(
             mac="00:11:22:33:44:55",
-            name="Test",
             address="test.local",
         )
     }
@@ -308,7 +311,6 @@ async def test_switch_async_ping_loop_off_timeout(hass):
     manager.hosts = {
         "00:11:22:33:44:55": RemoteHost(
             mac="00:11:22:33:44:55",
-            name="Test",
             address="test.local",
         )
     }
@@ -337,7 +339,6 @@ async def test_async_setup_entry(hass):
     mock_manager.hosts = {
         "00:11:22:33:44:55": MagicMock(
             mac="00:11:22:33:44:55",
-            name="test switch 1",
             address="test.local",
             off_action=None,
             broadcast_address=None,
@@ -345,7 +346,6 @@ async def test_async_setup_entry(hass):
         ),
         "AA:BB:CC:DD:EE:FF": MagicMock(
             mac="AA:BB:CC:DD:EE:FF",
-            name="test switch 2",
             address="test2.local",
             off_action=None,
             broadcast_address=None,
@@ -369,7 +369,6 @@ async def test_async_setup_entry(hass):
         callback = mock_connect.call_args[0][2]
         mock_manager.hosts["11:22:33:44:55:66"] = MagicMock(
             mac="11:22:33:44:55:66",
-            name="new switch",
             address="new.local",
             off_action=None,
             broadcast_address=None,
@@ -383,7 +382,6 @@ async def test_async_update_skips_when_ping_task_active(hass):
     """Test that async_update skips polling if there is an active ping task."""
     host = RemoteHost(
         mac="00:11:22:33:44:55",
-        name="Test Host",
         address="test.local",
     )
     switch = GrubStationManagerSwitch(hass, host)
@@ -403,7 +401,6 @@ async def test_async_update_polls_when_no_active_task(hass):
     """Test that async_update polls normally if the ping task is done or None."""
     host = RemoteHost(
         mac="00:11:22:33:44:55",
-        name="Test Host",
         address="test.local",
     )
     switch = GrubStationManagerSwitch(hass, host)
@@ -438,7 +435,6 @@ async def test_switch_will_remove_from_hass_cancels_task(hass):
     manager.hosts = {
         "00:11:22:33:44:55": RemoteHost(
             mac="00:11:22:33:44:55",
-            name="Test Host",
             address="test.local",
         )
     }
@@ -460,7 +456,6 @@ async def test_switch_will_remove_from_hass_ignores_done_task(hass):
     manager.hosts = {
         "00:11:22:33:44:55": RemoteHost(
             mac="00:11:22:33:44:55",
-            name="Test Host",
             address="test.local",
         )
     }
@@ -482,7 +477,6 @@ async def test_switch_async_ping_loop_cancelled_initial_sleep(hass):
     manager.hosts = {
         "00:11:22:33:44:55": RemoteHost(
             mac="00:11:22:33:44:55",
-            name="Test",
             address="test.local",
         )
     }
@@ -504,7 +498,6 @@ async def test_switch_async_ping_loop_cancelled_inner_sleep(hass):
     manager.hosts = {
         "00:11:22:33:44:55": RemoteHost(
             mac="00:11:22:33:44:55",
-            name="Test",
             address="test.local",
         )
     }

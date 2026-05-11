@@ -11,7 +11,6 @@ from homeassistant.const import (
     CONF_API_KEY,
     CONF_BROADCAST_ADDRESS,
     CONF_BROADCAST_PORT,
-    CONF_NAME,
     CONF_PORT,
 )
 
@@ -31,7 +30,6 @@ class RemoteHost:
     """Represents the state of a remote bare-metal host."""
 
     mac: str
-    name: str
     address: str | None = None
     agent_version: str | None = None
     agent_port: int | None = None
@@ -53,7 +51,6 @@ class RemoteHost:
 
     def update_from_payload(self, payload: dict[str, Any]) -> None:
         """Safely update the host state from incoming webhook data."""
-        self.name = payload.get(CONF_NAME, self.name)
         self.address = payload.get(CONF_ADDRESS, self.address)
         self.agent_version = payload.get(CONF_AGENT_VERSION, self.agent_version)
         self.agent_port = payload.get(CONF_PORT, self.agent_port)
