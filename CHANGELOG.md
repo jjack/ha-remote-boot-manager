@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.5.0](https://github.com/jjack/ha-grubstation/compare/v0.4.4...v0.5.0) (2026-05-11)
+
+
+### Features
+
+* adding support for remote agent daemon ([6f6762b](https://github.com/jjack/ha-grubstation/commit/6f6762bda0e0d1c292beec168b36ea9f6e618042))
+
+
+### Bug Fixes
+
+* correcting import name ([e9c8e8a](https://github.com/jjack/ha-grubstation/commit/e9c8e8a487396a7f05b9aa968ed58caf54d483d1))
+* lowercasing the domain name in manifest.json, too ([a712a95](https://github.com/jjack/ha-grubstation/commit/a712a95fcc2593f022d9cd43b92a5b4141592e6e))
+* lowercasing the domain name, it got caught up in search and replace ([8045b79](https://github.com/jjack/ha-grubstation/commit/8045b79daba07c081d124dd00d264c85dd882806))
+
 ## [0.4.4](https://github.com/jjack/ha-grub-os-selector/compare/v0.4.3...v0.4.4) (2026-05-07)
 
 
