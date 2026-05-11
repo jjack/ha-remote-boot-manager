@@ -9,7 +9,7 @@ ACTION_TURN_OFF: Final = "turn_off"
 
 CONF_AGENT_VERSION: Final = "agent_version"
 CONF_BOOT_OPTIONS: Final = "boot_options"
-CONF_OS_SERVICE: Final = "os_service"
+CONF_OS_MANAGER: Final = "os_manager"
 CONF_TURN_OFF: Final = "turn_off"
 
 DEFAULT_NAME: Final = "GrubStation"

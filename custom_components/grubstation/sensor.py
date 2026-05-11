@@ -8,17 +8,19 @@ from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import callback
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, SIGNAL_NEW_HOST
+from .coordinator import GrubStationCoordinator
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-    from .data import GrubStationManagerConfigEntry, RemoteHost
+    from .data import GrubStationManagerConfigEntry
 
 
-class GrubStationManagerSensor(SensorEntity):
+class GrubStationManagerSensor(CoordinatorEntity[GrubStationCoordinator], SensorEntity):
     """GrubStation sensor class."""
 
     _attr_has_entity_name = True
@@ -26,11 +28,11 @@ class GrubStationManagerSensor(SensorEntity):
 
     def __init__(
         self,
-        hass: HomeAssistant,  # noqa: ARG002
-        host: RemoteHost,
+        coordinator: GrubStationCoordinator,
     ) -> None:
         """Initialize the sensor class."""
-        self.host = host
+        super().__init__(coordinator)
+        self.host = coordinator.data
 
         self._attr_unique_id = f"{self.host.mac}_last_agent_accessible"
         self._attr_name = "Last Succesful Agent Healthcheck"
@@ -44,17 +46,7 @@ class GrubStationManagerSensor(SensorEntity):
     @property
     def native_value(self) -> str | None:
         """Return the value of the sensor."""
-        return self.host.last_agent_accessible
-
-    async def async_added_to_hass(self) -> None:
-        """Run when entity about to be added to hass."""
-        self.async_on_remove(
-            async_dispatcher_connect(
-                self.hass,
-                f"{DOMAIN}_update_{self.host.mac}",
-                self.async_write_ha_state,
-            )
-        )
+        return self.coordinator.data.last_agent_accessible
 
 
 async def async_setup_entry(
@@ -68,10 +60,11 @@ async def async_setup_entry(
     @callback
     def async_add_host_sensor(mac_address: str) -> None:
         """Add a sensor entity for a newly discovered host."""
-        host = manager.hosts[mac_address]
+        coordinator = manager.coordinators[mac_address]
+        host = coordinator.data
         # Only add sensor if host has agent configuration
         if host.address and host.agent_port and host.api_key:
-            async_add_entities([GrubStationManagerSensor(hass, host)])
+            async_add_entities([GrubStationManagerSensor(coordinator)])
 
     # Add entities for hosts that already exist in the manager
     for mac in manager.hosts:

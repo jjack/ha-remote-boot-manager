@@ -17,7 +17,7 @@ from homeassistant.const import (
 from .const import (
     CONF_AGENT_VERSION,
     CONF_BOOT_OPTIONS,
-    CONF_OS_SERVICE,
+    CONF_OS_MANAGER,
     DEFAULT_BOOT_OPTION_NONE,
 )
 
@@ -37,10 +37,11 @@ class RemoteHost:
     boot_options: list[str] = field(default_factory=list)
     broadcast_address: str | None = None
     broadcast_port: int | None = None
-    os_service: str | None = None
+    os_manager: str | None = None
 
     # Agent accessibility status
     is_agent_accessible: bool = False
+    is_powered_on: bool = False
     last_agent_accessible: str | None = None
 
     # this comes from the UI, not the webhook
@@ -60,7 +61,7 @@ class RemoteHost:
             CONF_BROADCAST_ADDRESS, self.broadcast_address
         )
         self.broadcast_port = payload.get(CONF_BROADCAST_PORT, self.broadcast_port)
-        self.os_service = payload.get(CONF_OS_SERVICE, self.os_service)
+        self.os_manager = payload.get(CONF_OS_MANAGER, self.os_manager)
 
 
 type GrubStationManagerConfigEntry = ConfigEntry["GrubStationManager"]

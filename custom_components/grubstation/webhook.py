@@ -22,7 +22,7 @@ from homeassistant.helpers.device_registry import format_mac
 from .const import (
     CONF_AGENT_VERSION,
     CONF_BOOT_OPTIONS,
-    CONF_OS_SERVICE,
+    CONF_OS_MANAGER,
     DEFAULT_AGENT_PORT,
     LOGGER,
     WEBHOOK_MAX_PAYLOAD_BYTES,
@@ -34,7 +34,7 @@ WEBHOOK_SCHEMA = vol.Schema(
         vol.Required(CONF_ADDRESS): cv.string,
         vol.Required(CONF_BOOT_OPTIONS): vol.All(cv.ensure_list, [cv.string]),
         vol.Optional(CONF_AGENT_VERSION): cv.string,
-        vol.Optional(CONF_OS_SERVICE): cv.string,
+        vol.Optional(CONF_OS_MANAGER): cv.string,
         vol.Optional(CONF_BROADCAST_ADDRESS): cv.string,
         vol.Optional(CONF_BROADCAST_PORT): cv.port,
         vol.Optional(CONF_PORT, default=DEFAULT_AGENT_PORT): cv.port,

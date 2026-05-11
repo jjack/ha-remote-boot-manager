@@ -11,7 +11,7 @@ from custom_components.grubstation.binary_sensor import (
     GrubStationManagerBinarySensor,
     async_setup_entry,
 )
-from custom_components.grubstation.const import DOMAIN, SIGNAL_NEW_HOST
+from custom_components.grubstation.const import SIGNAL_NEW_HOST
 from custom_components.grubstation.data import RemoteHost
 
 
@@ -25,9 +25,20 @@ def mock_host():
     )
 
 
-async def test_binary_sensor_properties(hass: HomeAssistant, mock_host: RemoteHost):
+@pytest.fixture
+def mock_coordinator(mock_host):
+    """Return a mock coordinator."""
+    coordinator = MagicMock()
+    coordinator.data = mock_host
+    coordinator.host = mock_host
+    return coordinator
+
+
+async def test_binary_sensor_properties(
+    hass: HomeAssistant, mock_coordinator: MagicMock
+):
     """Test binary sensor properties."""
-    sensor = GrubStationManagerBinarySensor(hass, mock_host)
+    sensor = GrubStationManagerBinarySensor(mock_coordinator)
 
     assert sensor.unique_id == "00:11:22:33:44:55_health_status"
     assert sensor.name == "Agent Status"
@@ -41,15 +52,17 @@ async def test_binary_sensor_properties(hass: HomeAssistant, mock_host: RemoteHo
     }
 
     # Test state change
-    mock_host.is_agent_accessible = False
+    mock_coordinator.data.is_agent_accessible = False
     assert sensor.is_on is False
 
 
-async def test_async_setup_entry(hass: HomeAssistant):
+async def test_async_setup_entry(hass: HomeAssistant, mock_coordinator: MagicMock):
     """Test setting up the binary sensor platform."""
     mock_entry = MagicMock()
     mock_manager = MagicMock()
-    mock_manager.hosts = {"00:11:22:33:44:55": RemoteHost(mac="00:11:22:33:44:55")}
+    mac = "00:11:22:33:44:55"
+    mock_manager.hosts = {mac: mock_coordinator.data}
+    mock_manager.coordinators = {mac: mock_coordinator}
     mock_entry.runtime_data = mock_manager
 
     mock_add_entities = MagicMock(spec=AddEntitiesCallback)
@@ -64,7 +77,7 @@ async def test_async_setup_entry(hass: HomeAssistant):
         added_entities = mock_add_entities.call_args[0][0]
         assert len(added_entities) == 1
         assert isinstance(added_entities[0], GrubStationManagerBinarySensor)
-        assert added_entities[0].host.mac == "00:11:22:33:44:55"
+        assert added_entities[0].host.mac == mac
 
         # Should connect to the new host signal
         mock_dispatch.assert_called_once()
@@ -72,33 +85,18 @@ async def test_async_setup_entry(hass: HomeAssistant):
 
         # Test signal callback
         callback = mock_dispatch.call_args[0][2]
-        mock_manager.hosts["AA:BB:CC:DD:EE:FF"] = RemoteHost(mac="AA:BB:CC:DD:EE:FF")
+        new_mac = "AA:BB:CC:DD:EE:FF"
+        new_host = RemoteHost(mac=new_mac)
+        new_coordinator = MagicMock()
+        new_coordinator.data = new_host
+        new_coordinator.host = new_host
+        mock_manager.hosts[new_mac] = new_host
+        mock_manager.coordinators[new_mac] = new_coordinator
         mock_add_entities.reset_mock()
-        callback("AA:BB:CC:DD:EE:FF")
+        callback(new_mac)
 
         mock_add_entities.assert_called_once()
         added_entities = mock_add_entities.call_args[0][0]
         assert len(added_entities) == 1
         assert isinstance(added_entities[0], GrubStationManagerBinarySensor)
-        assert added_entities[0].host.mac == "AA:BB:CC:DD:EE:FF"
-
-
-async def test_async_added_to_hass(hass: HomeAssistant, mock_host: RemoteHost):
-    """Test entity added to hass connects to dispatcher."""
-    sensor = GrubStationManagerBinarySensor(hass, mock_host)
-    sensor.hass = hass
-
-    with (
-        patch(
-            "custom_components.grubstation.binary_sensor.async_dispatcher_connect"
-        ) as mock_dispatch,
-        patch.object(sensor, "async_on_remove") as mock_on_remove,
-    ):
-        await sensor.async_added_to_hass()
-
-        mock_dispatch.assert_called_once_with(
-            hass,
-            f"{DOMAIN}_update_00:11:22:33:44:55",
-            sensor.async_write_ha_state,
-        )
-        mock_on_remove.assert_called_once()
+        assert added_entities[0].host.mac == new_mac

@@ -11,17 +11,21 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.core import callback
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, SIGNAL_NEW_HOST
+from .coordinator import GrubStationCoordinator
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-    from .data import GrubStationManagerConfigEntry, RemoteHost
+    from .data import GrubStationManagerConfigEntry
 
 
-class GrubStationManagerBinarySensor(BinarySensorEntity):
+class GrubStationManagerBinarySensor(
+    CoordinatorEntity[GrubStationCoordinator], BinarySensorEntity
+):
     """GrubStation binary sensor class."""
 
     _attr_has_entity_name = True
@@ -30,11 +34,11 @@ class GrubStationManagerBinarySensor(BinarySensorEntity):
 
     def __init__(
         self,
-        hass: HomeAssistant,  # noqa: ARG002
-        host: RemoteHost,
+        coordinator: GrubStationCoordinator,
     ) -> None:
         """Initialize the binary sensor class."""
-        self.host = host
+        super().__init__(coordinator)
+        self.host = coordinator.data
 
         self._attr_unique_id = f"{self.host.mac}_health_status"
         self._attr_name = "Agent Status"
@@ -47,24 +51,14 @@ class GrubStationManagerBinarySensor(BinarySensorEntity):
     @property
     def is_on(self) -> bool:
         """Return true if the binary sensor is on."""
-        return self.host.is_agent_accessible
+        return self.coordinator.data.is_agent_accessible
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return the state attributes."""
         return {
-            "last_agent_accessible": self.host.last_agent_accessible,
+            "last_agent_accessible": self.coordinator.data.last_agent_accessible,
         }
-
-    async def async_added_to_hass(self) -> None:
-        """Run when entity about to be added to hass."""
-        self.async_on_remove(
-            async_dispatcher_connect(
-                self.hass,
-                f"{DOMAIN}_update_{self.host.mac}",
-                self.async_write_ha_state,
-            )
-        )
 
 
 async def async_setup_entry(
@@ -78,8 +72,8 @@ async def async_setup_entry(
     @callback
     def async_add_host_binary_sensor(mac_address: str) -> None:
         """Add a binary sensor entity for a newly discovered host."""
-        host = manager.hosts[mac_address]
-        async_add_entities([GrubStationManagerBinarySensor(hass, host)])
+        coordinator = manager.coordinators[mac_address]
+        async_add_entities([GrubStationManagerBinarySensor(coordinator)])
 
     # Add entities for hosts that already exist in the manager
     for mac in manager.hosts:

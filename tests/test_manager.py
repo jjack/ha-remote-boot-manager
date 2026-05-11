@@ -1,6 +1,5 @@
 """Tests for the GrubStationManager."""
 
-from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -22,14 +21,27 @@ def mock_store():
 
 
 @pytest.fixture
-def manager(hass, mock_store):
+def mock_coordinator():
+    """Mock the GrubStationCoordinator."""
+    with patch(
+        "custom_components.grubstation.manager.GrubStationCoordinator"
+    ) as mock_class:
+        mock_instance = MagicMock()
+        mock_instance.async_config_entry_first_refresh = AsyncMock()
+        mock_instance.async_set_updated_data = MagicMock()
+        mock_class.return_value = mock_instance
+        yield mock_instance
+
+
+@pytest.fixture
+def manager(hass, mock_store, mock_coordinator):
     """Fixture for providing a clean GrubStationManager."""
     manager = GrubStationManager(hass)
     yield manager
     manager.async_unload()
 
 
-async def test_async_process_webhook_payload_new_host(manager, hass):
+async def test_async_process_webhook_payload_new_host(manager, hass, mock_coordinator):
     """Test that a new host is added correctly from a payload."""
     payload = {
         "address": "test.local",
@@ -44,6 +56,7 @@ async def test_async_process_webhook_payload_new_host(manager, hass):
         manager.async_process_webhook_payload("00:11:22:33:44:55", payload)
 
         assert "00:11:22:33:44:55" in manager.hosts
+        assert "00:11:22:33:44:55" in manager.coordinators
         host = manager.hosts["00:11:22:33:44:55"]
         assert isinstance(host, RemoteHost)
         assert host.address == "test.local"
@@ -53,9 +66,12 @@ async def test_async_process_webhook_payload_new_host(manager, hass):
         assert host.broadcast_port == 9
 
         mock_dispatch.assert_called_once()
+        mock_coordinator.async_set_updated_data.assert_called_once_with(host)
 
 
-async def test_async_process_webhook_payload_none_option_already_present(manager, hass):
+async def test_async_process_webhook_payload_none_option_already_present(
+    manager, hass, mock_coordinator
+):
     """Test that the default none boot option is not duplicated if already present."""
     payload = {
         "address": "test.local",
@@ -66,16 +82,22 @@ async def test_async_process_webhook_payload_none_option_already_present(manager
 
     host = manager.hosts["00:11:22:33:44:55"]
     assert host.boot_options == [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "windows"]
+    mock_coordinator.async_set_updated_data.assert_called_once_with(host)
 
 
-async def test_async_process_webhook_payload_update_existing_host(manager, hass):
+async def test_async_process_webhook_payload_update_existing_host(
+    manager, hass, mock_coordinator
+):
     """Test that an existing host is updated correctly and does NOT rename in HA."""
     # Setup existing host
-    manager.hosts["00:11:22:33:44:55"] = RemoteHost(
-        mac="00:11:22:33:44:55",
+    mac = "00:11:22:33:44:55"
+    host = RemoteHost(
+        mac=mac,
         address="old-hostname.local",
         boot_options=["ubuntu"],
     )
+    manager.hosts[mac] = host
+    manager.coordinators[mac] = mock_coordinator
 
     payload = {
         "address": "new-hostname.local",
@@ -84,33 +106,36 @@ async def test_async_process_webhook_payload_update_existing_host(manager, hass)
         "broadcast_port": 7,
     }
 
-    manager.async_process_webhook_payload("00:11:22:33:44:55", payload)
+    manager.async_process_webhook_payload(mac, payload)
 
-    host = manager.hosts["00:11:22:33:44:55"]
     assert host.address == "new-hostname.local"
     assert host.boot_options == [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "arch"]
     assert host.broadcast_address == "10.0.0.255"
     assert host.broadcast_port == 7
+    mock_coordinator.async_set_updated_data.assert_called_once_with(host)
 
 
-async def test_async_set_and_consume_next_boot_option(manager, hass):
+async def test_async_set_and_consume_next_boot_option(manager, hass, mock_coordinator):
     """Test setting and safely consuming the next boot option."""
-    manager.hosts["00:11:22:33:44:55"] = RemoteHost(
-        mac="00:11:22:33:44:55",
+    mac = "00:11:22:33:44:55"
+    host = RemoteHost(
+        mac=mac,
         address="test.local",
         boot_options=[DEFAULT_BOOT_OPTION_NONE, "ubuntu", "windows"],
     )
+    manager.hosts[mac] = host
+    manager.coordinators[mac] = mock_coordinator
 
     # Set the option
-    manager.async_set_next_boot_option("00:11:22:33:44:55", "windows")
-    assert manager.hosts["00:11:22:33:44:55"].next_boot_option == "windows"
+    manager.async_set_next_boot_option(mac, "windows")
+    assert host.next_boot_option == "windows"
+    mock_coordinator.async_set_updated_data.assert_called_with(host)
 
     # Consume the option (should return it, and reset state)
-    consumed = manager.async_consume_next_boot_option("00:11:22:33:44:55")
+    consumed = manager.async_consume_next_boot_option(mac)
     assert consumed == "windows"
-    assert (
-        manager.hosts["00:11:22:33:44:55"].next_boot_option == DEFAULT_BOOT_OPTION_NONE
-    )
+    assert host.next_boot_option == DEFAULT_BOOT_OPTION_NONE
+    mock_coordinator.async_set_updated_data.assert_called_with(host)
 
 
 async def test_async_remove_host_invalid_mac(manager, hass):
@@ -136,7 +161,7 @@ async def test_async_load_no_data(manager, mock_store):
     assert manager.hosts == {}
 
 
-async def test_async_load_valid_data(manager, mock_store):
+async def test_async_load_valid_data(manager, mock_store, mock_coordinator):
     """Test loading valid host data from storage."""
     mock_store.async_load.return_value = {
         "hosts": {
@@ -150,8 +175,10 @@ async def test_async_load_valid_data(manager, mock_store):
     await manager.async_load()
 
     assert "00:11:22:33:44:55" in manager.hosts
+    assert "00:11:22:33:44:55" in manager.coordinators
     host = manager.hosts["00:11:22:33:44:55"]
     assert host.address == "stored.local"
+    mock_coordinator.async_config_entry_first_refresh.assert_awaited_once()
 
 
 async def test_async_load_invalid_data_format(manager, mock_store):
@@ -168,7 +195,7 @@ async def test_async_load_invalid_data_format(manager, mock_store):
     assert "Discarding invalid host data" in mock_warn.call_args[0][0]
 
 
-async def test_async_load_filters_extra_keys(manager, mock_store):
+async def test_async_load_filters_extra_keys(manager, mock_store, mock_coordinator):
     """Test loading data with unknown keys correctly filters them out."""
     mock_store.async_load.return_value = {
         "hosts": {
@@ -195,27 +222,33 @@ async def test_async_purge_data(manager, mock_store):
     )
     await manager.async_purge_data()
     assert not manager.hosts
+    assert not manager.coordinators
     mock_store.async_remove.assert_awaited_once()
 
 
-async def test_async_process_webhook_payload_resets_invalid_next_boot(manager, hass):
+async def test_async_process_webhook_payload_resets_invalid_next_boot(
+    manager, hass, mock_coordinator
+):
     """Test that next_boot_option is reset if it becomes invalid after an update."""
-    manager.hosts["00:11:22:33:44:55"] = RemoteHost(
-        mac="00:11:22:33:44:55",
+    mac = "00:11:22:33:44:55"
+    host = RemoteHost(
+        mac=mac,
         address="test.local",
         boot_options=["ubuntu", "windows"],
         next_boot_option="windows",  # This will become invalid
     )
+    manager.hosts[mac] = host
+    manager.coordinators[mac] = mock_coordinator
     payload = {
         "address": "test.local",
         "boot_options": ["ubuntu", "fedora"],
     }
 
-    manager.async_process_webhook_payload("00:11:22:33:44:55", payload)
+    manager.async_process_webhook_payload(mac, payload)
 
-    host = manager.hosts["00:11:22:33:44:55"]
     assert host.boot_options == [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "fedora"]
     assert host.next_boot_option == DEFAULT_BOOT_OPTION_NONE
+    mock_coordinator.async_set_updated_data.assert_called_once_with(host)
 
 
 async def test_async_set_next_boot_option_invalid_mac(manager, hass):
@@ -234,15 +267,18 @@ async def test_async_consume_next_boot_option_invalid_mac(manager, hass):
     assert consumed == DEFAULT_BOOT_OPTION_NONE
 
 
-async def test_async_remove_host(manager, hass):
+async def test_async_remove_host(manager, hass, mock_coordinator):
     """Test removing a host from the manager."""
-    manager.hosts["00:11:22:33:44:55"] = RemoteHost(
-        mac="00:11:22:33:44:55",
+    mac = "00:11:22:33:44:55"
+    manager.hosts[mac] = RemoteHost(
+        mac=mac,
         address="test.local",
     )
+    manager.coordinators[mac] = mock_coordinator
 
-    manager.async_remove_host("00:11:22:33:44:55")
-    assert "00:11:22:33:44:55" not in manager.hosts
+    manager.async_remove_host(mac)
+    assert mac not in manager.hosts
+    assert mac not in manager.coordinators
 
 
 async def test_save(manager, mock_store):
@@ -257,76 +293,3 @@ async def test_save(manager, mock_store):
     save_callback = mock_store.async_delay_save.call_args[0][0]
     data = save_callback()
     assert "00:11:22:33:44:55" in data["hosts"]
-
-
-async def test_async_poll_agent_status_success(manager, hass):
-    """Test polling agent status sets is_agent_accessible and last_agent_accessible correctly."""
-    manager.hosts["00:11:22:33:44:55"] = RemoteHost(
-        mac="00:11:22:33:44:55",
-        address="test.local",
-        agent_port=8081,
-        api_key="secret",
-        is_agent_accessible=False,
-    )
-    now = datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC)
-
-    with (
-        patch(
-            "custom_components.grubstation.manager.async_check_agent_status",
-            return_value=True,
-        ) as mock_check,
-        patch(
-            "custom_components.grubstation.manager.async_dispatcher_send"
-        ) as mock_dispatch,
-        patch.object(manager, "save") as mock_save,
-    ):
-        await manager.async_poll_agent_status(now)
-
-        mock_check.assert_called_once_with(hass, "test.local", 8081, "secret")
-
-        host = manager.hosts["00:11:22:33:44:55"]
-        assert host.is_agent_accessible is True
-        assert host.last_agent_accessible == now.isoformat()
-
-        mock_save.assert_called_once()
-        mock_dispatch.assert_called_once_with(
-            hass, "grubstation_update_00:11:22:33:44:55"
-        )
-
-
-async def test_async_poll_agent_status_failure(manager, hass):
-    """Test polling agent status handles failure and updates state."""
-    manager.hosts["00:11:22:33:44:55"] = RemoteHost(
-        mac="00:11:22:33:44:55",
-        address="test.local",
-        agent_port=8081,
-        api_key="secret",
-        is_agent_accessible=True,
-        last_agent_accessible="2023-01-01T12:00:00+00:00",
-    )
-    now = datetime(2023, 1, 1, 12, 1, 0, tzinfo=UTC)
-
-    with (
-        patch(
-            "custom_components.grubstation.manager.async_check_agent_status",
-            return_value=False,
-        ) as mock_check,
-        patch(
-            "custom_components.grubstation.manager.async_dispatcher_send"
-        ) as mock_dispatch,
-        patch.object(manager, "save") as mock_save,
-    ):
-        await manager.async_poll_agent_status(now)
-
-        mock_check.assert_called_once_with(hass, "test.local", 8081, "secret")
-
-        host = manager.hosts["00:11:22:33:44:55"]
-        assert host.is_agent_accessible is False
-        assert (
-            host.last_agent_accessible == "2023-01-01T12:00:00+00:00"
-        )  # should remain unchanged
-
-        mock_save.assert_called_once()
-        mock_dispatch.assert_called_once_with(
-            hass, "grubstation_update_00:11:22:33:44:55"
-        )

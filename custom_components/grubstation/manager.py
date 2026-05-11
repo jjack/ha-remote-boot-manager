@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import dataclasses
-from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
-import homeassistant.util.dt as dt_util
 from homeassistant.const import (
     CONF_ADDRESS,
     CONF_API_KEY,
@@ -17,14 +15,12 @@ from homeassistant.const import (
 from homeassistant.core import callback
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.dispatcher import async_dispatcher_send
-from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.storage import Store
 
-from .agent import async_check_agent_status
 from .const import (
     CONF_AGENT_VERSION,
     CONF_BOOT_OPTIONS,
-    CONF_OS_SERVICE,
+    CONF_OS_MANAGER,
     DEFAULT_AGENT_PORT,
     DEFAULT_BOOT_OPTION_NONE,
     DOMAIN,
@@ -32,6 +28,7 @@ from .const import (
     SAVE_DELAY,
     SIGNAL_NEW_HOST,
 )
+from .coordinator import GrubStationCoordinator
 from .data import RemoteHost
 
 if TYPE_CHECKING:
@@ -46,11 +43,11 @@ class GrubStationManager:
         self.hass = hass
 
         self.hosts: dict[str, RemoteHost] = {}
+        self.coordinators: dict[str, GrubStationCoordinator] = {}
         self._store = Store(hass, 1, f"{DOMAIN}.hosts")
-        self._unsub_agent_poll: Any | None = None
 
     async def async_load(self) -> None:
-        """Load data from storage and start agent accessibility polling."""
+        """Load data from storage and initialize coordinators."""
         data = await self._store.async_load()
         if data and "hosts" in data:
             self.hosts = {}
@@ -63,44 +60,17 @@ class GrubStationManager:
                     filtered_data = {
                         k: v for k, v in host_data.items() if k in valid_keys
                     }
-                    self.hosts[mac] = RemoteHost(**filtered_data)
+                    host = RemoteHost(**filtered_data)
+                    self.hosts[mac] = host
+                    self.coordinators[mac] = GrubStationCoordinator(self.hass, host)
                 else:
                     LOGGER.warning(
                         "Discarding invalid host data for %s: %s", mac, host_data
                     )
 
-        # Stop existing polling if re-loading
-        if self._unsub_agent_poll:
-            self._unsub_agent_poll()
-
-        # Start background agent accessibility polling
-        self._unsub_agent_poll = async_track_time_interval(
-            self.hass, self.async_poll_agent_status, timedelta(seconds=60)
-        )
-
-        # Trigger an initial agent check asynchronously
-        self.hass.async_create_task(self.async_poll_agent_status(dt_util.utcnow()))
-
-    async def async_poll_agent_status(self, now: datetime) -> None:
-        """Poll the agent status endpoint for all known hosts."""
-        for mac, host in self.hosts.items():
-            if host.address and host.agent_port and host.api_key:
-                is_accessible = await async_check_agent_status(
-                    self.hass, host.address, host.agent_port, host.api_key
-                )
-
-                state_changed = host.is_agent_accessible != is_accessible
-                host.is_agent_accessible = is_accessible
-
-                if is_accessible:
-                    host.last_agent_accessible = now.isoformat()
-                    # always trigger update if accessible to update
-                    # last_agent_accessible
-                    state_changed = True
-
-                if state_changed:
-                    self.save()
-                    async_dispatcher_send(self.hass, f"{DOMAIN}_update_{mac}")
+        # Start background agent accessibility polling for all coordinators
+        for coordinator in self.coordinators.values():
+            await coordinator.async_config_entry_first_refresh()
 
     async def async_purge_data(self) -> None:
         """Purge data from storage."""
@@ -111,9 +81,7 @@ class GrubStationManager:
     @callback
     def async_unload(self) -> None:
         """Stop polling and cleanup."""
-        if self._unsub_agent_poll:
-            self._unsub_agent_poll()
-            self._unsub_agent_poll = None
+        self.coordinators.clear()
 
     @callback
     def async_remove_host(self, mac_address: str) -> None:
@@ -121,6 +89,7 @@ class GrubStationManager:
         mac_address = format_mac(mac_address)
         if mac_address in self.hosts:
             self.hosts.pop(mac_address)
+            self.coordinators.pop(mac_address, None)
             self.save()
             LOGGER.info("Removed host: %s", mac_address)
 
@@ -144,7 +113,7 @@ class GrubStationManager:
 
         is_new_host = mac_address not in self.hosts
         if is_new_host:
-            self.hosts[mac_address] = RemoteHost(
+            host = RemoteHost(
                 mac=mac_address,
                 address=payload.get(CONF_ADDRESS),
                 agent_port=payload.get(CONF_PORT, DEFAULT_AGENT_PORT),
@@ -153,8 +122,10 @@ class GrubStationManager:
                 boot_options=payload.get(CONF_BOOT_OPTIONS) or [],
                 broadcast_address=payload.get(CONF_BROADCAST_ADDRESS),
                 broadcast_port=payload.get(CONF_BROADCAST_PORT),
-                os_service=payload.get(CONF_OS_SERVICE),
+                os_manager=payload.get(CONF_OS_MANAGER),
             )
+            self.hosts[mac_address] = host
+            self.coordinators[mac_address] = GrubStationCoordinator(self.hass, host)
 
             LOGGER.info(
                 "Discovered new host: %s",
@@ -170,7 +141,8 @@ class GrubStationManager:
             )
 
         # add "(none)" option to the front of the list if it's not already there
-        current_options = self.hosts[mac_address].boot_options
+        host = self.hosts[mac_address]
+        current_options = host.boot_options
         if not current_options:
             boot_options = [DEFAULT_BOOT_OPTION_NONE]
         elif current_options[0] != DEFAULT_BOOT_OPTION_NONE:
@@ -179,21 +151,22 @@ class GrubStationManager:
             # It's already in the correct format
             boot_options = current_options
 
-        self.hosts[mac_address].boot_options = boot_options
+        host.boot_options = boot_options
 
         # If the selected boot option is no longer in the list, reset it
         if (
-            self.hosts[mac_address].next_boot_option not in boot_options
-            and self.hosts[mac_address].next_boot_option != DEFAULT_BOOT_OPTION_NONE
+            host.next_boot_option not in boot_options
+            and host.next_boot_option != DEFAULT_BOOT_OPTION_NONE
         ):
             # Prevent boot-loops into non-existent OSes if the host's reported
             # options changed (e.g., OS uninstalled).
-            self.hosts[mac_address].next_boot_option = DEFAULT_BOOT_OPTION_NONE
+            host.next_boot_option = DEFAULT_BOOT_OPTION_NONE
+
+        # Push the updated data to the coordinator
+        self.coordinators[mac_address].async_set_updated_data(host)
 
         if is_new_host:
             async_dispatcher_send(self.hass, SIGNAL_NEW_HOST, mac_address)
-        else:
-            async_dispatcher_send(self.hass, f"{DOMAIN}_update_{mac_address}")
 
         self.save()
 
@@ -204,9 +177,13 @@ class GrubStationManager:
         """Notify listeners that the selected boot option has changed."""
         mac_address = format_mac(mac_address)
         if mac_address in self.hosts:
-            self.hosts[mac_address].next_boot_option = next_boot_option
+            host = self.hosts[mac_address]
+            host.next_boot_option = next_boot_option
             self.save()
-            async_dispatcher_send(self.hass, f"{DOMAIN}_update_{mac_address}")
+
+            # Push the updated data to the coordinator
+            self.coordinators[mac_address].async_set_updated_data(host)
+
             LOGGER.debug(
                 "Set selected boot option for %s to %s",
                 mac_address,
@@ -225,11 +202,13 @@ class GrubStationManager:
 
         # grab the selected boot option and reset the state for next boot to
         # prevent boot loops
-        next_boot_option = self.hosts[mac_address].next_boot_option
-        self.hosts[mac_address].next_boot_option = DEFAULT_BOOT_OPTION_NONE
+        host = self.hosts[mac_address]
+        next_boot_option = host.next_boot_option
+        host.next_boot_option = DEFAULT_BOOT_OPTION_NONE
         self.save()
 
-        # Notify UI to revert the dropdown back to "(none)"
-        async_dispatcher_send(self.hass, f"{DOMAIN}_update_{mac_address}")
+        # Push the updated data to the coordinator
+        # This will notify the UI to revert the dropdown back to "(none)"
+        self.coordinators[mac_address].async_set_updated_data(host)
 
         return next_boot_option

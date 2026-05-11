@@ -14,7 +14,13 @@ async def test_async_setup_entry(hass):
     """Test the setup entry logic, including the dispatcher connection."""
     mock_entry = MagicMock()
     mock_manager = MagicMock()
-    mock_manager.hosts = {"00:11:22:33:44:55": MagicMock()}
+    mac = "00:11:22:33:44:55"
+    mock_host = MagicMock()
+    mock_coordinator = MagicMock()
+    mock_coordinator.data = mock_host
+    mock_coordinator.host = mock_host
+    mock_manager.hosts = {mac: mock_host}
+    mock_manager.coordinators = {mac: mock_coordinator}
     mock_entry.runtime_data = mock_manager
     async_add_entities = MagicMock()
 
@@ -29,8 +35,14 @@ async def test_async_setup_entry(hass):
 
         # Verify the dispatcher callback adds the new entity
         callback = mock_connect.call_args[0][2]
-        mock_manager.hosts["AA:BB:CC:DD:EE:FF"] = MagicMock()
-        callback("AA:BB:CC:DD:EE:FF")
+        new_mac = "AA:BB:CC:DD:EE:FF"
+        new_host = MagicMock()
+        new_coordinator = MagicMock()
+        new_coordinator.data = new_host
+        new_coordinator.host = new_host
+        mock_manager.hosts[new_mac] = new_host
+        mock_manager.coordinators[new_mac] = new_coordinator
+        callback(new_mac)
         assert async_add_entities.call_count == 2
 
 
@@ -39,15 +51,17 @@ async def test_select_init_model_name(hass):
     manager = MagicMock()
 
     # With broadcast info
-    manager.hosts = {
-        "00:11:22:33:44:55": RemoteHost(
-            mac="00:11:22:33:44:55",
-            address="test.local",
-            broadcast_address="192.168.1.255",
-            broadcast_port=9,
-        )
-    }
-    select = GrubStationManagerSelect(manager, "00:11:22:33:44:55")
+    host = RemoteHost(
+        mac="00:11:22:33:44:55",
+        address="test.local",
+        broadcast_address="192.168.1.255",
+        broadcast_port=9,
+    )
+    coordinator = MagicMock()
+    coordinator.data = host
+    coordinator.host = host
+
+    select = GrubStationManagerSelect(manager, coordinator)
     assert select.device_info is not None
     assert select.device_info.get("name") == "00:11:22:33:44:55"
     assert (
@@ -56,13 +70,15 @@ async def test_select_init_model_name(hass):
     )
 
     # Without broadcast info
-    manager.hosts = {
-        "AA:BB:CC:DD:EE:FF": RemoteHost(
-            mac="AA:BB:CC:DD:EE:FF",
-            address="test2.local",
-        )
-    }
-    select2 = GrubStationManagerSelect(manager, "AA:BB:CC:DD:EE:FF")
+    host2 = RemoteHost(
+        mac="AA:BB:CC:DD:EE:FF",
+        address="test2.local",
+    )
+    coordinator2 = MagicMock()
+    coordinator2.data = host2
+    coordinator2.host = host2
+
+    select2 = GrubStationManagerSelect(manager, coordinator2)
     assert select2.device_info is not None
     assert select2.device_info.get("model") == "Wake-on-LAN"
 
@@ -70,22 +86,27 @@ async def test_select_init_model_name(hass):
 async def test_select_properties(hass):
     """Test the options and current_option properties."""
     manager = MagicMock()
-    manager.hosts = {
-        "00:11:22:33:44:55": RemoteHost(
-            mac="00:11:22:33:44:55",
-            address="test.local",
-            boot_options=["ubuntu", "windows"],
-            next_boot_option="windows",
-        )
-    }
-    select = GrubStationManagerSelect(manager, "00:11:22:33:44:55")
+    host = RemoteHost(
+        mac="00:11:22:33:44:55",
+        address="test.local",
+        boot_options=["ubuntu", "windows"],
+        next_boot_option="windows",
+    )
+    coordinator = MagicMock()
+    coordinator.data = host
+    coordinator.host = host
+
+    select = GrubStationManagerSelect(manager, coordinator)
 
     assert select.options == [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "windows"]
     assert select.current_option == "windows"
 
-    # Test fallback when host missing
-    select_missing = GrubStationManagerSelect(manager, "00:11:22:33:44:55")
-    select_missing.mac_address = "missing"
+    # Test fallback when host missing (empty boot_options)
+    host_missing = RemoteHost(mac="missing", address="missing")
+    coordinator_missing = MagicMock()
+    coordinator_missing.data = host_missing
+    coordinator_missing.host = host_missing
+    select_missing = GrubStationManagerSelect(manager, coordinator_missing)
     assert select_missing.options == [DEFAULT_BOOT_OPTION_NONE]
     assert select_missing.current_option == DEFAULT_BOOT_OPTION_NONE
 
@@ -93,13 +114,15 @@ async def test_select_properties(hass):
 async def test_async_select_option(hass):
     """Test selecting an option."""
     manager = MagicMock()
-    manager.hosts = {
-        "00:11:22:33:44:55": RemoteHost(
-            mac="00:11:22:33:44:55",
-            address="test.local",
-        )
-    }
-    select = GrubStationManagerSelect(manager, "00:11:22:33:44:55")
+    host = RemoteHost(
+        mac="00:11:22:33:44:55",
+        address="test.local",
+    )
+    coordinator = MagicMock()
+    coordinator.data = host
+    coordinator.host = host
+
+    select = GrubStationManagerSelect(manager, coordinator)
 
     await select.async_select_option("ubuntu")
     manager.async_set_next_boot_option.assert_called_once_with(

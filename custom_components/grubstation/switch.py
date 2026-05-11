@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from functools import partial
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import wakeonlan
 from homeassistant.components.switch import SwitchDeviceClass, SwitchEntity
@@ -12,55 +12,42 @@ from homeassistant.core import callback
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.script import Script
-from icmplib import async_ping
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .agent import async_send_turn_off_command
 from .const import (
     DOMAIN,
-    PING_COUNT,
-    PING_TIMEOUT_SECONDS,
     SIGNAL_NEW_HOST,
     WAIT_FOR_HOST_POWER_SECONDS,
 )
+from .coordinator import GrubStationCoordinator, _async_ping_host
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-    from .data import GrubStationManagerConfigEntry, RemoteHost
+    from .data import GrubStationManagerConfigEntry
 
 
-async def _async_ping_host(address: str) -> bool:
-    """Ping the given host asynchronously."""
-    try:
-        # privileged=False allows pinging without root privileges on most modern systems
-        # We cast to Any because icmplib lacks type hints, causing Pylance to
-        # misidentify the return type
-        result = await cast("Any", async_ping)(
-            address, count=PING_COUNT, timeout=PING_TIMEOUT_SECONDS, privileged=False
-        )
-    except Exception:  # noqa: BLE001
-        return False
-    else:
-        return result.is_alive
-
-
-class GrubStationManagerSwitch(SwitchEntity):
+class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], SwitchEntity):
     """GrubStation switch class."""
 
     def __init__(
         self,
         hass: HomeAssistant,
-        host: RemoteHost,
+        coordinator: GrubStationCoordinator,
     ) -> None:
         """Initialize the switch class."""
-        self.host = host
+        super().__init__(coordinator)
+        self.host = coordinator.data
 
         self._attr_unique_id = f"{self.host.mac}_wake_switch"
         self._attr_name = "Wake"
         self._attr_has_entity_name = True
         self._attr_device_class = SwitchDeviceClass.SWITCH
-        self._attr_is_on = False
+
+        # Use the initial state from the coordinator
+        self._attr_is_on = self.coordinator.data.is_powered_on
 
         self._ping_task: asyncio.Task | None = None
         self._turn_off_action = (
@@ -78,8 +65,8 @@ class GrubStationManagerSwitch(SwitchEntity):
         model_name = (
             f"({', '.join(broadcast_info)})" if broadcast_info else "GrubStation"
         )
-        if self.host.os_service:
-            model_name = f"{self.host.os_service} {model_name}"
+        if self.host.os_manager:
+            model_name = f"{self.host.os_manager} {model_name}"
 
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self.host.mac)},
@@ -89,6 +76,15 @@ class GrubStationManagerSwitch(SwitchEntity):
             sw_version=self.host.agent_version,
             connections={(CONNECTION_NETWORK_MAC, self.host.mac)},
         )
+
+    @property
+    def is_on(self) -> bool:
+        """Return true if the switch is on."""
+        # If we have an active ping loop (optimistic state), use that.
+        # Otherwise, use the coordinator data.
+        if self._ping_task and not self._ping_task.done():
+            return self._attr_is_on
+        return self.coordinator.data.is_powered_on
 
     @property
     def _ping_target(self) -> str | None:
@@ -102,20 +98,8 @@ class GrubStationManagerSwitch(SwitchEntity):
 
     @property
     def should_poll(self) -> bool:
-        """Enable polling only if we have a host to ping."""
-        return bool(self._ping_target)
-
-    async def async_update(self) -> None:
-        """Update entity state via standard polling."""
-        target = self._ping_target
-        if not target:
-            return
-
-        # don't change the state until the ping task is done
-        if self._ping_task and not self._ping_task.done():
-            return
-
-        self._attr_is_on = await _async_ping_host(target)
+        """Coordinator handles polling."""
+        return False
 
     async def async_turn_on(self, **kwargs: Any) -> None:  # noqa: ARG002
         """Turn the entity on."""
@@ -150,7 +134,9 @@ class GrubStationManagerSwitch(SwitchEntity):
         self.async_write_ha_state()
 
         if self._turn_off_action:
-            await self._turn_off_action.async_run(context=self._context)
+            await self._turn_off_action.async_run(
+                context=getattr(self, "_context", None)
+            )
         elif self.host.api_key and self.host.address and self.host.agent_port:
             await async_send_turn_off_command(
                 self.hass, self.host.address, self.host.agent_port, self.host.api_key
@@ -183,6 +169,8 @@ class GrubStationManagerSwitch(SwitchEntity):
         for _ in range(36):  # 36 iterations * 5 seconds = 180 seconds (3 mins)
             is_awake = await _async_ping_host(host)
             if is_awake == target_state:
+                # Trigger a coordinator refresh to sync all entities
+                await self.coordinator.async_request_refresh()
                 return
             try:
                 await asyncio.sleep(5)
@@ -209,8 +197,8 @@ async def async_setup_entry(
     @callback
     def async_add_host_switch(mac_address: str) -> None:
         """Add a switch entity for a newly discovered host."""
-        host = manager.hosts[mac_address]
-        async_add_entities([GrubStationManagerSwitch(hass, host)])
+        coordinator = manager.coordinators[mac_address]
+        async_add_entities([GrubStationManagerSwitch(hass, coordinator)])
 
     # Add entities for hosts that already exist in the manager
     for mac in manager.hosts:
