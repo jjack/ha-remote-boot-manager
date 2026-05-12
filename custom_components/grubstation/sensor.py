@@ -7,19 +7,17 @@ from typing import TYPE_CHECKING
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.const import EntityCategory
 from homeassistant.core import callback
-from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
-    DOMAIN,
     LOGGER,
     SIGNAL_HOST_REMOVED,
     SIGNAL_HOST_UPDATED,
     SIGNAL_NEW_HOST,
 )
 from .coordinator import GrubStationCoordinator
-from .utils import generate_model_name
+from .utils import generate_device_info
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -48,14 +46,7 @@ class GrubStationManagerSensor(CoordinatorEntity[GrubStationCoordinator], Sensor
         self._attr_name = "Last Successful Agent Healthcheck"
         self._attr_icon = "mdi:heart-pulse"
 
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, self.host.mac)},
-            name=self.host.mac,
-            manufacturer="GrubStation",
-            model=generate_model_name(self.host),
-            sw_version=self.host.daemon_version,
-            connections={(CONNECTION_NETWORK_MAC, self.host.mac)},
-        )
+        self._attr_device_info = generate_device_info(self.host)
 
     @property
     def native_value(self) -> str | None:
