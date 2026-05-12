@@ -1,5 +1,6 @@
 """Test the config flow."""
 
+import json
 from unittest.mock import MagicMock, patch
 
 from homeassistant import config_entries
@@ -290,3 +291,46 @@ async def test_options_flow_init_no_hosts_text(hass: HomeAssistant) -> None:
     assert "No hosts have checked in yet" in (
         (result.get("description_placeholders") or {}).get("menu_description") or ""
     )
+
+
+async def test_options_flow_serialization_safety(hass: HomeAssistant) -> None:
+    """Test that the host config form schema is JSON serializable.
+
+    This prevents 'Unknown error occurred' in the UI caused by vol.UNDEFINED.
+    """
+    entry = MockConfigEntry(domain=DOMAIN, data={"webhook_id": "test_id"})
+    entry.add_to_hass(hass)
+
+    mock_manager = MagicMock()
+    # Host with no off_action and some None fields to trigger vol.UNDEFINED previously
+    mock_host = RemoteHost(
+        mac="00:11:22:33:44:55",
+        address=None,
+        off_action=None,
+    )
+    mock_manager.hosts = {"00:11:22:33:44:55": mock_host}
+    entry.runtime_data = mock_manager
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result2 = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={"next_step_id": "select_host"},
+    )
+    result3 = await hass.config_entries.options.async_configure(
+        result2["flow_id"],
+        user_input={"host": "00:11:22:33:44:55"},
+    )
+
+    assert result3.get("type") == FlowResultType.FORM
+    assert result3.get("step_id") == "host_config"
+
+    schema = result3.get("data_schema")
+    assert schema is not None
+
+    descriptions = [
+        key.description for key in schema.schema if hasattr(key, "description")
+    ]
+
+    # This would raise TypeError if vol.UNDEFINED was present
+    json_str = json.dumps(descriptions)
+    assert "suggested_value" not in json_str

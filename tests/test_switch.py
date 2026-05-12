@@ -224,8 +224,11 @@ async def test_switch_async_turn_off_cancels_task(hass):
         address="test.local",
     )
     coordinator = get_mock_coordinator(hass, host)
-    switch = GrubStationManagerSwitch(hass, coordinator)
-    switch.hass = hass
+    with patch("custom_components.grubstation.switch.Script") as mock_script_class:
+        mock_script = mock_script_class.return_value
+        mock_script.async_run = AsyncMock()
+        switch = GrubStationManagerSwitch(hass, coordinator)
+        switch.hass = hass
 
     mock_task = MagicMock()
     mock_task.done.return_value = False

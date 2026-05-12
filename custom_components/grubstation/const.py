@@ -15,6 +15,7 @@ CONF_DAEMON_TOKEN: Final = "daemon_token"  # noqa: S105
 CONF_DAEMON_VERSION: Final = "daemon_version"
 CONF_BOOT_OPTIONS: Final = "boot_options"
 CONF_HOST_OS: Final = "host_os"
+CONF_TURN_OFF_ACTION: Final = "turn_off_action"
 
 DEFAULT_NAME: Final = "GrubStation"
 

@@ -17,7 +17,7 @@ from homeassistant.core import callback
 from homeassistant.helpers import selector
 from homeassistant.loader import async_get_loaded_integration
 
-from .const import DOMAIN, GRUB_OS_REPORTER_URL
+from .const import CONF_TURN_OFF_ACTION, DOMAIN, GRUB_OS_REPORTER_URL
 
 if TYPE_CHECKING:
     from .data import GrubStationManagerConfigEntry
@@ -200,7 +200,7 @@ class GrubStationManagerOptionsFlow(config_entries.OptionsFlow):
         host = manager.hosts[self.selected_mac]
 
         if user_input is not None:
-            host.off_action = user_input.get("turn_off_action")
+            host.off_action = user_input.get(CONF_TURN_OFF_ACTION)
             if not host.off_action:
                 host.off_action = None
 
@@ -215,40 +215,22 @@ class GrubStationManagerOptionsFlow(config_entries.OptionsFlow):
             # the reload listener
             return self.async_create_entry(title="", data={"updated_at": time.time()})
 
-        default_action = host.off_action or vol.UNDEFINED
-
         data_schema = {}
 
-        data_schema[
-            vol.Optional(
-                "turn_off_action",
-                description={"suggested_value": default_action},
-            )
-        ] = selector.ActionSelector({})
+        def _add_optional(key: str, value: Any, type_: Any) -> None:
+            if value is not None:
+                data_schema[
+                    vol.Optional(key, description={"suggested_value": value})
+                ] = type_
+            else:
+                data_schema[vol.Optional(key)] = type_
 
-        # Address values can be edited here for debugging but will be overwritten the
-        # next time the agent checks in.
-        data_schema[
-            vol.Optional(CONF_ADDRESS, description={"suggested_value": host.address})
-            if host.address is not None
-            else vol.Optional(CONF_ADDRESS)
-        ] = str
-        data_schema[
-            vol.Optional(
-                CONF_BROADCAST_ADDRESS,
-                description={"suggested_value": host.broadcast_address},
-            )
-            if host.broadcast_address is not None
-            else vol.Optional(CONF_BROADCAST_ADDRESS)
-        ] = str
-        data_schema[
-            vol.Optional(
-                CONF_BROADCAST_PORT,
-                description={"suggested_value": host.broadcast_port},
-            )
-            if host.broadcast_port is not None
-            else vol.Optional(CONF_BROADCAST_PORT)
-        ] = int
+        _add_optional(
+            CONF_TURN_OFF_ACTION, host.off_action, selector.ActionSelector({})
+        )
+        _add_optional(CONF_ADDRESS, host.address, str)
+        _add_optional(CONF_BROADCAST_ADDRESS, host.broadcast_address, str)
+        _add_optional(CONF_BROADCAST_PORT, host.broadcast_port, int)
 
         return self.async_show_form(
             step_id="host_config",
