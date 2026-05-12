@@ -10,8 +10,8 @@ import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 from aiohttp import web
 from homeassistant.const import (
+    CONF_ACTION,
     CONF_ADDRESS,
-    CONF_API_KEY,
     CONF_BROADCAST_ADDRESS,
     CONF_BROADCAST_PORT,
     CONF_MAC,
@@ -20,36 +20,46 @@ from homeassistant.const import (
 from homeassistant.helpers.device_registry import format_mac
 
 from .const import (
-    CONF_AGENT_VERSION,
-    CONF_BOOT_OPTIONS,
-    CONF_OS,
-    CONF_SERVICE_MANAGER,
-    DEFAULT_AGENT_PORT,
+    CONF_DAEMON_SERVICE_MANAGER,
+    CONF_DAEMON_TOKEN,
+    CONF_DAEMON_VERSION,
+    CONF_HOST_BOOT_OPTIONS,
+    CONF_HOST_OS,
     LOGGER,
     WEBHOOK_MAX_PAYLOAD_BYTES,
 )
 
-WEBHOOK_SCHEMA = vol.Schema(
+BASE_SCHEMA = vol.Schema(
     {
+        vol.Required(CONF_ACTION): cv.string,
         vol.Required(CONF_MAC): format_mac,
         vol.Required(CONF_ADDRESS): cv.string,
-        vol.Required(CONF_BOOT_OPTIONS): vol.All(cv.ensure_list, [cv.string]),
-        vol.Optional(CONF_AGENT_VERSION): cv.string,
-        vol.Optional(CONF_OS): cv.string,
-        vol.Optional(CONF_SERVICE_MANAGER): cv.string,
+        vol.Required(CONF_HOST_OS): cv.string,
+        vol.Required(CONF_DAEMON_VERSION): cv.string,
+    }
+)
+
+REGISTER_DAEMON_SCHEMA = BASE_SCHEMA.extend(
+    {
+        vol.Required(CONF_PORT): cv.port,
+        vol.Required(CONF_DAEMON_TOKEN): cv.string,
+        vol.Optional(CONF_DAEMON_SERVICE_MANAGER): cv.string,
+    }
+)
+
+UPDATE_BOOT_OPTIONS_SCHEMA = BASE_SCHEMA.extend(
+    {
+        vol.Required(CONF_HOST_BOOT_OPTIONS): vol.All(cv.ensure_list, [cv.string]),
         vol.Optional(CONF_BROADCAST_ADDRESS): cv.string,
         vol.Optional(CONF_BROADCAST_PORT): cv.port,
-        vol.Optional(CONF_PORT, default=DEFAULT_AGENT_PORT): cv.port,
-        vol.Optional(CONF_API_KEY): cv.string,
-    },
-    extra=vol.REMOVE_EXTRA,
+    }
 )
 
 
-async def async_validate_webhook_payload(
+async def async_parse_webhook_request(
     request: web.Request,
 ) -> tuple[dict[str, Any] | None, web.Response | None]:
-    """Validate and parse incoming webhook payload."""
+    """Parse and perform basic validation on the incoming webhook request."""
     body = await request.text()
     if not body:
         LOGGER.warning("Ignoring GrubStation push request webhook with empty body")
@@ -70,15 +80,21 @@ async def async_validate_webhook_payload(
             status=HTTPStatus.BAD_REQUEST, text="Invalid JSON payload"
         )
 
-    LOGGER.debug("Received GrubStation webhook with payload: %s", raw_payload)
-
-    try:
-        # Use cast to force the type checker to treat the output as a dict
-        payload = cast("dict[str, Any]", WEBHOOK_SCHEMA(raw_payload))
-    except vol.Invalid as err:
-        LOGGER.warning("Invalid webhook schema from incoming request: %s", err)
+    if not isinstance(raw_payload, dict):
+        LOGGER.warning("Webhook payload is not a JSON object")
         return None, web.Response(
-            status=HTTPStatus.BAD_REQUEST, text=f"Invalid payload format: {err}"
+            status=HTTPStatus.BAD_REQUEST, text="Payload must be a JSON object"
         )
 
-    return payload, None
+    LOGGER.debug("Received GrubStation webhook with payload: %s", raw_payload)
+    return raw_payload, None
+
+
+def validate_register_daemon_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Validate a register_daemon webhook payload."""
+    return cast("dict[str, Any]", REGISTER_DAEMON_SCHEMA(payload))
+
+
+def validate_update_boot_options_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Validate a update_boot_options webhook payload."""
+    return cast("dict[str, Any]", UPDATE_BOOT_OPTIONS_SCHEMA(payload))

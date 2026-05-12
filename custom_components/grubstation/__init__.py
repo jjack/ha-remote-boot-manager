@@ -17,8 +17,8 @@ import wakeonlan
 from aiohttp import web
 from homeassistant.components import webhook as ha_webhook
 from homeassistant.const import (
+    CONF_ACTION,
     CONF_ADDRESS,
-    CONF_API_KEY,
     CONF_BROADCAST_ADDRESS,
     CONF_BROADCAST_PORT,
     CONF_MAC,
@@ -29,6 +29,7 @@ from homeassistant.helpers.storage import Store
 
 from .agent import async_send_turn_off_command
 from .const import (
+    CONF_DAEMON_TOKEN,
     DEFAULT_AGENT_PORT,
     DOMAIN,
     LOGGER,
@@ -36,7 +37,11 @@ from .const import (
 )
 from .manager import GrubStationManager
 from .views import GrubConfigView
-from .webhook import async_validate_webhook_payload
+from .webhook import (
+    async_parse_webhook_request,
+    validate_register_daemon_payload,
+    validate_update_boot_options_payload,
+)
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant, ServiceCall
@@ -61,7 +66,7 @@ TURN_OFF_COMMAND_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_ADDRESS): cv.string,
         vol.Optional(CONF_PORT, default=DEFAULT_AGENT_PORT): cv.port,
-        vol.Required(CONF_API_KEY): cv.string,
+        vol.Required(CONF_DAEMON_TOKEN): cv.string,
     }
 )
 
@@ -100,7 +105,7 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:  # n
         # Required parameters are guaranteed by TURN_OFF_COMMAND_SCHEMA validation
         address: str = call.data[CONF_ADDRESS]
         agent_port: int = call.data[CONF_PORT]
-        api_key: str = call.data[CONF_API_KEY]
+        api_key: str = call.data[CONF_DAEMON_TOKEN]
 
         await async_send_turn_off_command(hass, address, agent_port, api_key)
 
@@ -131,7 +136,7 @@ async def async_setup_entry(
     await manager.async_load()
     entry.runtime_data = manager
 
-    async def handle_webhook(
+    async def handle_webhook(  # noqa: PLR0911
         hass: HomeAssistant,  # noqa: ARG001
         webhook_id: str,  # noqa: ARG001
         request: web.Request,
@@ -139,23 +144,43 @@ async def async_setup_entry(
         """Handle incoming boot option push requests."""
         try:
             LOGGER.debug("received webhook request: %s", request)
-            payload, error_response = await async_validate_webhook_payload(request)
+            raw_payload, error_response = await async_parse_webhook_request(request)
             if error_response:
                 return error_response
-            if payload is None:
+            if raw_payload is None:
                 return web.Response(
                     status=HTTPStatus.INTERNAL_SERVER_ERROR,
                     text="Unexpected empty payload",
                 )
-            if CONF_MAC not in payload:
+
+            action = raw_payload.get(CONF_ACTION)
+            if not action:
                 return web.Response(
-                    status=HTTPStatus.BAD_REQUEST,
-                    text="MAC address missing from payload",
+                    status=HTTPStatus.BAD_REQUEST, text="Missing action in payload"
                 )
 
-            manager.async_process_webhook_payload(payload[CONF_MAC], payload)
+            try:
+                if action == "register_daemon":
+                    payload = validate_register_daemon_payload(raw_payload)
+                    manager.async_register_daemon(payload[CONF_MAC], payload)
+                elif action == "update_boot_options":
+                    payload = validate_update_boot_options_payload(raw_payload)
+                    manager.async_update_boot_options(payload[CONF_MAC], payload)
+                else:
+                    return web.Response(
+                        status=HTTPStatus.BAD_REQUEST,
+                        text=f"Unknown action: {action}",
+                    )
+            except vol.Invalid as err:
+                LOGGER.warning("Invalid webhook schema: %s", err)
+                return web.Response(
+                    status=HTTPStatus.BAD_REQUEST,
+                    text=f"Invalid payload format: {err}",
+                )
+
             return web.Response(status=HTTPStatus.OK, text="OK")
         except Exception:  # noqa: BLE001
+            LOGGER.exception("Error handling webhook")
             return web.Response(
                 status=HTTPStatus.INTERNAL_SERVER_ERROR, text="Internal Server Error"
             )

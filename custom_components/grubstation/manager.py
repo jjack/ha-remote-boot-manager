@@ -7,9 +7,6 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.const import (
     CONF_ADDRESS,
-    CONF_API_KEY,
-    CONF_BROADCAST_ADDRESS,
-    CONF_BROADCAST_PORT,
     CONF_PORT,
 )
 from homeassistant.core import callback
@@ -18,10 +15,10 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.storage import Store
 
 from .const import (
-    CONF_AGENT_VERSION,
-    CONF_BOOT_OPTIONS,
-    CONF_OS,
-    CONF_SERVICE_MANAGER,
+    CONF_DAEMON_SERVICE_MANAGER,
+    CONF_DAEMON_TOKEN,
+    CONF_DAEMON_VERSION,
+    CONF_HOST_OS,
     DEFAULT_AGENT_PORT,
     DEFAULT_BOOT_OPTION_NONE,
     DOMAIN,
@@ -106,51 +103,65 @@ class GrubStationManager:
         }
 
     @callback
-    def async_process_webhook_payload(
-        self, mac_address: str, payload: dict[str, Any]
-    ) -> None:
-        """Process payloads from the bare-metal GrubStation cli reporters."""
+    def async_register_daemon(self, mac_address: str, payload: dict[str, Any]) -> None:
+        """Process registration payloads from the GrubStation agent."""
         mac_address = format_mac(mac_address)
 
-        is_new_host = mac_address not in self.hosts
-        if is_new_host:
+        if mac_address not in self.hosts:
             host = RemoteHost(
                 mac=mac_address,
-                address=payload.get(CONF_ADDRESS),
+                address=payload[CONF_ADDRESS],
                 agent_port=payload.get(CONF_PORT, DEFAULT_AGENT_PORT),
-                agent_version=payload.get(CONF_AGENT_VERSION),
-                api_key=payload.get(CONF_API_KEY),
-                boot_options=payload.get(CONF_BOOT_OPTIONS) or [],
-                broadcast_address=payload.get(CONF_BROADCAST_ADDRESS),
-                broadcast_port=payload.get(CONF_BROADCAST_PORT),
-                os=payload.get(CONF_OS),
-                service_manager=payload.get(CONF_SERVICE_MANAGER),
+                daemon_version=payload.get(CONF_DAEMON_VERSION),
+                api_key=payload[CONF_DAEMON_TOKEN],
+                os=payload.get(CONF_HOST_OS),
+                service_manager=payload.get(CONF_DAEMON_SERVICE_MANAGER),
             )
             self.hosts[mac_address] = host
             self.coordinators[mac_address] = GrubStationCoordinator(self.hass, host)
 
-            LOGGER.info(
-                "Discovered new host: %s",
-                mac_address,
-            )
+            # Ensure the coordinator has initial data before dispatching SIGNAL_NEW_HOST
+            # so that entities created by the signal can access coordinator.data
+            # immediately.
+            self.coordinators[mac_address].async_set_updated_data(host)
+
+            LOGGER.info("Discovered and registered new host: %s", mac_address)
+            async_dispatcher_send(self.hass, SIGNAL_NEW_HOST, mac_address)
         else:
             self.hosts[mac_address].update_from_payload(payload)
+            LOGGER.info("Updated registration for host: %s", mac_address)
 
-            LOGGER.info(
-                "Received update for host: %s - boot options: %s",
-                mac_address,
-                self.hosts[mac_address].boot_options,
+            # Push the updated data to the coordinator
+            self.coordinators[mac_address].async_set_updated_data(
+                self.hosts[mac_address]
             )
 
-        # add "(none)" option to the front of the list if it's not already there
+        self.save()
+
+    @callback
+    def async_update_boot_options(
+        self, mac_address: str, payload: dict[str, Any]
+    ) -> None:
+        """Process boot option push payloads from the GrubStation reporter."""
+        mac_address = format_mac(mac_address)
+
+        if mac_address not in self.hosts:
+            LOGGER.warning(
+                "Received boot options for unregistered host: %s. Ignoring.",
+                mac_address,
+            )
+            return
+
         host = self.hosts[mac_address]
+        host.update_from_payload(payload)
+
+        # Ensure "(none)" is the first option
         current_options = host.boot_options
         if not current_options:
             boot_options = [DEFAULT_BOOT_OPTION_NONE]
         elif current_options[0] != DEFAULT_BOOT_OPTION_NONE:
             boot_options = [DEFAULT_BOOT_OPTION_NONE, *current_options]
         else:
-            # It's already in the correct format
             boot_options = current_options
 
         host.boot_options = boot_options
@@ -160,16 +171,16 @@ class GrubStationManager:
             host.next_boot_option not in boot_options
             and host.next_boot_option != DEFAULT_BOOT_OPTION_NONE
         ):
-            # Prevent boot-loops into non-existent OSes if the host's reported
-            # options changed (e.g., OS uninstalled).
             host.next_boot_option = DEFAULT_BOOT_OPTION_NONE
+
+        LOGGER.info(
+            "Received boot options update for host: %s - options: %s",
+            mac_address,
+            host.boot_options,
+        )
 
         # Push the updated data to the coordinator
         self.coordinators[mac_address].async_set_updated_data(host)
-
-        if is_new_host:
-            async_dispatcher_send(self.hass, SIGNAL_NEW_HOST, mac_address)
-
         self.save()
 
     @callback

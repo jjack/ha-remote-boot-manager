@@ -2,17 +2,19 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from homeassistant.const import CONF_ADDRESS, CONF_API_KEY, CONF_PORT
+from homeassistant.const import CONF_ADDRESS, CONF_PORT
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.grubstation import (
+    PLATFORMS,
     async_reload_entry,
     async_remove_config_entry_device,
     async_remove_entry,
     async_setup,
     async_setup_entry,
+    async_unload_entry,
 )
-from custom_components.grubstation.const import DOMAIN
+from custom_components.grubstation.const import CONF_DAEMON_TOKEN, DOMAIN
 
 
 async def test_async_remove_entry_with_runtime_data(hass):
@@ -104,6 +106,45 @@ async def test_async_setup_entry(hass):
         mock_on_unload.assert_called()
 
 
+async def test_async_setup_registers_send_turn_on_service(hass):
+    """Test that async_setup registers the send_turn_on_command service."""
+    hass.http = MagicMock()
+
+    with (
+        patch.object(hass.http, "register_view"),
+        patch(
+            "custom_components.grubstation.wakeonlan.send_magic_packet"
+        ) as mock_send_on,
+    ):
+        assert await async_setup(hass, {}) is True
+
+        # Test with all optional args
+        await hass.services.async_call(
+            DOMAIN,
+            "send_turn_on_command",
+            {
+                "mac": "00:11:22:33:44:55",
+                "broadcast_address": "192.168.1.255",
+                "broadcast_port": 9,
+            },
+            blocking=True,
+        )
+        mock_send_on.assert_called_with(
+            "00:11:22:33:44:55", ip_address="192.168.1.255", port=9
+        )
+
+        # Test with minimal args
+        await hass.services.async_call(
+            DOMAIN,
+            "send_turn_on_command",
+            {
+                "mac": "00:11:22:33:44:55",
+            },
+            blocking=True,
+        )
+        mock_send_on.assert_called_with("00:11:22:33:44:55")
+
+
 async def test_async_setup_registers_send_turn_off_service(hass):
     """Test that async_setup registers the send_turn_off_command service."""
     hass.http = MagicMock()
@@ -125,9 +166,64 @@ async def test_async_setup_registers_send_turn_off_service(hass):
             {
                 CONF_ADDRESS: "1.2.3.4",
                 CONF_PORT: 1234,
-                CONF_API_KEY: "secret_key",
+                CONF_DAEMON_TOKEN: "secret_key",
             },
             blocking=True,
         )
 
         mock_send_off.assert_awaited_once_with(hass, "1.2.3.4", 1234, "secret_key")
+
+
+async def test_async_unload_entry_full(hass):
+    """Test async_unload_entry with webhook_id and runtime_data."""
+    entry = MockConfigEntry(domain=DOMAIN, data={"webhook_id": "test_id"})
+    entry.runtime_data = MagicMock()
+
+    with (
+        patch("homeassistant.components.webhook.async_unregister") as mock_unregister,
+        patch.object(
+            hass.config_entries, "async_unload_platforms", return_value=True
+        ) as mock_unload_platforms,
+    ):
+        result = await async_unload_entry(hass, entry)
+        assert result is True
+        mock_unregister.assert_called_once_with(hass, "test_id")
+        entry.runtime_data.async_unload.assert_called_once()
+        mock_unload_platforms.assert_awaited_once_with(entry, PLATFORMS)
+
+
+async def test_async_unload_entry_no_webhook(hass):
+    """Test async_unload_entry without a webhook_id."""
+    entry = MockConfigEntry(domain=DOMAIN, data={})
+    entry.runtime_data = MagicMock()
+
+    with (
+        patch("homeassistant.components.webhook.async_unregister") as mock_unregister,
+        patch.object(
+            hass.config_entries, "async_unload_platforms", return_value=True
+        ) as mock_unload_platforms,
+    ):
+        result = await async_unload_entry(hass, entry)
+        assert result is True
+        mock_unregister.assert_not_called()
+        entry.runtime_data.async_unload.assert_called_once()
+        mock_unload_platforms.assert_awaited_once_with(entry, PLATFORMS)
+
+
+async def test_async_unload_entry_no_runtime_data(hass):
+    """Test async_unload_entry without runtime_data."""
+    entry = MockConfigEntry(domain=DOMAIN, data={"webhook_id": "test_id"})
+    # Ensure runtime_data is not present
+    if hasattr(entry, "runtime_data"):
+        del entry.runtime_data
+
+    with (
+        patch("homeassistant.components.webhook.async_unregister") as mock_unregister,
+        patch.object(
+            hass.config_entries, "async_unload_platforms", return_value=True
+        ) as mock_unload_platforms,
+    ):
+        result = await async_unload_entry(hass, entry)
+        assert result is True
+        mock_unregister.assert_called_once_with(hass, "test_id")
+        mock_unload_platforms.assert_awaited_once_with(entry, PLATFORMS)

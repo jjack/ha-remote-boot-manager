@@ -78,7 +78,7 @@ class GrubStationManagerSelect(CoordinatorEntity[GrubStationCoordinator], Select
             name=self.mac_address,
             manufacturer="GrubStation",
             model=generate_model_name(host_data),
-            sw_version=host_data.agent_version,
+            sw_version=host_data.daemon_version,
             connections={(CONNECTION_NETWORK_MAC, self.mac_address)},
         )
 

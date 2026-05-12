@@ -41,93 +41,124 @@ def manager(hass, mock_store, mock_coordinator):
     manager.async_unload()
 
 
-async def test_async_process_webhook_payload_new_host(manager, hass, mock_coordinator):
-    """Test that a new host is added correctly from a payload."""
+async def test_async_register_daemon_new_host(manager, hass, mock_coordinator):
+    """Test that a new host is registered correctly."""
     payload = {
+        "action": "register_daemon",
+        "mac": "00:11:22:33:44:55",
         "address": "test.local",
-        "boot_options": ["ubuntu", "windows"],
-        "broadcast_address": "192.168.1.255",
-        "broadcast_port": 9,
+        "os": "linux",
+        "port": 8000,
+        "DAEMON_TOKEN": "secret",
+        "daemon_version": "1.0.0",
     }
 
     with patch(
         "custom_components.grubstation.manager.async_dispatcher_send"
     ) as mock_dispatch:
-        manager.async_process_webhook_payload("00:11:22:33:44:55", payload)
+        manager.async_register_daemon("00:11:22:33:44:55", payload)
 
         assert "00:11:22:33:44:55" in manager.hosts
         assert "00:11:22:33:44:55" in manager.coordinators
         host = manager.hosts["00:11:22:33:44:55"]
         assert isinstance(host, RemoteHost)
         assert host.address == "test.local"
-        # make sure that (none) is prepended
-        assert host.boot_options == [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "windows"]
-        assert host.broadcast_address == "192.168.1.255"
-        assert host.broadcast_port == 9
+        assert host.api_key == "secret"
+        assert host.agent_port == 8000
 
         mock_dispatch.assert_called_once()
         mock_coordinator.async_set_updated_data.assert_called_once_with(host)
 
 
-async def test_async_process_webhook_payload_none_option_already_present(
+async def test_async_update_boot_options_none_option_already_present(
     manager, hass, mock_coordinator
 ):
     """Test that the default none boot option is not duplicated if already present."""
-    payload = {
+    # Setup host first via registration
+    reg_payload = {
+        "action": "register_daemon",
+        "mac": "00:11:22:33:44:55",
         "address": "test.local",
+        "os": "linux",
+        "DAEMON_TOKEN": "secret",
+        "daemon_version": "1.0.0",
+        "port": 8000,
+    }
+    manager.async_register_daemon("00:11:22:33:44:55", reg_payload)
+
+    push_payload = {
+        "action": "update_boot_options",
+        "mac": "00:11:22:33:44:55",
+        "address": "test.local",
+        "os": "linux",
         "boot_options": [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "windows"],
     }
 
-    manager.async_process_webhook_payload("00:11:22:33:44:55", payload)
+    manager.async_update_boot_options("00:11:22:33:44:55", push_payload)
 
     host = manager.hosts["00:11:22:33:44:55"]
     assert host.boot_options == [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "windows"]
-    mock_coordinator.async_set_updated_data.assert_called_once_with(host)
+    # Once for registration, once for push
+    assert mock_coordinator.async_set_updated_data.call_count == 2
 
 
-async def test_async_process_webhook_payload_empty_boot_options(
+async def test_async_update_boot_options_empty_boot_options(
     manager, hass, mock_coordinator
 ):
     """Test that DEFAULT_BOOT_OPTION_NONE is added when boot_options is empty."""
-    payload = {
+    # Setup host
+    reg_payload = {
+        "action": "register_daemon",
+        "mac": "00:11:22:33:44:55",
         "address": "test.local",
+        "os": "linux",
+        "DAEMON_TOKEN": "secret",
+        "daemon_version": "1.0.0",
+        "port": 8000,
+    }
+    manager.async_register_daemon("00:11:22:33:44:55", reg_payload)
+
+    push_payload = {
+        "action": "update_boot_options",
+        "mac": "00:11:22:33:44:55",
+        "address": "test.local",
+        "os": "linux",
         "boot_options": [],
     }
 
-    manager.async_process_webhook_payload("00:11:22:33:44:55", payload)
+    manager.async_update_boot_options("00:11:22:33:44:55", push_payload)
 
     host = manager.hosts["00:11:22:33:44:55"]
     assert host.boot_options == [DEFAULT_BOOT_OPTION_NONE]
-    mock_coordinator.async_set_updated_data.assert_called_once_with(host)
 
 
-async def test_async_process_webhook_payload_update_existing_host(
+async def test_async_update_boot_options_update_existing_host(
     manager, hass, mock_coordinator
 ):
-    """Test that an existing host is updated correctly and does NOT rename in HA."""
+    """Test that an existing host is updated correctly."""
     # Setup existing host
     mac = "00:11:22:33:44:55"
     host = RemoteHost(
         mac=mac,
         address="old-hostname.local",
+        os="linux",
         boot_options=["ubuntu"],
     )
     manager.hosts[mac] = host
     manager.coordinators[mac] = mock_coordinator
 
     payload = {
+        "action": "update_boot_options",
+        "mac": mac,
         "address": "new-hostname.local",
+        "os": "linux",
         "boot_options": ["ubuntu", "arch"],
-        "broadcast_address": "10.0.0.255",
-        "broadcast_port": 7,
     }
 
-    manager.async_process_webhook_payload(mac, payload)
+    manager.async_update_boot_options(mac, payload)
 
     assert host.address == "new-hostname.local"
     assert host.boot_options == [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "arch"]
-    assert host.broadcast_address == "10.0.0.255"
-    assert host.broadcast_port == 7
     mock_coordinator.async_set_updated_data.assert_called_once_with(host)
 
 
@@ -242,7 +273,7 @@ async def test_async_purge_data(manager, mock_store):
     mock_store.async_remove.assert_awaited_once()
 
 
-async def test_async_process_webhook_payload_resets_invalid_next_boot(
+async def test_async_update_boot_options_resets_invalid_next_boot(
     manager, hass, mock_coordinator
 ):
     """Test that next_boot_option is reset if it becomes invalid after an update."""
@@ -250,17 +281,21 @@ async def test_async_process_webhook_payload_resets_invalid_next_boot(
     host = RemoteHost(
         mac=mac,
         address="test.local",
+        os="linux",
         boot_options=["ubuntu", "windows"],
         next_boot_option="windows",  # This will become invalid
     )
     manager.hosts[mac] = host
     manager.coordinators[mac] = mock_coordinator
     payload = {
+        "action": "update_boot_options",
+        "mac": mac,
         "address": "test.local",
+        "os": "linux",
         "boot_options": ["ubuntu", "fedora"],
     }
 
-    manager.async_process_webhook_payload(mac, payload)
+    manager.async_update_boot_options(mac, payload)
 
     assert host.boot_options == [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "fedora"]
     assert host.next_boot_option == DEFAULT_BOOT_OPTION_NONE

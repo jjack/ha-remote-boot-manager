@@ -10,6 +10,10 @@ from homeassistant.helpers.entity_registry import async_get as async_get_er
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.grubstation import (
+    async_reload_entry,
+    async_remove_config_entry_device,
+)
 from custom_components.grubstation.const import DEFAULT_BOOT_OPTION_NONE, DOMAIN
 
 
@@ -42,13 +46,31 @@ async def discovered_client(hass: HomeAssistant, setup_integration):
     """Return a client after discovering a test host via webhook."""
     client = setup_integration
     webhook_url = "/api/webhook/test_webhook_id"
-    payload = {
+    # First, register the daemon
+    reg_payload = {
+        "action": "register_daemon",
         "mac": "aa:bb:cc:dd:ee:ff",
         "address": "test.local",
+        "os": "linux",
+        "port": 8000,
+        "DAEMON_TOKEN": "secret",
+        "daemon_version": "1.0.0",
+    }
+    resp = await client.post(webhook_url, json=reg_payload)
+    assert resp.status == HTTPStatus.OK
+
+    # Then, update boot options
+    push_payload = {
+        "action": "update_boot_options",
+        "mac": "aa:bb:cc:dd:ee:ff",
+        "address": "test.local",
+        "os": "linux",
+        "daemon_version": "1.0.0",
         "boot_options": ["ubuntu", "windows"],
     }
-    resp = await client.post(webhook_url, json=payload)
+    resp = await client.post(webhook_url, json=push_payload)
     assert resp.status == HTTPStatus.OK
+
     await hass.async_block_till_done()
     return client
 
@@ -58,9 +80,13 @@ async def test_webhook_discovery(hass: HomeAssistant, setup_integration) -> None
     client = setup_integration
     webhook_url = "/api/webhook/test_webhook_id"
     payload = {
+        "action": "register_daemon",
         "mac": "aa:bb:cc:dd:ee:ff",
         "address": "test.local",
-        "boot_options": ["ubuntu", "windows"],
+        "os": "linux",
+        "port": 8000,
+        "DAEMON_TOKEN": "secret",
+        "daemon_version": "1.0.0",
     }
 
     resp = await client.post(webhook_url, json=payload)
@@ -86,13 +112,30 @@ async def test_minimal_webhook_discovery_and_switch(
     client = setup_integration
     webhook_url = "/api/webhook/test_webhook_id"
     payload = {
+        "action": "register_daemon",
         "mac": "de:ad:be:ef:00:01",
         "address": "minimal.local",
-        "boot_options": ["ubuntu"],
+        "os": "linux",
+        "port": 8000,
+        "DAEMON_TOKEN": "secret",
+        "daemon_version": "1.0.0",
     }
 
     resp = await client.post(webhook_url, json=payload)
     assert resp.status == HTTPStatus.OK
+
+    # Push boot options
+    push_payload = {
+        "action": "update_boot_options",
+        "mac": "de:ad:be:ef:00:01",
+        "address": "minimal.local",
+        "os": "linux",
+        "daemon_version": "1.0.0",
+        "boot_options": ["ubuntu"],
+    }
+    resp = await client.post(webhook_url, json=push_payload)
+    assert resp.status == HTTPStatus.OK
+
     await hass.async_block_till_done()
 
     # Verify entities are created
@@ -238,7 +281,7 @@ async def test_global_send_turn_off_command_service(
             {
                 "address": "1.2.3.4",
                 "port": 8081,
-                "api_key": "secret",
+                "DAEMON_TOKEN": "secret",
             },
             blocking=True,
         )
@@ -264,7 +307,7 @@ async def test_webhook_unexpected_empty_payload(
     webhook_url = "/api/webhook/test_webhook_id"
 
     with patch(
-        "custom_components.grubstation.async_validate_webhook_payload",
+        "custom_components.grubstation.async_parse_webhook_request",
         return_value=(None, None),
     ):
         resp = await client.post(webhook_url, data="dummy")
@@ -273,21 +316,161 @@ async def test_webhook_unexpected_empty_payload(
         assert text == "Unexpected empty payload"
 
 
-async def test_webhook_missing_mac_address(
-    hass: HomeAssistant, setup_integration
-) -> None:
-    """Test webhook returns HTTPStatus.BAD_REQUEST if mac_address is missing from the validated payload."""
+async def test_webhook_missing_action(hass: HomeAssistant, setup_integration) -> None:
+    """Test webhook returns HTTPStatus.BAD_REQUEST if action is missing from the validated payload."""
     client = setup_integration
     webhook_url = "/api/webhook/test_webhook_id"
 
     with patch(
-        "custom_components.grubstation.async_validate_webhook_payload",
-        return_value=({"address": "test.local"}, None),
+        "custom_components.grubstation.async_parse_webhook_request",
+        return_value=({"mac": "aa:bb:cc:dd:ee:ff"}, None),
     ):
         resp = await client.post(webhook_url, data="dummy")
         assert resp.status == HTTPStatus.BAD_REQUEST
         text = await resp.text()
-        assert text == "MAC address missing from payload"
+        assert text == "Missing action in payload"
+
+
+async def test_webhook_unknown_action(hass: HomeAssistant, setup_integration) -> None:
+    """Test webhook returns HTTPStatus.BAD_REQUEST for unknown action."""
+    client = setup_integration
+    webhook_url = "/api/webhook/test_webhook_id"
+    payload = {
+        "action": "unknown_action",
+        "mac": "aa:bb:cc:dd:ee:ff",
+        "address": "test.local",
+        "os": "linux",
+    }
+
+    resp = await client.post(webhook_url, json=payload)
+    assert resp.status == HTTPStatus.BAD_REQUEST
+    text = await resp.text()
+    assert "Unknown action: unknown_action" in text
+
+
+async def test_webhook_invalid_schema(hass: HomeAssistant, setup_integration) -> None:
+    """Test webhook returns HTTPStatus.BAD_REQUEST for invalid schema."""
+    client = setup_integration
+    webhook_url = "/api/webhook/test_webhook_id"
+    # missing required 'address' or 'os' for register_daemon
+    payload = {
+        "action": "register_daemon",
+        "mac": "aa:bb:cc:dd:ee:ff",
+    }
+
+    resp = await client.post(webhook_url, json=payload)
+    assert resp.status == HTTPStatus.BAD_REQUEST
+    text = await resp.text()
+    assert "Invalid payload format" in text
+
+
+async def test_webhook_register_existing_host(
+    hass: HomeAssistant, setup_integration
+) -> None:
+    """Test registering an already registered host."""
+    client = setup_integration
+    webhook_url = "/api/webhook/test_webhook_id"
+    payload = {
+        "action": "register_daemon",
+        "mac": "aa:bb:cc:dd:ee:ff",
+        "address": "test.local",
+        "os": "linux",
+        "port": 8000,
+        "DAEMON_TOKEN": "secret",
+        "daemon_version": "1.0.0",
+    }
+
+    # First registration
+    resp = await client.post(webhook_url, json=payload)
+    assert resp.status == HTTPStatus.OK
+
+    # Second registration (update)
+    payload["address"] = "new.local"
+    resp = await client.post(webhook_url, json=payload)
+    assert resp.status == HTTPStatus.OK
+    await hass.async_block_till_done()
+
+
+async def test_webhook_update_unregistered_host(
+    hass: HomeAssistant, setup_integration
+) -> None:
+    """Test updating boot options for a host that isn't registered."""
+    client = setup_integration
+    webhook_url = "/api/webhook/test_webhook_id"
+    payload = {
+        "action": "update_boot_options",
+        "mac": "00:00:00:00:00:00",
+        "address": "test.local",
+        "os": "linux",
+        "daemon_version": "1.0.0",
+        "boot_options": ["ubuntu"],
+    }
+
+    resp = await client.post(webhook_url, json=payload)
+    assert resp.status == HTTPStatus.OK
+    await hass.async_block_till_done()
+
+
+async def test_global_send_magic_packet_service_minimal(
+    hass: HomeAssistant, setup_integration
+) -> None:
+    """Test that the global send_turn_on_command service works with minimal data."""
+    with patch(
+        "custom_components.grubstation.wakeonlan.send_magic_packet"
+    ) as mock_wake:
+        await hass.services.async_call(
+            DOMAIN,
+            "send_turn_on_command",
+            {
+                "mac": "aa:bb:cc:dd:ee:ff",
+            },
+            blocking=True,
+        )
+        await hass.async_block_till_done()
+        mock_wake.assert_called_once_with("aa:bb:cc:dd:ee:ff")
+
+
+async def test_webhook_invalid_schema_update_boot_options(
+    hass: HomeAssistant, setup_integration
+) -> None:
+    """Test webhook returns HTTPStatus.BAD_REQUEST for invalid schema in update_boot_options."""
+    client = setup_integration
+    webhook_url = "/api/webhook/test_webhook_id"
+    # missing required 'boot_options'
+    payload = {
+        "action": "update_boot_options",
+        "mac": "aa:bb:cc:dd:ee:ff",
+        "address": "test.local",
+        "os": "linux",
+    }
+
+    resp = await client.post(webhook_url, json=payload)
+    assert resp.status == HTTPStatus.BAD_REQUEST
+    text = await resp.text()
+    assert "Invalid payload format" in text
+
+
+async def test_reload_entry(
+    hass: HomeAssistant, setup_integration, mock_config_entry
+) -> None:
+    """Test reloading the config entry."""
+    with patch.object(hass.config_entries, "async_reload") as mock_reload:
+        # Trigger reload via the listener (simulated)
+        await async_reload_entry(hass, mock_config_entry)
+        mock_reload.assert_awaited_once_with(mock_config_entry.entry_id)
+
+
+async def test_remove_config_entry_device_integration(
+    hass: HomeAssistant, discovered_client, mock_config_entry
+) -> None:
+    """Test removing a device via the config entry."""
+    dr = async_get_dr(hass)
+    device = dr.async_get_device(identifiers={(DOMAIN, "aa:bb:cc:dd:ee:ff")})
+    assert device is not None
+
+    result = await async_remove_config_entry_device(hass, mock_config_entry, device)
+    assert result is True
+    assert "aa:bb:cc:dd:ee:ff" not in mock_config_entry.runtime_data.hosts
 
 
 async def test_webhook_internal_server_error(
@@ -297,13 +480,16 @@ async def test_webhook_internal_server_error(
     client = setup_integration
     webhook_url = "/api/webhook/test_webhook_id"
     payload = {
+        "action": "update_boot_options",
         "mac": "aa:bb:cc:dd:ee:ff",
         "address": "test.local",
+        "os": "linux",
+        "daemon_version": "1.0.0",
         "boot_options": ["ubuntu", "windows"],
     }
 
     with patch(
-        "custom_components.grubstation.manager.GrubStationManager.async_process_webhook_payload",
+        "custom_components.grubstation.manager.GrubStationManager.async_update_boot_options",
         side_effect=Exception("Boom"),
     ):
         resp = await client.post(webhook_url, json=payload)

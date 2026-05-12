@@ -7,10 +7,12 @@ LOGGER: Logger = getLogger(__package__)
 
 ACTION_TURN_OFF: Final = "turn_off"
 
-CONF_AGENT_VERSION: Final = "agent_version"
-CONF_BOOT_OPTIONS: Final = "boot_options"
-CONF_OS: Final = "os"
-CONF_SERVICE_MANAGER: Final = "service_manager"
+CONF_DAEMON_TOKEN: Final = "daemon_token"  # noqa: S105
+
+CONF_DAEMON_VERSION: Final = "daemon_version"
+CONF_HOST_BOOT_OPTIONS: Final = "boot_options"
+CONF_HOST_OS: Final = "os"
+CONF_DAEMON_SERVICE_MANAGER: Final = "service_manager"
 CONF_TURN_OFF: Final = "turn_off"
 
 DEFAULT_NAME: Final = "GrubStation"

@@ -66,7 +66,7 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
             name=self.host.mac,
             manufacturer="GrubStation",
             model=generate_model_name(self.host),
-            sw_version=self.host.agent_version,
+            sw_version=self.host.daemon_version,
             connections={(CONNECTION_NETWORK_MAC, self.host.mac)},
         )
 
