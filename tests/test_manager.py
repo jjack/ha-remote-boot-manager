@@ -49,7 +49,7 @@ async def test_async_register_daemon_new_host(manager, hass, mock_coordinator):
         "address": "test.local",
         "os": "linux",
         "port": 8000,
-        "DAEMON_TOKEN": "secret",
+        "daemon_token": "secret",
         "daemon_version": "1.0.0",
     }
 
@@ -80,7 +80,7 @@ async def test_async_update_boot_options_none_option_already_present(
         "mac": "00:11:22:33:44:55",
         "address": "test.local",
         "os": "linux",
-        "DAEMON_TOKEN": "secret",
+        "daemon_token": "secret",
         "daemon_version": "1.0.0",
         "port": 8000,
     }
@@ -112,7 +112,7 @@ async def test_async_update_boot_options_empty_boot_options(
         "mac": "00:11:22:33:44:55",
         "address": "test.local",
         "os": "linux",
-        "DAEMON_TOKEN": "secret",
+        "daemon_token": "secret",
         "daemon_version": "1.0.0",
         "port": 8000,
     }

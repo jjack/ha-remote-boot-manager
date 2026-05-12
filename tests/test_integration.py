@@ -53,7 +53,7 @@ async def discovered_client(hass: HomeAssistant, setup_integration):
         "address": "test.local",
         "os": "linux",
         "port": 8000,
-        "DAEMON_TOKEN": "secret",
+        "daemon_token": "secret",
         "daemon_version": "1.0.0",
     }
     resp = await client.post(webhook_url, json=reg_payload)
@@ -85,7 +85,7 @@ async def test_webhook_discovery(hass: HomeAssistant, setup_integration) -> None
         "address": "test.local",
         "os": "linux",
         "port": 8000,
-        "DAEMON_TOKEN": "secret",
+        "daemon_token": "secret",
         "daemon_version": "1.0.0",
     }
 
@@ -117,7 +117,7 @@ async def test_minimal_webhook_discovery_and_switch(
         "address": "minimal.local",
         "os": "linux",
         "port": 8000,
-        "DAEMON_TOKEN": "secret",
+        "daemon_token": "secret",
         "daemon_version": "1.0.0",
     }
 
@@ -281,7 +281,7 @@ async def test_global_send_turn_off_command_service(
             {
                 "address": "1.2.3.4",
                 "port": 8081,
-                "DAEMON_TOKEN": "secret",
+                "daemon_token": "secret",
             },
             blocking=True,
         )
@@ -376,7 +376,7 @@ async def test_webhook_register_existing_host(
         "address": "test.local",
         "os": "linux",
         "port": 8000,
-        "DAEMON_TOKEN": "secret",
+        "daemon_token": "secret",
         "daemon_version": "1.0.0",
     }
 

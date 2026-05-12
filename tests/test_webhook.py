@@ -80,7 +80,7 @@ def test_validate_register_daemon_payload():
         "address": "test.local",
         "os": "linux",
         "port": 8000,
-        "DAEMON_TOKEN": "secret",
+        "daemon_token": "secret",
         "daemon_version": "1.0.0",
     }
     validated = validate_register_daemon_payload(valid_payload)
