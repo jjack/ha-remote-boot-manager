@@ -9,7 +9,7 @@ from aiohttp import web
 
 from custom_components.grubstation.webhook import (
     async_parse_webhook_request,
-    validate_register_daemon_payload,
+    validate_register_daemon_token_payload,
     validate_update_boot_options_payload,
 )
 
@@ -72,24 +72,24 @@ async def test_parse_webhook_valid_payload():
     assert payload == {"mac": "00:11:22:33:44:55", "action": "test"}
 
 
-def test_validate_register_daemon_payload():
-    """Test validation of register_daemon payload."""
+def test_validate_register_daemon_token_payload():
+    """Test validation of register_daemon_token payload."""
     valid_payload = {
-        "action": "register_daemon",
+        "action": "register_daemon_token",
         "mac": "00:11:22:33:44:55",
         "address": "test.local",
-        "os": "linux",
-        "port": 8000,
+        "host_os": "linux",
+        "daemon_port": 8000,
         "daemon_token": "secret",
         "daemon_version": "1.0.0",
     }
-    validated = validate_register_daemon_payload(valid_payload)
+    validated = validate_register_daemon_token_payload(valid_payload)
     assert validated["mac"] == "00:11:22:33:44:55"
-    assert validated["port"] == 8000
+    assert validated["daemon_port"] == 8000
 
-    invalid_payload = {"action": "register_daemon", "mac": "invalid"}
+    invalid_payload = {"action": "register_daemon_token", "mac": "invalid"}
     with pytest.raises(vol.Invalid):
-        validate_register_daemon_payload(invalid_payload)
+        validate_register_daemon_token_payload(invalid_payload)
 
 
 def test_validate_update_boot_options_payload():
@@ -98,7 +98,7 @@ def test_validate_update_boot_options_payload():
         "action": "update_boot_options",
         "mac": "00:11:22:33:44:55",
         "address": "test.local",
-        "os": "linux",
+        "host_os": "linux",
         "daemon_version": "1.0.0",
         "boot_options": ["ubuntu", "windows"],
     }
@@ -110,7 +110,7 @@ def test_validate_update_boot_options_payload():
         "action": "update_boot_options",
         "mac": "00:11:22:33:44:55",
         "address": "test.local",
-        "os": "linux",
+        "host_os": "linux",
         "daemon_version": "1.0.0",
         "boot_options": {"not": "a list"},
     }

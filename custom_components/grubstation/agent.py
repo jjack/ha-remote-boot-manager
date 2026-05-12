@@ -19,11 +19,11 @@ if TYPE_CHECKING:
 # send a POST request to the entry's address with the agent port to /shutdown
 # include the api_key as a "Bearer" token
 async def async_send_turn_off_command(
-    hass: HomeAssistant, address: str, agent_port: int, api_key: str
+    hass: HomeAssistant, address: str, daemon_port: int, api_key: str
 ) -> None:
     """Send shutdown command to the GrubStation agent."""
     session = async_get_clientsession(hass)
-    url = URL.build(scheme="http", host=address, port=agent_port, path="/shutdown")
+    url = URL.build(scheme="http", host=address, port=daemon_port, path="/shutdown")
     headers = {"Authorization": f"Bearer {api_key}"}
 
     try:
@@ -38,19 +38,19 @@ async def async_send_turn_off_command(
 
 
 async def async_check_agent_status(
-    hass: HomeAssistant, address: str, agent_port: int, api_key: str
+    hass: HomeAssistant, address: str, daemon_port: int, api_key: str
 ) -> bool:
     """Check if the GrubStation agent is accessible."""
     session = async_get_clientsession(hass)
-    url = URL.build(scheme="http", host=address, port=agent_port, path="/healthcheck")
+    url = URL.build(scheme="http", host=address, port=daemon_port, path="/healthcheck")
     headers = {"Authorization": f"Bearer {api_key}"}
 
     try:
         async with asyncio.timeout(5):
             async with session.get(url, headers=headers) as response:
                 response.raise_for_status()
-                data = await response.json()
-                return data.get("status") == "ok"
-    except Exception:  # noqa: BLE001
-        # We don't need to log every failure since it's polled regularly
+                data = await response.text()
+                return data.strip() == "ok"
+    except Exception as err:  # noqa: BLE001
+        LOGGER.debug("Agent healthcheck failed for %s: %s", address, err)
         return False

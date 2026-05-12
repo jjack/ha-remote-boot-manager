@@ -17,20 +17,24 @@ import wakeonlan
 from aiohttp import web
 from homeassistant.components import webhook as ha_webhook
 from homeassistant.const import (
+    ATTR_ENTITY_ID,
     CONF_ACTION,
     CONF_ADDRESS,
     CONF_BROADCAST_ADDRESS,
     CONF_BROADCAST_PORT,
     CONF_MAC,
-    CONF_PORT,
     Platform,
 )
+from homeassistant.helpers.entity_registry import async_get as async_get_er
 from homeassistant.helpers.storage import Store
 
 from .agent import async_send_turn_off_command
 from .const import (
+    CONF_DAEMON_PORT,
     CONF_DAEMON_TOKEN,
-    DEFAULT_AGENT_PORT,
+    DEFAULT_BROADCAST_ADDRESS,
+    DEFAULT_BROADCAST_PORT,
+    DEFAULT_DAEMON_PORT,
     DOMAIN,
     LOGGER,
     WEBHOOK_NAME,
@@ -39,7 +43,7 @@ from .manager import GrubStationManager
 from .views import GrubConfigView
 from .webhook import (
     async_parse_webhook_request,
-    validate_register_daemon_payload,
+    validate_register_daemon_token_payload,
     validate_update_boot_options_payload,
 )
 
@@ -57,15 +61,17 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 TURN_ON_COMMAND_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_MAC): cv.string,
-        vol.Optional(CONF_BROADCAST_ADDRESS): cv.string,
-        vol.Optional(CONF_BROADCAST_PORT): cv.port,
+        vol.Optional(
+            CONF_BROADCAST_ADDRESS, default=DEFAULT_BROADCAST_ADDRESS
+        ): cv.string,
+        vol.Optional(CONF_BROADCAST_PORT, default=DEFAULT_BROADCAST_PORT): cv.port,
     }
 )
 
 TURN_OFF_COMMAND_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_ADDRESS): cv.string,
-        vol.Optional(CONF_PORT, default=DEFAULT_AGENT_PORT): cv.port,
+        vol.Optional(CONF_DAEMON_PORT, default=DEFAULT_DAEMON_PORT): cv.port,
         vol.Required(CONF_DAEMON_TOKEN): cv.string,
     }
 )
@@ -104,10 +110,10 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:  # n
         """Handle service call to send shutdown command to a host."""
         # Required parameters are guaranteed by TURN_OFF_COMMAND_SCHEMA validation
         address: str = call.data[CONF_ADDRESS]
-        agent_port: int = call.data[CONF_PORT]
-        api_key: str = call.data[CONF_DAEMON_TOKEN]
+        daemon_port: int = call.data[CONF_DAEMON_PORT]
+        daemon_token: str = call.data[CONF_DAEMON_TOKEN]
 
-        await async_send_turn_off_command(hass, address, agent_port, api_key)
+        await async_send_turn_off_command(hass, address, daemon_port, daemon_token)
 
     hass.services.async_register(
         DOMAIN,
@@ -137,7 +143,7 @@ async def async_setup_entry(
     entry.runtime_data = manager
 
     async def handle_webhook(  # noqa: PLR0911
-        hass: HomeAssistant,  # noqa: ARG001
+        hass: HomeAssistant,
         webhook_id: str,  # noqa: ARG001
         request: web.Request,
     ) -> web.Response:
@@ -160,9 +166,9 @@ async def async_setup_entry(
                 )
 
             try:
-                if action == "register_daemon":
-                    payload = validate_register_daemon_payload(raw_payload)
-                    manager.async_register_daemon(payload[CONF_MAC], payload)
+                if action == "register_daemon_token":
+                    payload = validate_register_daemon_token_payload(raw_payload)
+                    manager.async_register_daemon_token(payload[CONF_MAC], payload)
                 elif action == "update_boot_options":
                     payload = validate_update_boot_options_payload(raw_payload)
                     manager.async_update_boot_options(payload[CONF_MAC], payload)
@@ -172,10 +178,23 @@ async def async_setup_entry(
                         text=f"Unknown action: {action}",
                     )
             except vol.Invalid as err:
-                LOGGER.warning("Invalid webhook schema: %s", err)
                 return web.Response(
                     status=HTTPStatus.BAD_REQUEST,
                     text=f"Invalid payload format: {err}",
+                )
+
+            # Any successful webhook action implies the host is on.
+            # Find the switch entity and turn it on for immediate UI feedback.
+            mac_address = payload[CONF_MAC]
+            entity_id = f"switch.{mac_address.replace(':', '_')}_wake_switch"
+            er = async_get_er(hass)
+            if er.async_get(entity_id):
+                await hass.services.async_call(
+                    "switch",
+                    "turn_on",
+                    {ATTR_ENTITY_ID: entity_id},
+                    blocking=False,
+                    context=request.context,  # type: ignore[attr-defined]
                 )
 
             return web.Response(status=HTTPStatus.OK, text="OK")
@@ -258,8 +277,19 @@ async def async_remove_config_entry_device(
         None,
     )
 
+    LOGGER.debug(
+        "Attempting to remove device with identifiers %s (extracted MAC: %s)",
+        device_entry.identifiers,
+        mac_address,
+    )
+
     # Remove the host from our internal state
     if mac_address:
         manager.async_remove_host(mac_address)
+    else:
+        LOGGER.warning(
+            "Could not find MAC address in device identifiers for removal: %s",
+            device_entry.identifiers,
+        )
 
     return True

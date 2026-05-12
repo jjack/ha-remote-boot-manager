@@ -2,7 +2,7 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from homeassistant.const import CONF_ADDRESS, CONF_PORT
+from homeassistant.const import CONF_ADDRESS
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.grubstation import (
@@ -14,7 +14,11 @@ from custom_components.grubstation import (
     async_setup_entry,
     async_unload_entry,
 )
-from custom_components.grubstation.const import CONF_DAEMON_TOKEN, DOMAIN
+from custom_components.grubstation.const import (
+    CONF_DAEMON_PORT,
+    CONF_DAEMON_TOKEN,
+    DOMAIN,
+)
 
 
 async def test_async_remove_entry_with_runtime_data(hass):
@@ -142,7 +146,9 @@ async def test_async_setup_registers_send_turn_on_service(hass):
             },
             blocking=True,
         )
-        mock_send_on.assert_called_with("00:11:22:33:44:55")
+        mock_send_on.assert_called_with(
+            "00:11:22:33:44:55", ip_address="255.255.255.255", port=9
+        )
 
 
 async def test_async_setup_registers_send_turn_off_service(hass):
@@ -165,7 +171,7 @@ async def test_async_setup_registers_send_turn_off_service(hass):
             "send_turn_off_command",
             {
                 CONF_ADDRESS: "1.2.3.4",
-                CONF_PORT: 1234,
+                CONF_DAEMON_PORT: 1234,
                 CONF_DAEMON_TOKEN: "secret_key",
             },
             blocking=True,

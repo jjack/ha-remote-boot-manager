@@ -32,7 +32,9 @@ async def _async_ping_host(address: str) -> bool:
         result = await cast("Any", async_ping)(
             address, count=PING_COUNT, timeout=PING_TIMEOUT_SECONDS, privileged=False
         )
-    except Exception:  # noqa: BLE001
+        LOGGER.debug("Ping result for %s: %s", address, result.is_alive)
+    except Exception as err:  # noqa: BLE001
+        LOGGER.debug("Ping failed for %s: %s", address, err)
         return False
     else:
         return result.is_alive
@@ -58,6 +60,7 @@ class GrubStationCoordinator(DataUpdateCoordinator["RemoteHost"]):
     async def _async_update_data(self) -> RemoteHost:
         """Fetch data from the host."""
         if not self.host.address:
+            LOGGER.debug("Skipping update for %s: no address", self.host.mac)
             return self.host
 
         # 1. Check if host is alive via ICMP
@@ -65,9 +68,22 @@ class GrubStationCoordinator(DataUpdateCoordinator["RemoteHost"]):
 
         # 2. If alive and has agent config, check agent status
         is_accessible = False
-        if is_alive and self.host.agent_port and self.host.api_key:
+        if is_alive and self.host.daemon_port and self.host.daemon_token:
             is_accessible = await async_check_agent_status(
-                self.hass, self.host.address, self.host.agent_port, self.host.api_key
+                self.hass,
+                self.host.address,
+                self.host.daemon_port,
+                self.host.daemon_token,
+            )
+            LOGGER.debug(
+                "Agent status for %s (%s): %s",
+                self.host.mac,
+                self.host.address,
+                is_accessible,
+            )
+        elif is_alive:
+            LOGGER.debug(
+                "Skipping agent check for %s: missing port or token", self.host.mac
             )
 
         # Update the host state

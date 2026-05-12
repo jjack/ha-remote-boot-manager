@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Any
 import wakeonlan
 from homeassistant.components.switch import SwitchDeviceClass, SwitchEntity
 from homeassistant.core import callback
-from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.script import Script
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -17,11 +16,13 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .agent import async_send_turn_off_command
 from .const import (
     DOMAIN,
+    LOGGER,
+    SIGNAL_HOST_REMOVED,
     SIGNAL_NEW_HOST,
     WAIT_FOR_HOST_POWER_SECONDS,
 )
 from .coordinator import GrubStationCoordinator, _async_ping_host
-from .utils import generate_model_name
+from .utils import generate_device_info
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -40,7 +41,7 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
     ) -> None:
         """Initialize the switch class."""
         super().__init__(coordinator)
-        self.host = coordinator.data
+        self.host = coordinator.host
 
         self._attr_unique_id = f"{self.host.mac}_wake_switch"
         self._attr_name = "Wake"
@@ -49,8 +50,8 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
 
         # Use the initial state from the coordinator
         self._attr_is_on: bool = (
-            bool(self.coordinator.data.is_powered_on)
-            if self.coordinator.data
+            bool(self.coordinator.host.is_powered_on)
+            if self.coordinator.host
             else False
         )
 
@@ -61,14 +62,7 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
             else None
         )
 
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, self.host.mac)},
-            name=self.host.mac,
-            manufacturer="GrubStation",
-            model=generate_model_name(self.host),
-            sw_version=self.host.daemon_version,
-            connections={(CONNECTION_NETWORK_MAC, self.host.mac)},
-        )
+        self._attr_device_info = generate_device_info(self.host)
 
     @property
     def is_on(self) -> bool:
@@ -77,7 +71,7 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
         # Otherwise, use the coordinator data.
         if self._ping_task and not self._ping_task.done():
             return self._attr_is_on
-        return self.coordinator.data.is_powered_on
+        return self.coordinator.host.is_powered_on
 
     @property
     def _ping_target(self) -> str | None:
@@ -130,9 +124,12 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
             await self._turn_off_action.async_run(
                 context=getattr(self, "_context", None)
             )
-        elif self.host.api_key and self.host.address and self.host.agent_port:
+        if self.host.daemon_token and self.host.address and self.host.daemon_port:
             await async_send_turn_off_command(
-                self.hass, self.host.address, self.host.agent_port, self.host.api_key
+                self.hass,
+                self.host.address,
+                self.host.daemon_port,
+                self.host.daemon_token,
             )
 
         target = self._ping_target
@@ -186,12 +183,26 @@ async def async_setup_entry(
 ) -> None:
     """Set up the switch platform from a config entry."""
     manager = entry.runtime_data
+    added_hosts: set[str] = set()
 
     @callback
     def async_add_host_switch(mac_address: str) -> None:
         """Add a switch entity for a newly discovered host."""
-        coordinator = manager.coordinators[mac_address]
+        if mac_address in added_hosts:
+            return
+
+        coordinator = manager.coordinators.get(mac_address)
+        if not coordinator:
+            return
+
+        LOGGER.debug("Adding wake switch for %s", mac_address)
         async_add_entities([GrubStationManagerSwitch(hass, coordinator)])
+        added_hosts.add(mac_address)
+
+    @callback
+    def async_remove_host_switch(mac_address: str) -> None:
+        """Remove a MAC from the tracking set when the host is deleted."""
+        added_hosts.discard(mac_address)
 
     # Add entities for hosts that already exist in the manager
     for mac in manager.hosts:
@@ -200,4 +211,7 @@ async def async_setup_entry(
     # Listen for the signal to add new hosts discovered via webhook
     entry.async_on_unload(
         async_dispatcher_connect(hass, SIGNAL_NEW_HOST, async_add_host_switch)
+    )
+    entry.async_on_unload(
+        async_dispatcher_connect(hass, SIGNAL_HOST_REMOVED, async_remove_host_switch)
     )

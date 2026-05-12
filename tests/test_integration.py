@@ -43,48 +43,61 @@ async def setup_integration(hass: HomeAssistant, hass_client, mock_config_entry)
 
 @pytest.fixture
 async def discovered_client(hass: HomeAssistant, setup_integration):
-    """Return a client after discovering a test host via webhook."""
+    """Return a client after discovering a test host via boot options webhook."""
     client = setup_integration
     webhook_url = "/api/webhook/test_webhook_id"
-    # First, register the daemon
-    reg_payload = {
-        "action": "register_daemon",
-        "mac": "aa:bb:cc:dd:ee:ff",
-        "address": "test.local",
-        "os": "linux",
-        "port": 8000,
-        "daemon_token": "secret",
-        "daemon_version": "1.0.0",
-    }
-    resp = await client.post(webhook_url, json=reg_payload)
-    assert resp.status == HTTPStatus.OK
-
-    # Then, update boot options
-    push_payload = {
+    payload = {
         "action": "update_boot_options",
         "mac": "aa:bb:cc:dd:ee:ff",
         "address": "test.local",
-        "os": "linux",
+        "host_os": "linux",
         "daemon_version": "1.0.0",
         "boot_options": ["ubuntu", "windows"],
     }
-    resp = await client.post(webhook_url, json=push_payload)
+    resp = await client.post(webhook_url, json=payload)
     assert resp.status == HTTPStatus.OK
 
     await hass.async_block_till_done()
     return client
 
 
-async def test_webhook_discovery(hass: HomeAssistant, setup_integration) -> None:
+async def test_webhook_discovery_boot_options(
+    hass: HomeAssistant, setup_integration
+) -> None:
+    """Test that posting boot options to the webhook creates the appropriate entities."""
+    client = setup_integration
+    webhook_url = "/api/webhook/test_webhook_id"
+    payload = {
+        "action": "update_boot_options",
+        "mac": "aa:bb:cc:dd:ee:ff",
+        "address": "test.local",
+        "host_os": "linux",
+        "daemon_version": "1.0.0",
+        "boot_options": ["ubuntu", "windows"],
+    }
+
+    resp = await client.post(webhook_url, json=payload)
+    assert resp.status == HTTPStatus.OK
+    await hass.async_block_till_done()
+
+    entity_id_select = "select.aa_bb_cc_dd_ee_ff_next_boot_option"
+    state = hass.states.get(entity_id_select)
+    assert state is not None
+    assert state.state == DEFAULT_BOOT_OPTION_NONE
+
+
+async def test_webhook_discovery_daemon_token(
+    hass: HomeAssistant, setup_integration
+) -> None:
     """Test that posting to the webhook creates the appropriate entities."""
     client = setup_integration
     webhook_url = "/api/webhook/test_webhook_id"
     payload = {
-        "action": "register_daemon",
+        "action": "register_daemon_token",
         "mac": "aa:bb:cc:dd:ee:ff",
         "address": "test.local",
-        "os": "linux",
-        "port": 8000,
+        "host_os": "linux",
+        "daemon_port": 8000,
         "daemon_token": "secret",
         "daemon_version": "1.0.0",
     }
@@ -112,30 +125,30 @@ async def test_minimal_webhook_discovery_and_switch(
     client = setup_integration
     webhook_url = "/api/webhook/test_webhook_id"
     payload = {
-        "action": "register_daemon",
+        "action": "register_daemon_token",
         "mac": "de:ad:be:ef:00:01",
         "address": "minimal.local",
-        "os": "linux",
-        "port": 8000,
+        "host_os": "linux",
+        "daemon_port": 8000,
         "daemon_token": "secret",
         "daemon_version": "1.0.0",
     }
 
     resp = await client.post(webhook_url, json=payload)
     assert resp.status == HTTPStatus.OK
+    await hass.async_block_till_done()
 
-    # Push boot options
-    push_payload = {
+    # Second, update boot options
+    update_payload = {
         "action": "update_boot_options",
         "mac": "de:ad:be:ef:00:01",
         "address": "minimal.local",
-        "os": "linux",
+        "host_os": "linux",
         "daemon_version": "1.0.0",
         "boot_options": ["ubuntu"],
     }
-    resp = await client.post(webhook_url, json=push_payload)
+    resp = await client.post(webhook_url, json=update_payload)
     assert resp.status == HTTPStatus.OK
-
     await hass.async_block_till_done()
 
     # Verify entities are created
@@ -158,7 +171,9 @@ async def test_minimal_webhook_discovery_and_switch(
             "switch", "turn_on", {"entity_id": entity_id_switch}, blocking=True
         )
         # With no broadcast args, it should be called with just the MAC
-        mock_wake.assert_called_once_with("de:ad:be:ef:00:01")
+        mock_wake.assert_called_once_with(
+            "de:ad:be:ef:00:01", ip_address="255.255.255.255", port=9
+        )
 
 
 async def test_select_and_grub_config_view(
@@ -280,7 +295,7 @@ async def test_global_send_turn_off_command_service(
             "send_turn_off_command",
             {
                 "address": "1.2.3.4",
-                "port": 8081,
+                "daemon_port": 8081,
                 "daemon_token": "secret",
             },
             blocking=True,
@@ -339,7 +354,7 @@ async def test_webhook_unknown_action(hass: HomeAssistant, setup_integration) ->
         "action": "unknown_action",
         "mac": "aa:bb:cc:dd:ee:ff",
         "address": "test.local",
-        "os": "linux",
+        "host_os": "linux",
     }
 
     resp = await client.post(webhook_url, json=payload)
@@ -354,7 +369,7 @@ async def test_webhook_invalid_schema(hass: HomeAssistant, setup_integration) ->
     webhook_url = "/api/webhook/test_webhook_id"
     # missing required 'address' or 'os' for register_daemon
     payload = {
-        "action": "register_daemon",
+        "action": "register_daemon_token",
         "mac": "aa:bb:cc:dd:ee:ff",
     }
 
@@ -364,18 +379,18 @@ async def test_webhook_invalid_schema(hass: HomeAssistant, setup_integration) ->
     assert "Invalid payload format" in text
 
 
-async def test_webhook_register_existing_host(
+async def test_webhook_register_daemon_token_existing_host(
     hass: HomeAssistant, setup_integration
 ) -> None:
     """Test registering an already registered host."""
     client = setup_integration
     webhook_url = "/api/webhook/test_webhook_id"
     payload = {
-        "action": "register_daemon",
+        "action": "register_daemon_token",
         "mac": "aa:bb:cc:dd:ee:ff",
         "address": "test.local",
-        "os": "linux",
-        "port": 8000,
+        "host_os": "linux",
+        "daemon_port": 8000,
         "daemon_token": "secret",
         "daemon_version": "1.0.0",
     }
@@ -391,17 +406,17 @@ async def test_webhook_register_existing_host(
     await hass.async_block_till_done()
 
 
-async def test_webhook_update_unregistered_host(
+async def test_webhook_update_boot_options_unregistered_host(
     hass: HomeAssistant, setup_integration
 ) -> None:
-    """Test updating boot options for a host that isn't registered."""
+    """Test updating boot options for a host that isn't registered creates entities."""
     client = setup_integration
     webhook_url = "/api/webhook/test_webhook_id"
     payload = {
         "action": "update_boot_options",
         "mac": "00:00:00:00:00:00",
         "address": "test.local",
-        "os": "linux",
+        "host_os": "linux",
         "daemon_version": "1.0.0",
         "boot_options": ["ubuntu"],
     }
@@ -409,6 +424,11 @@ async def test_webhook_update_unregistered_host(
     resp = await client.post(webhook_url, json=payload)
     assert resp.status == HTTPStatus.OK
     await hass.async_block_till_done()
+
+    entity_id_select = "select.00_00_00_00_00_00_next_boot_option"
+    state = hass.states.get(entity_id_select)
+    assert state is not None
+    assert state.attributes.get("options") == [DEFAULT_BOOT_OPTION_NONE, "ubuntu"]
 
 
 async def test_global_send_magic_packet_service_minimal(
@@ -427,7 +447,9 @@ async def test_global_send_magic_packet_service_minimal(
             blocking=True,
         )
         await hass.async_block_till_done()
-        mock_wake.assert_called_once_with("aa:bb:cc:dd:ee:ff")
+        mock_wake.assert_called_once_with(
+            "aa:bb:cc:dd:ee:ff", ip_address="255.255.255.255", port=9
+        )
 
 
 async def test_webhook_invalid_schema_update_boot_options(
@@ -441,7 +463,7 @@ async def test_webhook_invalid_schema_update_boot_options(
         "action": "update_boot_options",
         "mac": "aa:bb:cc:dd:ee:ff",
         "address": "test.local",
-        "os": "linux",
+        "host_os": "linux",
     }
 
     resp = await client.post(webhook_url, json=payload)
@@ -483,7 +505,7 @@ async def test_webhook_internal_server_error(
         "action": "update_boot_options",
         "mac": "aa:bb:cc:dd:ee:ff",
         "address": "test.local",
-        "os": "linux",
+        "host_os": "linux",
         "daemon_version": "1.0.0",
         "boot_options": ["ubuntu", "windows"],
     }

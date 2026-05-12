@@ -103,7 +103,7 @@ async def test_async_check_agent_status_success(hass: HomeAssistant) -> None:
         mock_session = MagicMock()
         mock_response = MagicMock()
         mock_response.status = HTTPStatus.OK
-        mock_response.json = AsyncMock(return_value={"status": "ok"})
+        mock_response.text = AsyncMock(return_value="ok\n")
         mock_session.get.return_value = AsyncMock(
             __aenter__=AsyncMock(return_value=mock_response)
         )
@@ -129,13 +129,13 @@ async def test_async_check_agent_status_invalid_payload(hass: HomeAssistant) -> 
         mock_session = MagicMock()
         mock_response = MagicMock()
         mock_response.status = HTTPStatus.OK
-        mock_response.json = AsyncMock(return_value={"status": "error"})
+        mock_response.text = AsyncMock(return_value="error")
         mock_session.get.return_value = AsyncMock(
             __aenter__=AsyncMock(return_value=mock_response)
         )
         mock_session_getter.return_value = mock_session
 
-        result = await async_check_agent_status(hass, "1.2.3.4", 8081, "secret_key")
+        result = await async_check_agent_status(hass, "1.2.3.4", 8081, "key")
         assert result is False
 
 

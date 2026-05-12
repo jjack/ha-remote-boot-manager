@@ -15,16 +15,19 @@ from homeassistant.const import (
     CONF_BROADCAST_ADDRESS,
     CONF_BROADCAST_PORT,
     CONF_MAC,
-    CONF_PORT,
 )
 from homeassistant.helpers.device_registry import format_mac
 
 from .const import (
+    CONF_BOOT_OPTIONS,
+    CONF_DAEMON_PORT,
     CONF_DAEMON_SERVICE_MANAGER,
     CONF_DAEMON_TOKEN,
     CONF_DAEMON_VERSION,
-    CONF_HOST_BOOT_OPTIONS,
     CONF_HOST_OS,
+    DEFAULT_BROADCAST_ADDRESS,
+    DEFAULT_BROADCAST_PORT,
+    DEFAULT_DAEMON_PORT,
     LOGGER,
     WEBHOOK_MAX_PAYLOAD_BYTES,
 )
@@ -36,22 +39,24 @@ BASE_SCHEMA = vol.Schema(
         vol.Required(CONF_ADDRESS): cv.string,
         vol.Required(CONF_HOST_OS): cv.string,
         vol.Required(CONF_DAEMON_VERSION): cv.string,
+        vol.Optional(CONF_DAEMON_SERVICE_MANAGER): cv.string,
     }
 )
 
-REGISTER_DAEMON_SCHEMA = BASE_SCHEMA.extend(
+REGISTER_DAEMON_TOKEN_SCHEMA = BASE_SCHEMA.extend(
     {
-        vol.Required(CONF_PORT): cv.port,
+        vol.Required(CONF_DAEMON_PORT, default=DEFAULT_DAEMON_PORT): cv.port,
         vol.Required(CONF_DAEMON_TOKEN): cv.string,
-        vol.Optional(CONF_DAEMON_SERVICE_MANAGER): cv.string,
     }
 )
 
 UPDATE_BOOT_OPTIONS_SCHEMA = BASE_SCHEMA.extend(
     {
-        vol.Required(CONF_HOST_BOOT_OPTIONS): vol.All(cv.ensure_list, [cv.string]),
-        vol.Optional(CONF_BROADCAST_ADDRESS): cv.string,
-        vol.Optional(CONF_BROADCAST_PORT): cv.port,
+        vol.Required(CONF_BOOT_OPTIONS): vol.All(cv.ensure_list, [cv.string]),
+        vol.Optional(
+            CONF_BROADCAST_ADDRESS, default=DEFAULT_BROADCAST_ADDRESS
+        ): cv.string,
+        vol.Optional(CONF_BROADCAST_PORT, default=DEFAULT_BROADCAST_PORT): cv.port,
     }
 )
 
@@ -90,9 +95,9 @@ async def async_parse_webhook_request(
     return raw_payload, None
 
 
-def validate_register_daemon_payload(payload: dict[str, Any]) -> dict[str, Any]:
-    """Validate a register_daemon webhook payload."""
-    return cast("dict[str, Any]", REGISTER_DAEMON_SCHEMA(payload))
+def validate_register_daemon_token_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Validate a register_daemon_token webhook payload."""
+    return cast("dict[str, Any]", REGISTER_DAEMON_TOKEN_SCHEMA(payload))
 
 
 def validate_update_boot_options_payload(payload: dict[str, Any]) -> dict[str, Any]:

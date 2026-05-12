@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.core import HomeAssistant
 
+from custom_components.grubstation.const import SIGNAL_NEW_HOST
 from custom_components.grubstation.coordinator import GrubStationCoordinator
 from custom_components.grubstation.data import RemoteHost
 from custom_components.grubstation.switch import (
@@ -19,6 +20,7 @@ def get_mock_coordinator(hass: HomeAssistant, host: RemoteHost) -> MagicMock:
     coordinator = MagicMock(spec=GrubStationCoordinator)
     coordinator.hass = hass
     coordinator.data = host
+    coordinator.host = host
     coordinator.async_request_refresh = AsyncMock()
     return coordinator
 
@@ -183,8 +185,8 @@ async def test_switch_async_turn_off_via_agent(hass: HomeAssistant) -> None:
     host = RemoteHost(
         mac="00:11:22:33:44:55",
         address="192.168.1.50",
-        agent_port=8081,
-        api_key="agent_secret",
+        daemon_port=8081,
+        daemon_token="agent_secret",  # noqa: S106
         off_action=None,  # No script configured
     )
     coordinator = get_mock_coordinator(hass, host)
@@ -372,17 +374,43 @@ async def test_async_setup_entry(hass):
 
         # Both switch entities should be added
         assert async_add_entities.call_count == 2
-        mock_connect.assert_called_once()
-        mock_entry.async_on_unload.assert_called_once()
+        assert mock_connect.call_count == 2
+        assert mock_entry.async_on_unload.call_count == 2
 
         # Verify the dispatcher callback adds the new entity
-        callback = mock_connect.call_args[0][2]
+        callback = next(
+            call[0][2]
+            for call in mock_connect.call_args_list
+            if call[0][1] == SIGNAL_NEW_HOST
+        )
         host3 = RemoteHost(mac="11:22:33:44:55:66", address="new.local")
         mock_manager.hosts[host3.mac] = host3
         mock_manager.coordinators[host3.mac] = get_mock_coordinator(hass, host3)
 
         callback(host3.mac)
         assert async_add_entities.call_count == 3
+
+
+async def test_async_setup_entry_no_coordinator(hass):
+    """Test signal callback does not add entity if coordinator is missing."""
+    mock_entry = MagicMock()
+    mock_manager = MagicMock()
+    mock_manager.hosts = []
+    mock_manager.coordinators = {}
+    mock_entry.runtime_data = mock_manager
+    async_add_entities = MagicMock()
+
+    with patch(
+        "custom_components.grubstation.switch.async_dispatcher_connect"
+    ) as mock_connect:
+        await async_setup_entry(hass, mock_entry, async_add_entities)
+        callback = next(
+            call[0][2]
+            for call in mock_connect.call_args_list
+            if call[0][1] == SIGNAL_NEW_HOST
+        )
+        callback("00:AA:BB:CC:DD:EE")
+        assert async_add_entities.call_count == 0
 
 
 async def test_switch_will_remove_from_hass_cancels_task(hass):
