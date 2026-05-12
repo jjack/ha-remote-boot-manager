@@ -1,7 +1,7 @@
 -r requirements.txt
 
 # misc dependencies for home assistant to cut down on error noise
-aioesphomeapi
+aioesphomeapi>=44.24.1
 aiodhcpwatcher
 aiousbwatcher
 async-upnp-client
