@@ -83,7 +83,7 @@ filterwarnings = [
 ]
 
 [tool.coverage.run]
-source = ["custom_components/ha_integration_domain"]
+source = ["custom_components/grubstation"]
 omit = ["tests/*"]
 
 [tool.coverage.report]
