@@ -14,12 +14,12 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.device_registry import format_mac
 
 from .const import (
+    CONF_AGENT_PORT,
+    CONF_AGENT_TOKEN,
     CONF_BOOT_OPTIONS,
-    CONF_DAEMON_PORT,
-    CONF_DAEMON_TOKEN,
+    DEFAULT_AGENT_PORT,
     DEFAULT_BROADCAST_ADDRESS,
     DEFAULT_BROADCAST_PORT,
-    DEFAULT_DAEMON_PORT,
     LOGGER,
     WEBHOOK_MAX_PAYLOAD_BYTES,
 )
@@ -32,10 +32,10 @@ BASE_SCHEMA = vol.Schema(
     }
 )
 
-REGISTER_DAEMON_TOKEN_SCHEMA = BASE_SCHEMA.extend(
+REGISTER_AGENT_TOKEN_SCHEMA = BASE_SCHEMA.extend(
     {
-        vol.Required(CONF_DAEMON_PORT, default=DEFAULT_DAEMON_PORT): cv.port,
-        vol.Required(CONF_DAEMON_TOKEN): cv.string,
+        vol.Required(CONF_AGENT_PORT, default=DEFAULT_AGENT_PORT): cv.port,
+        vol.Required(CONF_AGENT_TOKEN): cv.string,
     }
 )
 
@@ -76,9 +76,9 @@ async def async_parse_webhook_request(
     return raw_payload, None
 
 
-def validate_register_daemon_token_payload(payload: dict[str, Any]) -> dict[str, Any]:
-    """Validate a register_daemon_token webhook payload."""
-    return cast("dict[str, Any]", REGISTER_DAEMON_TOKEN_SCHEMA(payload))
+def validate_register_agent_token_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Validate a register_agent_token webhook payload."""
+    return cast("dict[str, Any]", REGISTER_AGENT_TOKEN_SCHEMA(payload))
 
 
 def validate_update_boot_options_payload(payload: dict[str, Any]) -> dict[str, Any]:

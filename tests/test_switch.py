@@ -171,13 +171,13 @@ async def test_switch_async_turn_off(hass):
         mock_task_creator.call_args[0][0].close()
 
 
-async def test_switch_async_turn_off_via_daemon(hass: HomeAssistant) -> None:
-    """Test the turn off action when it calls the remote daemon directly."""
+async def test_switch_async_turn_off_via_agent(hass: HomeAssistant) -> None:
+    """Test the turn off action when it calls the remote agent directly."""
     host = RemoteHost(
         mac="00:11:22:33:44:55",
         address="192.168.1.50",
-        daemon_port=8081,
-        daemon_token="daemon_secret",
+        agent_port=8081,
+        agent_token="agent_secret",
         off_action=None,  # No script configured
     )
     coordinator = get_mock_coordinator(hass, host)
@@ -189,7 +189,7 @@ async def test_switch_async_turn_off_via_daemon(hass: HomeAssistant) -> None:
         patch(
             "custom_components.grubstation.switch.async_send_turn_off_command",
             new_callable=AsyncMock,
-        ) as mock_daemon_call,
+        ) as mock_agent_call,
         patch.object(switch, "async_write_ha_state") as mock_write,
         patch.object(hass, "async_create_background_task") as mock_task_creator,
     ):
@@ -200,7 +200,7 @@ async def test_switch_async_turn_off_via_daemon(hass: HomeAssistant) -> None:
         await switch.async_turn_off()
 
         assert switch.is_on is False
-        mock_daemon_call.assert_called_once_with(hass, "192.168.1.50", 8081, "daemon_secret")
+        mock_agent_call.assert_called_once_with(hass, "192.168.1.50", 8081, "agent_secret")
         mock_task_creator.assert_called_once()
         mock_write.assert_called_once()
         mock_task_creator.call_args[0][0].close()

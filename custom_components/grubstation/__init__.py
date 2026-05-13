@@ -29,22 +29,22 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity_registry import async_get as async_get_er
 from homeassistant.helpers.storage import Store
 
+from .agent import async_send_turn_off_command
 from .const import (
-    CONF_DAEMON_PORT,
-    CONF_DAEMON_TOKEN,
+    CONF_AGENT_PORT,
+    CONF_AGENT_TOKEN,
+    DEFAULT_AGENT_PORT,
     DEFAULT_BROADCAST_ADDRESS,
     DEFAULT_BROADCAST_PORT,
-    DEFAULT_DAEMON_PORT,
     DOMAIN,
     LOGGER,
     WEBHOOK_NAME,
 )
-from .daemon import async_send_turn_off_command
 from .manager import GrubStationManager
 from .views import GrubConfigView
 from .webhook import (
     async_parse_webhook_request,
-    validate_register_daemon_token_payload,
+    validate_register_agent_token_payload,
     validate_update_boot_options_payload,
 )
 
@@ -70,8 +70,8 @@ TURN_ON_COMMAND_SCHEMA = vol.Schema(
 TURN_OFF_COMMAND_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_ADDRESS): cv.string,
-        vol.Optional(CONF_DAEMON_PORT, default=DEFAULT_DAEMON_PORT): cv.port,
-        vol.Required(CONF_DAEMON_TOKEN): cv.string,
+        vol.Optional(CONF_AGENT_PORT, default=DEFAULT_AGENT_PORT): cv.port,
+        vol.Required(CONF_AGENT_TOKEN): cv.string,
     }
 )
 
@@ -107,10 +107,10 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
         """Handle service call to send shutdown command to a host."""
         # Required parameters are guaranteed by TURN_OFF_COMMAND_SCHEMA validation
         address: str = call.data[CONF_ADDRESS]
-        daemon_port: int = call.data[CONF_DAEMON_PORT]
-        daemon_token: str = call.data[CONF_DAEMON_TOKEN]
+        agent_port: int = call.data[CONF_AGENT_PORT]
+        agent_token: str = call.data[CONF_AGENT_TOKEN]
 
-        await async_send_turn_off_command(hass, address, daemon_port, daemon_token)
+        await async_send_turn_off_command(hass, address, agent_port, agent_token)
 
     hass.services.async_register(
         DOMAIN,
@@ -119,7 +119,7 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
         schema=TURN_ON_COMMAND_SCHEMA,
     )
 
-    # Register our daemon's shutdown action
+    # Register our agent's shutdown action
     hass.services.async_register(
         DOMAIN,
         SERVICE_SEND_TURN_OFF_COMMAND,
@@ -161,9 +161,9 @@ async def async_setup_entry(
                 return web.Response(status=HTTPStatus.BAD_REQUEST, text="Missing action in payload")
 
             try:
-                if action == "register_daemon_token":
-                    payload = validate_register_daemon_token_payload(raw_payload)
-                    manager.async_register_daemon_token(payload[CONF_MAC], payload)
+                if action == "register_agent_token":
+                    payload = validate_register_agent_token_payload(raw_payload)
+                    manager.async_register_agent_token(payload[CONF_MAC], payload)
                 elif action == "update_boot_options":
                     payload = validate_update_boot_options_payload(raw_payload)
                     manager.async_update_boot_options(payload[CONF_MAC], payload)

@@ -8,7 +8,7 @@
             },
             "webhook_info": {
                 "title": "Generated Webhook ID",
-                "description": "Here is your securely generated Webhook ID. **Please copy this now as it will not be shown again.**\n\n```text\n{webhook_id}\n```\n\nFor full instructions on configuring and installing the Grub OS Reporter, visit the [Grub OS Reporter]({daemon_url}) repository."
+                "description": "Here is your securely generated Webhook ID. **Please copy this now as it will not be shown again.**\n\n```text\n{webhook_id}\n```\n\nFor full instructions on configuring and installing the Grub OS Reporter, visit the [Grub OS Reporter]({agent_url}) repository."
             },
             "reconfigure": {
                 "title": "Reconfigure GrubStation",
@@ -17,7 +17,7 @@
             },
             "reconfigure_webhook_info": {
                 "title": "New Webhook ID",
-                "description": "Here is your securely generated new Webhook ID. **Please copy this now as it will not be shown again.**\n\n```text\n{webhook_id}\n```\n\nRemember to update all your Grub OS Reporters with this new ID.\n\nFor full instructions on configuring and installing the Grub OS Reporter, visit the [Grub OS Reporter]({daemon_url}) repository."
+                "description": "Here is your securely generated new Webhook ID. **Please copy this now as it will not be shown again.**\n\n```text\n{webhook_id}\n```\n\nRemember to update all your Grub OS Reporters with this new ID.\n\nFor full instructions on configuring and installing the Grub OS Reporter, visit the [Grub OS Reporter]({agent_url}) repository."
             }
         },
         "error": {
@@ -50,7 +50,7 @@
             },
             "host_config": {
                 "title": "Configure {host_name}",
-                "description": "Define an action to gracefully shut down the remote host. If no action is provided, the integration will attempt to use the built-in daemon shutdown command.\n\n**Note:** You can also manually adjust the network settings below for troubleshooting, but these will be overwritten the next time the host checks in.",
+                "description": "Define an action to gracefully shut down the remote host. If no action is provided, the integration will attempt to use the built-in agent shutdown command.\n\n**Note:** You can also manually adjust the network settings below for troubleshooting, but these will be overwritten the next time the host checks in.",
                 "data": {
                     "turn_off_action": "Shutdown Action (Custom Override)",
                     "address": "Address for Ping Checks",
@@ -58,7 +58,7 @@
                     "broadcast_port": "Broadcast Port for Magic Packets"
                 },
                 "data_description": {
-                    "turn_off_action": "An optional list of Home Assistant actions to perform for shutdown. If left as 'Add Action' (blank), the integration will use the built-in daemon shutdown (requires Address and API Key).",
+                    "turn_off_action": "An optional list of Home Assistant actions to perform for shutdown. If left as 'Add Action' (blank), the integration will use the built-in agent shutdown (requires Address and API Key).",
                     "address": "The network address that HA will ping to check to see if the host is online. This can be an IP address or hostname. If left blank, there will not be any ping checks.",
                     "broadcast_address": "The IP address to send magic packets to. Defaults to `255.255.255.255` (`ff02::1` for ipv6) and is typically not changed.",
                     "broadcast_port": "The port to send magic packets to. Defaults to `9` and is typically not changed."
@@ -90,7 +90,7 @@
         },
         "send_turn_off_command": {
             "name": "Send turn off command",
-            "description": "Sends a shutdown command to the Grub OS Reporter daemon on a remote host.",
+            "description": "Sends a shutdown command to the Grub OS Reporter agent on a remote host.",
             "fields": {
                 "address": {
                     "name": "Address",
@@ -98,11 +98,11 @@
                 },
                 "port": {
                     "name": "Port",
-                    "description": "The port the daemon is listening on. Defaults to 8081."
+                    "description": "The port the agent is listening on. Defaults to 8081."
                 },
                 "api_key": {
                     "name": "API key",
-                    "description": "The API key required to authenticate with the daemon."
+                    "description": "The API key required to authenticate with the agent."
                 }
             }
         }

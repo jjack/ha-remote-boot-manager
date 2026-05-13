@@ -77,16 +77,16 @@ async def test_webhook_discovery_boot_options(hass: HomeAssistant, setup_integra
     assert state.state == DEFAULT_BOOT_OPTION_NONE
 
 
-async def test_webhook_discovery_daemon_token(hass: HomeAssistant, setup_integration) -> None:
+async def test_webhook_discovery_agent_token(hass: HomeAssistant, setup_integration) -> None:
     """Test that posting to the webhook creates the appropriate entities."""
     client = setup_integration
     webhook_url = "/api/webhook/test_webhook_id"
     payload = {
-        "action": "register_daemon_token",
+        "action": "register_agent_token",
         "mac": "aa:bb:cc:dd:ee:ff",
         "address": "test.local",
-        "daemon_port": 8000,
-        "daemon_token": "secret",
+        "agent_port": 8000,
+        "agent_token": "secret",
     }
 
     resp = await client.post(webhook_url, json=payload)
@@ -110,11 +110,11 @@ async def test_minimal_webhook_discovery_and_switch(hass: HomeAssistant, setup_i
     client = setup_integration
     webhook_url = "/api/webhook/test_webhook_id"
     payload = {
-        "action": "register_daemon_token",
+        "action": "register_agent_token",
         "mac": "de:ad:be:ef:00:01",
         "address": "minimal.local",
-        "daemon_port": 8000,
-        "daemon_token": "secret",
+        "agent_port": 8000,
+        "agent_token": "secret",
     }
 
     resp = await client.post(webhook_url, json=payload)
@@ -248,18 +248,18 @@ async def test_global_send_turn_off_command_service(hass: HomeAssistant, setup_i
     with patch(
         "custom_components.grubstation.async_send_turn_off_command",
         new_callable=AsyncMock,
-    ) as mock_daemon_call:
+    ) as mock_agent_call:
         await hass.services.async_call(
             DOMAIN,
             "send_turn_off_command",
             {
                 "address": "1.2.3.4",
-                "daemon_port": 8081,
-                "daemon_token": "secret",
+                "agent_port": 8081,
+                "agent_token": "secret",
             },
             blocking=True,
         )
-        mock_daemon_call.assert_called_once_with(hass, "1.2.3.4", 8081, "secret")
+        mock_agent_call.assert_called_once_with(hass, "1.2.3.4", 8081, "secret")
 
 
 async def test_webhook_validation_error(hass: HomeAssistant, setup_integration) -> None:
@@ -323,9 +323,9 @@ async def test_webhook_invalid_schema(hass: HomeAssistant, setup_integration) ->
     """Test webhook returns HTTPStatus.BAD_REQUEST for invalid schema."""
     client = setup_integration
     webhook_url = "/api/webhook/test_webhook_id"
-    # missing required 'address' or 'os' for register_daemon
+    # missing required 'address' or 'os' for register_agent
     payload = {
-        "action": "register_daemon_token",
+        "action": "register_agent_token",
         "mac": "aa:bb:cc:dd:ee:ff",
     }
 
@@ -335,16 +335,16 @@ async def test_webhook_invalid_schema(hass: HomeAssistant, setup_integration) ->
     assert "Invalid payload format" in text
 
 
-async def test_webhook_register_daemon_token_existing_host(hass: HomeAssistant, setup_integration) -> None:
+async def test_webhook_register_agent_token_existing_host(hass: HomeAssistant, setup_integration) -> None:
     """Test registering an already registered host."""
     client = setup_integration
     webhook_url = "/api/webhook/test_webhook_id"
     payload = {
-        "action": "register_daemon_token",
+        "action": "register_agent_token",
         "mac": "aa:bb:cc:dd:ee:ff",
         "address": "test.local",
-        "daemon_port": 8000,
-        "daemon_token": "secret",
+        "agent_port": 8000,
+        "agent_token": "secret",
     }
 
     # First registration

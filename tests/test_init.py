@@ -13,7 +13,7 @@ from custom_components.grubstation import (
     async_setup_entry,
     async_unload_entry,
 )
-from custom_components.grubstation.const import CONF_DAEMON_PORT, CONF_DAEMON_TOKEN, DOMAIN
+from custom_components.grubstation.const import CONF_AGENT_PORT, CONF_AGENT_TOKEN, DOMAIN
 from homeassistant.const import CONF_ADDRESS
 
 
@@ -157,8 +157,8 @@ async def test_async_setup_registers_send_turn_off_service(hass):
             "send_turn_off_command",
             {
                 CONF_ADDRESS: "1.2.3.4",
-                CONF_DAEMON_PORT: 1234,
-                CONF_DAEMON_TOKEN: "secret_key",
+                CONF_AGENT_PORT: 1234,
+                CONF_AGENT_TOKEN: "secret_key",
             },
             blocking=True,
         )

@@ -13,9 +13,9 @@ from homeassistant.helpers.storage import Store
 import homeassistant.util.dt as dt_util
 
 from .const import (
+    CONF_AGENT_PORT,
+    CONF_AGENT_TOKEN,
     CONF_BOOT_OPTIONS,
-    CONF_DAEMON_PORT,
-    CONF_DAEMON_TOKEN,
     DEFAULT_BOOT_OPTION_NONE,
     DOMAIN,
     LOGGER,
@@ -64,7 +64,7 @@ class GrubStationManager:
                         host_data,
                     )
 
-        # Start background daemon accessibility polling for all coordinators
+        # Start background agent accessibility polling for all coordinators
         for coordinator in self.coordinators.values():
             await coordinator.async_refresh()
 
@@ -106,16 +106,16 @@ class GrubStationManager:
         return {"hosts": {mac: dataclasses.asdict(host) for mac, host in self.hosts.items()}}
 
     @callback
-    def async_register_daemon_token(self, mac_address: str, payload: dict[str, Any]) -> None:
-        """Update the daemon token for a host."""
+    def async_register_agent_token(self, mac_address: str, payload: dict[str, Any]) -> None:
+        """Update the agent token for a host."""
         mac_address = format_mac(mac_address)
 
         if mac_address not in self.hosts:
             host = RemoteHost(
                 mac=mac_address,
                 address=payload[CONF_ADDRESS],
-                daemon_port=payload.get(CONF_DAEMON_PORT),
-                daemon_token=payload.get(CONF_DAEMON_TOKEN),
+                agent_port=payload.get(CONF_AGENT_PORT),
+                agent_token=payload.get(CONF_AGENT_TOKEN),
             )
             self.hosts[mac_address] = host
             self.coordinators[mac_address] = GrubStationCoordinator(self.hass, self, host)

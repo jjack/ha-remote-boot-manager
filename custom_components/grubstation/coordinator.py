@@ -10,8 +10,8 @@ from icmplib import async_ping
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 import homeassistant.util.dt as dt_util
 
+from .agent import async_get_agent_status
 from .const import DOMAIN, LOGGER, PING_COUNT, PING_TIMEOUT_SECONDS
-from .daemon import async_get_daemon_status
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -65,39 +65,39 @@ class GrubStationCoordinator(DataUpdateCoordinator["RemoteHost"]):
         # 1. Check if host is alive via ICMP
         is_alive = await _async_ping_host(self.host.address)
 
-        # 2. If alive and has daemon config, check the daemon status
+        # 2. If alive and has agent config, check the agent status
         is_accessible = False
-        daemon_status = None
-        if is_alive and self.host.daemon_port and self.host.daemon_token:
-            daemon_status = await async_get_daemon_status(
+        agent_status = None
+        if is_alive and self.host.agent_port and self.host.agent_token:
+            agent_status = await async_get_agent_status(
                 self.hass,
                 self.host.address,
-                self.host.daemon_port,
-                self.host.daemon_token,
+                self.host.agent_port,
+                self.host.agent_token,
             )
-            is_accessible = daemon_status is not None
+            is_accessible = agent_status is not None
             LOGGER.debug(
-                "Daemon status for %s (%s): %s",
+                "Agent status for %s (%s): %s",
                 self.host.mac,
                 self.host.address,
                 "accessible" if is_accessible else "not accessible",
             )
         elif is_alive:
-            LOGGER.debug("Skipping daemon check for %s: missing port or token", self.host.mac)
+            LOGGER.debug("Skipping agent check for %s: missing port or token", self.host.mac)
 
         # Log accessibility transitions
-        if is_accessible != self.host.is_daemon_accessible:
+        if is_accessible != self.host.is_agent_accessible:
             status = "Online" if is_accessible else "Offline"
-            self.manager.async_log_activity(self.host.mac, f"Daemon is {status}")
+            self.manager.async_log_activity(self.host.mac, f"Agent is {status}")
 
         # Update the host state
-        self.host.is_daemon_accessible = is_accessible
+        self.host.is_agent_accessible = is_accessible
         self.host.is_powered_on = is_alive
 
-        if is_accessible and daemon_status:
-            self.host.last_daemon_accessible = dt_util.utcnow().isoformat()
-            self.host.os = daemon_status.get("os")
-            self.host.daemon_service_manager = daemon_status.get("service_manager")
-            self.host.daemon_version = daemon_status.get("version")
+        if is_accessible and agent_status:
+            self.host.last_agent_accessible = dt_util.utcnow().isoformat()
+            self.host.os = agent_status.get("os")
+            self.host.agent_service_manager = agent_status.get("service_manager")
+            self.host.agent_version = agent_status.get("version")
 
         return self.host

@@ -14,9 +14,9 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.script import Script
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .agent import async_send_turn_off_command
 from .const import DOMAIN, LOGGER, SIGNAL_HOST_REMOVED, SIGNAL_NEW_HOST, WAIT_FOR_HOST_POWER_SECONDS
 from .coordinator import GrubStationCoordinator, _async_ping_host
-from .daemon import async_send_turn_off_command
 from .utils import generate_device_info
 
 if TYPE_CHECKING:
@@ -82,7 +82,7 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return the state attributes."""
         return {
-            "last_daemon_accessible": self.coordinator.host.last_daemon_accessible,
+            "last_agent_accessible": self.coordinator.host.last_agent_accessible,
             "os": self.coordinator.host.os,
         }
 
@@ -123,13 +123,13 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
         if self._turn_off_action:
             self.coordinator.manager.async_log_activity(self.coordinator.host.mac, "Running shutdown script")
             await self._turn_off_action.async_run(context=getattr(self, "_context", None))
-        elif self.coordinator.host.daemon_token and self.coordinator.host.address and self.coordinator.host.daemon_port:
-            self.coordinator.manager.async_log_activity(self.coordinator.host.mac, "Sending shutdown command to daemon")
+        elif self.coordinator.host.agent_token and self.coordinator.host.address and self.coordinator.host.agent_port:
+            self.coordinator.manager.async_log_activity(self.coordinator.host.mac, "Sending shutdown command to agent")
             await async_send_turn_off_command(
                 self.hass,
                 self.coordinator.host.address,
-                self.coordinator.host.daemon_port,
-                self.coordinator.host.daemon_token,
+                self.coordinator.host.agent_port,
+                self.coordinator.host.agent_token,
             )
         else:
             self.coordinator.manager.async_log_activity(

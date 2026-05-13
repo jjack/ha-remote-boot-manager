@@ -13,36 +13,36 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 
 @pytest.fixture
-def mock_host_with_daemon():
-    """Return a mock RemoteHost with daemon config."""
+def mock_host_with_agent():
+    """Return a mock RemoteHost with agent config."""
     return RemoteHost(
         mac="00:11:22:33:44:55",
         address="192.168.1.100",
-        daemon_port=8080,
-        daemon_token="test-key",
-        is_daemon_accessible=True,
-        last_daemon_accessible="2023-01-01T12:00:00+00:00",
+        agent_port=8080,
+        agent_token="test-key",
+        is_agent_accessible=True,
+        last_agent_accessible="2023-01-01T12:00:00+00:00",
     )
 
 
 @pytest.fixture
-def mock_host_without_daemon():
-    """Return a mock RemoteHost without daemon config."""
+def mock_host_without_agent():
+    """Return a mock RemoteHost without agent config."""
     return RemoteHost(
         mac="AA:BB:CC:DD:EE:FF",
         broadcast_address="192.168.1.255",
         broadcast_port=9,
-        is_daemon_accessible=False,
-        last_daemon_accessible=None,
+        is_agent_accessible=False,
+        last_agent_accessible=None,
     )
 
 
 @pytest.fixture
-def mock_coordinator(mock_host_with_daemon):
+def mock_coordinator(mock_host_with_agent):
     """Return a mock coordinator."""
     coordinator = MagicMock()
-    coordinator.data = mock_host_with_daemon
-    coordinator.host = mock_host_with_daemon
+    coordinator.data = mock_host_with_agent
+    coordinator.host = mock_host_with_agent
     return coordinator
 
 
@@ -50,8 +50,8 @@ async def test_sensor_properties(hass: HomeAssistant, mock_coordinator: MagicMoc
     """Test sensor properties."""
     sensor = GrubStationManagerSensor(mock_coordinator)
 
-    assert sensor.unique_id == "00:11:22:33:44:55_last_daemon_accessible"
-    assert sensor.name == "Last Successful Daemon Healthcheck"
+    assert sensor.unique_id == "00:11:22:33:44:55_last_agent_accessible"
+    assert sensor.name == "Last Successful Agent Healthcheck"
     assert sensor.icon == "mdi:heart-pulse"
     assert sensor.should_poll is False
     assert sensor.has_entity_name is True
@@ -61,11 +61,11 @@ async def test_sensor_native_value(hass: HomeAssistant, mock_coordinator: MagicM
     """Test sensor native value."""
     sensor = GrubStationManagerSensor(mock_coordinator)
 
-    # Should return the timestamp when daemon is accessible
+    # Should return the timestamp when agent is accessible
     assert sensor.native_value == "2023-01-01T12:00:00+00:00"
 
     # Should return None when timestamp is not set
-    mock_coordinator.data.last_daemon_accessible = None
+    mock_coordinator.data.last_agent_accessible = None
     assert sensor.native_value is None
 
 
@@ -79,38 +79,38 @@ async def test_sensor_device_info(hass: HomeAssistant, mock_coordinator: MagicMo
     assert device_info is not None
 
 
-async def test_async_setup_entry_with_daemon_hosts(hass: HomeAssistant):
-    """Test setting up the sensor platform with hosts that have daemons."""
+async def test_async_setup_entry_with_agent_hosts(hass: HomeAssistant):
+    """Test setting up the sensor platform with hosts that have agents."""
     mock_entry = MagicMock()
     mock_manager = MagicMock()
 
-    # Create hosts with and without daemon config
-    host_with_daemon = RemoteHost(
+    # Create hosts with and without agent config
+    host_with_agent = RemoteHost(
         mac="00:11:22:33:44:55",
         address="192.168.1.100",
-        daemon_port=8080,
-        daemon_token="test-key",
+        agent_port=8080,
+        agent_token="test-key",
     )
-    coordinator_with_daemon = MagicMock()
-    coordinator_with_daemon.data = host_with_daemon
-    coordinator_with_daemon.host = host_with_daemon
+    coordinator_with_agent = MagicMock()
+    coordinator_with_agent.data = host_with_agent
+    coordinator_with_agent.host = host_with_agent
 
-    host_without_daemon = RemoteHost(
+    host_without_agent = RemoteHost(
         mac="AA:BB:CC:DD:EE:FF",
         broadcast_address="192.168.1.255",
         broadcast_port=9,
     )
-    coordinator_without_daemon = MagicMock()
-    coordinator_without_daemon.data = host_without_daemon
-    coordinator_without_daemon.host = host_without_daemon
+    coordinator_without_agent = MagicMock()
+    coordinator_without_agent.data = host_without_agent
+    coordinator_without_agent.host = host_without_agent
 
     mock_manager.hosts = {
-        "00:11:22:33:44:55": host_with_daemon,
-        "AA:BB:CC:DD:EE:FF": host_without_daemon,
+        "00:11:22:33:44:55": host_with_agent,
+        "AA:BB:CC:DD:EE:FF": host_without_agent,
     }
     mock_manager.coordinators = {
-        "00:11:22:33:44:55": coordinator_with_daemon,
-        "AA:BB:CC:DD:EE:FF": coordinator_without_daemon,
+        "00:11:22:33:44:55": coordinator_with_agent,
+        "AA:BB:CC:DD:EE:FF": coordinator_without_agent,
     }
     mock_entry.runtime_data = mock_manager
 
@@ -119,7 +119,7 @@ async def test_async_setup_entry_with_daemon_hosts(hass: HomeAssistant):
     with patch("custom_components.grubstation.sensor.async_dispatcher_connect") as mock_dispatch:
         await async_setup_entry(hass, mock_entry, mock_add_entities)
 
-        # Should only add sensor for host with daemon config
+        # Should only add sensor for host with agent config
         mock_add_entities.assert_called_once()
         added_entities = mock_add_entities.call_args[0][0]
         assert len(added_entities) == 1
@@ -134,23 +134,23 @@ async def test_async_setup_entry_with_daemon_hosts(hass: HomeAssistant):
         assert mock_entry.async_on_unload.call_count == 3
 
 
-async def test_async_setup_entry_no_daemon_hosts(hass: HomeAssistant):
-    """Test setting up the sensor platform with no daemon hosts."""
+async def test_async_setup_entry_no_agent_hosts(hass: HomeAssistant):
+    """Test setting up the sensor platform with no agent hosts."""
     mock_entry = MagicMock()
     mock_manager = MagicMock()
 
-    # Only add hosts without daemon config
-    host_without_daemon = RemoteHost(
+    # Only add hosts without agent config
+    host_without_agent = RemoteHost(
         mac="AA:BB:CC:DD:EE:FF",
         broadcast_address="192.168.1.255",
         broadcast_port=9,
     )
-    coordinator_without_daemon = MagicMock()
-    coordinator_without_daemon.data = host_without_daemon
-    coordinator_without_daemon.host = host_without_daemon
+    coordinator_without_agent = MagicMock()
+    coordinator_without_agent.data = host_without_agent
+    coordinator_without_agent.host = host_without_agent
 
-    mock_manager.hosts = {"AA:BB:CC:DD:EE:FF": host_without_daemon}
-    mock_manager.coordinators = {"AA:BB:CC:DD:EE:FF": coordinator_without_daemon}
+    mock_manager.hosts = {"AA:BB:CC:DD:EE:FF": host_without_agent}
+    mock_manager.coordinators = {"AA:BB:CC:DD:EE:FF": coordinator_without_agent}
     mock_entry.runtime_data = mock_manager
 
     mock_add_entities = MagicMock(spec=AddEntitiesCallback)
@@ -158,7 +158,7 @@ async def test_async_setup_entry_no_daemon_hosts(hass: HomeAssistant):
     with patch("custom_components.grubstation.sensor.async_dispatcher_connect") as mock_dispatch:
         await async_setup_entry(hass, mock_entry, mock_add_entities)
 
-        # Should not add any sensors since host has no daemon config
+        # Should not add any sensors since host has no agent config
         mock_add_entities.assert_not_called()
 
         # Should still connect to the new host signals
@@ -169,8 +169,8 @@ async def test_async_setup_entry_no_daemon_hosts(hass: HomeAssistant):
         assert mock_entry.async_on_unload.call_count == 3
 
 
-async def test_async_setup_entry_signal_callback_with_daemon(hass: HomeAssistant):
-    """Test signal callback adds sensor for new host with daemon."""
+async def test_async_setup_entry_signal_callback_with_agent(hass: HomeAssistant):
+    """Test signal callback adds sensor for new host with agent."""
     mock_entry = MagicMock()
     mock_manager = MagicMock()
     mock_manager.hosts = {}
@@ -185,13 +185,13 @@ async def test_async_setup_entry_signal_callback_with_daemon(hass: HomeAssistant
         # Get the callback function for SIGNAL_NEW_HOST
         callback = next(call[0][2] for call in mock_dispatch.call_args_list if call[0][1] == SIGNAL_NEW_HOST)
 
-        # Add a new host with daemon config
+        # Add a new host with agent config
         new_mac = "00:11:22:33:44:55"
         new_host = RemoteHost(
             mac=new_mac,
             address="192.168.1.100",
-            daemon_port=8080,
-            daemon_token="test-key",
+            agent_port=8080,
+            agent_token="test-key",
         )
         new_coordinator = MagicMock()
         new_coordinator.data = new_host
@@ -211,8 +211,8 @@ async def test_async_setup_entry_signal_callback_with_daemon(hass: HomeAssistant
         assert added_entities[0].host.mac == new_mac
 
 
-async def test_async_setup_entry_signal_callback_without_daemon(hass: HomeAssistant):
-    """Test signal callback does not add sensor for new host without daemon."""
+async def test_async_setup_entry_signal_callback_without_agent(hass: HomeAssistant):
+    """Test signal callback does not add sensor for new host without agent."""
     mock_entry = MagicMock()
     mock_manager = MagicMock()
     mock_manager.hosts = {}
@@ -227,7 +227,7 @@ async def test_async_setup_entry_signal_callback_without_daemon(hass: HomeAssist
         # Get the callback function for SIGNAL_NEW_HOST
         callback = next(call[0][2] for call in mock_dispatch.call_args_list if call[0][1] == SIGNAL_NEW_HOST)
 
-        # Add a new host without daemon config
+        # Add a new host without agent config
         new_mac = "AA:BB:CC:DD:EE:FF"
         new_host = RemoteHost(
             mac=new_mac,
@@ -244,7 +244,7 @@ async def test_async_setup_entry_signal_callback_without_daemon(hass: HomeAssist
         # Call the signal callback
         callback(new_mac)
 
-        # Should not call add_entities since host has no daemon config
+        # Should not call add_entities since host has no agent config
         mock_add_entities.assert_not_called()
 
 

@@ -40,26 +40,26 @@ def manager(hass, mock_store, mock_coordinator):
     manager.async_unload()
 
 
-async def test_async_register_daemon_token_new_host(manager, hass, mock_coordinator):
+async def test_async_register_agent_token_new_host(manager, hass, mock_coordinator):
     """Test that a new host is registered correctly."""
     payload = {
-        "action": "register_daemon_token",
+        "action": "register_agent_token",
         "mac": "00:11:22:33:44:55",
         "address": "test.local",
-        "daemon_port": 8000,
-        "daemon_token": "secret",
+        "agent_port": 8000,
+        "agent_token": "secret",
     }
 
     with patch("custom_components.grubstation.manager.async_dispatcher_send") as mock_dispatch:
-        manager.async_register_daemon_token("00:11:22:33:44:55", payload)
+        manager.async_register_agent_token("00:11:22:33:44:55", payload)
 
         assert "00:11:22:33:44:55" in manager.hosts
         assert "00:11:22:33:44:55" in manager.coordinators
         host = manager.hosts["00:11:22:33:44:55"]
         assert isinstance(host, RemoteHost)
         assert host.address == "test.local"
-        assert host.daemon_token == "secret"
-        assert host.daemon_port == 8000
+        assert host.agent_token == "secret"
+        assert host.agent_port == 8000
 
         mock_dispatch.assert_called_once()
         mock_coordinator.async_set_updated_data.assert_called_once_with(host)
@@ -88,13 +88,13 @@ async def test_async_update_boot_options_none_option_already_present(manager, ha
     """Test that the default none boot option is not duplicated if already present."""
     # Setup host first via registration
     reg_payload = {
-        "action": "register_daemon_token",
+        "action": "register_agent_token",
         "mac": "00:11:22:33:44:55",
         "address": "test.local",
-        "daemon_token": "secret",
-        "daemon_port": 8000,
+        "agent_token": "secret",
+        "agent_port": 8000,
     }
-    manager.async_register_daemon_token("00:11:22:33:44:55", reg_payload)
+    manager.async_register_agent_token("00:11:22:33:44:55", reg_payload)
 
     push_payload = {
         "action": "update_boot_options",
@@ -115,13 +115,13 @@ async def test_async_update_boot_options_empty_boot_options(manager, hass, mock_
     """Test that DEFAULT_BOOT_OPTION_NONE is added when boot_options is empty."""
     # Setup host
     reg_payload = {
-        "action": "register_daemon_token",
+        "action": "register_agent_token",
         "mac": "00:11:22:33:44:55",
         "address": "test.local",
-        "daemon_token": "secret",
-        "daemon_port": 8000,
+        "agent_token": "secret",
+        "agent_port": 8000,
     }
-    manager.async_register_daemon_token("00:11:22:33:44:55", reg_payload)
+    manager.async_register_agent_token("00:11:22:33:44:55", reg_payload)
 
     push_payload = {
         "action": "update_boot_options",

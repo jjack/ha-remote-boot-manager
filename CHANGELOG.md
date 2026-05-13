@@ -20,7 +20,7 @@
 
 ### Features
 
-* adding support for remote agent daemon ([6f6762b](https://github.com/jjack/ha-grubstation/commit/6f6762bda0e0d1c292beec168b36ea9f6e618042))
+* adding support for remote agent agent ([6f6762b](https://github.com/jjack/ha-grubstation/commit/6f6762bda0e0d1c292beec168b36ea9f6e618042))
 
 
 ### Bug Fixes

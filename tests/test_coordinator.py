@@ -14,8 +14,8 @@ def mock_host():
     return RemoteHost(
         mac="00:11:22:33:44:55",
         address="1.2.3.4",
-        daemon_port=8081,
-        daemon_token="secret",
+        agent_port=8081,
+        agent_token="secret",
     )
 
 
@@ -37,25 +37,25 @@ async def test_coordinator_update_success(hass, mock_host, mock_manager):
             return_value=True,
         ) as mock_ping,
         patch(
-            "custom_components.grubstation.coordinator.async_get_daemon_status",
+            "custom_components.grubstation.coordinator.async_get_agent_status",
             return_value={
                 "os": "linux",
                 "service_manager": "systemd",
                 "version": "1.0.0",
             },
-        ) as mock_daemon,
+        ) as mock_agent,
     ):
         await coordinator._async_update_data()
 
         mock_ping.assert_called_once_with("1.2.3.4")
-        mock_daemon.assert_called_once_with(hass, "1.2.3.4", 8081, "secret")
+        mock_agent.assert_called_once_with(hass, "1.2.3.4", 8081, "secret")
 
         assert mock_host.is_powered_on is True
-        assert mock_host.is_daemon_accessible is True
-        assert mock_host.last_daemon_accessible is not None
+        assert mock_host.is_agent_accessible is True
+        assert mock_host.last_agent_accessible is not None
         assert mock_host.os == "linux"
-        assert mock_host.daemon_service_manager == "systemd"
-        assert mock_host.daemon_version == "1.0.0"
+        assert mock_host.agent_service_manager == "systemd"
+        assert mock_host.agent_version == "1.0.0"
 
 
 async def test_coordinator_update_no_ping(hass, mock_host, mock_manager):
@@ -68,20 +68,20 @@ async def test_coordinator_update_no_ping(hass, mock_host, mock_manager):
             return_value=False,
         ) as mock_ping,
         patch(
-            "custom_components.grubstation.coordinator.async_get_daemon_status",
-        ) as mock_daemon,
+            "custom_components.grubstation.coordinator.async_get_agent_status",
+        ) as mock_agent,
     ):
         await coordinator._async_update_data()
 
         mock_ping.assert_called_once_with("1.2.3.4")
-        mock_daemon.assert_not_called()
+        mock_agent.assert_not_called()
 
         assert mock_host.is_powered_on is False
-        assert mock_host.is_daemon_accessible is False
+        assert mock_host.is_agent_accessible is False
 
 
-async def test_coordinator_update_no_daemon(hass, mock_host, mock_manager):
-    """Test coordinator update when daemon check fails."""
+async def test_coordinator_update_no_agent(hass, mock_host, mock_manager):
+    """Test coordinator update when agent check fails."""
     coordinator = GrubStationCoordinator(hass, mock_manager, mock_host)
 
     with (
@@ -90,17 +90,17 @@ async def test_coordinator_update_no_daemon(hass, mock_host, mock_manager):
             return_value=True,
         ) as mock_ping,
         patch(
-            "custom_components.grubstation.coordinator.async_get_daemon_status",
+            "custom_components.grubstation.coordinator.async_get_agent_status",
             return_value=None,
-        ) as mock_daemon,
+        ) as mock_agent,
     ):
         await coordinator._async_update_data()
 
         mock_ping.assert_called_once_with("1.2.3.4")
-        mock_daemon.assert_called_once()
+        mock_agent.assert_called_once()
 
         assert mock_host.is_powered_on is True
-        assert mock_host.is_daemon_accessible is False
+        assert mock_host.is_agent_accessible is False
 
 
 async def test_coordinator_update_no_address(hass, mock_manager):
@@ -110,11 +110,11 @@ async def test_coordinator_update_no_address(hass, mock_manager):
 
     await coordinator._async_update_data()
     assert host.is_powered_on is False
-    assert host.is_daemon_accessible is False
+    assert host.is_agent_accessible is False
 
 
-async def test_coordinator_update_missing_daemon_config(hass, mock_manager):
-    """Test coordinator update when host is alive but daemon config is missing."""
+async def test_coordinator_update_missing_agent_config(hass, mock_manager):
+    """Test coordinator update when host is alive but agent config is missing."""
     # Host has address but no port/token
     host = RemoteHost(mac="00:11:22:33:44:55", address="1.2.3.4")
     coordinator = GrubStationCoordinator(hass, mock_manager, host)
@@ -128,9 +128,9 @@ async def test_coordinator_update_missing_daemon_config(hass, mock_manager):
     ):
         await coordinator._async_update_data()
 
-        mock_log.assert_any_call("Skipping daemon check for %s: missing port or token", "00:11:22:33:44:55")
+        mock_log.assert_any_call("Skipping agent check for %s: missing port or token", "00:11:22:33:44:55")
         assert host.is_powered_on is True
-        assert host.is_daemon_accessible is False
+        assert host.is_agent_accessible is False
 
 
 async def test_coordinator_ping_exception_logging(hass):

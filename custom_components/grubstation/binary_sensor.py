@@ -38,24 +38,24 @@ class GrubStationManagerBinarySensor(CoordinatorEntity[GrubStationCoordinator], 
         self.host = coordinator.host
 
         self._attr_unique_id = f"{self.host.mac}_health_status"
-        self._attr_name = "Daemon Status"
+        self._attr_name = "Agent Status"
 
         self._attr_device_info = generate_device_info(self.host)
 
     @property
     def is_on(self) -> bool:
         """Return true if the binary sensor is on."""
-        return self.coordinator.data.is_daemon_accessible
+        return self.coordinator.data.is_agent_accessible
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return the state attributes."""
         return {
-            "last_daemon_accessible": self.coordinator.data.last_daemon_accessible,
+            "last_agent_accessible": self.coordinator.data.last_agent_accessible,
             "recent_activity": self.coordinator.data.activity_history,
             "os": self.coordinator.data.os,
-            "service_manager": self.coordinator.data.daemon_service_manager,
-            "version": self.coordinator.data.daemon_version,
+            "service_manager": self.coordinator.data.agent_service_manager,
+            "version": self.coordinator.data.agent_version,
         }
 
 
@@ -79,13 +79,13 @@ async def async_setup_entry(
             return
 
         host = coordinator.host
-        if host and host.daemon_is_configured():
-            LOGGER.debug("Adding daemon status binary sensor for %s", mac_address)
+        if host and host.agent_is_configured():
+            LOGGER.debug("Adding agent status binary sensor for %s", mac_address)
             async_add_entities([GrubStationManagerBinarySensor(coordinator)])
             added_hosts.add(mac_address)
         else:
             LOGGER.debug(
-                "Skipping binary sensor addition for %s: no daemon info yet",
+                "Skipping binary sensor addition for %s: no agent info yet",
                 mac_address,
             )
 

@@ -14,7 +14,7 @@ from homeassistant.core import callback
 from homeassistant.helpers import selector
 from homeassistant.loader import async_get_loaded_integration
 
-from .const import CONF_TURN_OFF_ACTION, DOMAIN, GRUBSTATION_DAEMON_URL
+from .const import CONF_TURN_OFF_ACTION, DOMAIN, GRUBSTATION_AGENT_URL
 
 if TYPE_CHECKING:
     from .data import GrubStationManagerConfigEntry
@@ -57,7 +57,7 @@ class GrubStationManagerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema({}),
             errors={},
             description_placeholders={
-                "daemon_url": GRUBSTATION_DAEMON_URL,
+                "agent_url": GRUBSTATION_AGENT_URL,
                 "documentation_url": integration.documentation,
             },
         )
@@ -77,7 +77,7 @@ class GrubStationManagerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             description_placeholders={
                 "webhook_id": self._webhook_id,
                 "webhook_url": webhook_url,
-                "daemon_url": GRUBSTATION_DAEMON_URL,
+                "agent_url": GRUBSTATION_AGENT_URL,
             },
         )
 
@@ -115,7 +115,7 @@ class GrubStationManagerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             description_placeholders={
                 "webhook_id": self._webhook_id,
                 "webhook_url": webhook_url,
-                "daemon_url": GRUBSTATION_DAEMON_URL,
+                "agent_url": GRUBSTATION_AGENT_URL,
             },
         )
 

@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ADDRESS, CONF_BROADCAST_ADDRESS, CONF_BROADCAST_PORT
 
-from .const import CONF_BOOT_OPTIONS, CONF_DAEMON_PORT, CONF_DAEMON_TOKEN, DEFAULT_BOOT_OPTION_NONE
+from .const import CONF_AGENT_PORT, CONF_AGENT_TOKEN, CONF_BOOT_OPTIONS, DEFAULT_BOOT_OPTION_NONE
 
 if TYPE_CHECKING:
     from .manager import GrubStationManager
@@ -20,19 +20,19 @@ class RemoteHost:
 
     mac: str
     address: str | None = None
-    daemon_version: str | None = None
-    daemon_port: int | None = None
-    daemon_token: str | None = None
+    agent_version: str | None = None
+    agent_port: int | None = None
+    agent_token: str | None = None
     boot_options: list[str] = field(default_factory=list)
     broadcast_address: str | None = None
     broadcast_port: int | None = None
     os: str | None = None
-    daemon_service_manager: str | None = None
+    agent_service_manager: str | None = None
 
-    # Daemon accessibility status
-    is_daemon_accessible: bool = False
+    # Agent accessibility status
+    is_agent_accessible: bool = False
     is_powered_on: bool = False
-    last_daemon_accessible: str | None = None
+    last_agent_accessible: str | None = None
 
     # this comes from the UI, not the webhook
     next_boot_option: str = DEFAULT_BOOT_OPTION_NONE
@@ -46,15 +46,15 @@ class RemoteHost:
     def update_from_payload(self, payload: dict[str, Any]) -> None:
         """Safely update the host state from incoming webhook data."""
         self.address = payload.get(CONF_ADDRESS, self.address)
-        self.daemon_port = payload.get(CONF_DAEMON_PORT, self.daemon_port)
-        self.daemon_token = payload.get(CONF_DAEMON_TOKEN, self.daemon_token)
+        self.agent_port = payload.get(CONF_AGENT_PORT, self.agent_port)
+        self.agent_token = payload.get(CONF_AGENT_TOKEN, self.agent_token)
         self.boot_options = payload.get(CONF_BOOT_OPTIONS, self.boot_options) or []
         self.broadcast_address = payload.get(CONF_BROADCAST_ADDRESS, self.broadcast_address)
         self.broadcast_port = payload.get(CONF_BROADCAST_PORT, self.broadcast_port)
 
-    def daemon_is_configured(self) -> bool:
-        """Determine whether or not the host has a daemon configured."""
-        return bool(self.address and self.daemon_port and self.daemon_token)
+    def agent_is_configured(self) -> bool:
+        """Determine whether or not the host has a agent configured."""
+        return bool(self.address and self.agent_port and self.agent_token)
 
 
 type GrubStationManagerConfigEntry = ConfigEntry["GrubStationManager"]
