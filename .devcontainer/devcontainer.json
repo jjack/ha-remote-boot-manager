@@ -30,10 +30,10 @@
                 "files.trimFinalNewlines": false,
                 "python.analysis.typeCheckingMode": "basic",
                 "python.analysis.autoImportCompletions": true,
+                "python.defaultInterpreterPath": ".venv/bin/python",
                 "[python]": {
                     "editor.defaultFormatter": "charliermarsh.ruff"
-                },
-                "githubLocalActions.actCommand": "/usr/local/bin/act"
+                }
             }
         }
     },
@@ -42,11 +42,6 @@
         "ghcr.io/devcontainers-extra/features/apt-packages:1": {
             "packages": "build-essential,git,ffmpeg,libturbojpeg0,libpcap-dev"
         },
-        "ghcr.io/devcontainers-extra/features/uv:1": {},
-        "ghcr.io/devcontainers/features/docker-in-docker:2": {
-            "version": "latest",
-            "moby": false
-        },
-        "ghcr.io/devcontainers-extra/features/act:1": {}
+        "ghcr.io/devcontainers-extra/features/uv:1": {}
     }
 }
