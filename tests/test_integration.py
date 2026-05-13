@@ -194,7 +194,7 @@ async def test_select_and_grub_config_view(
     assert state is not None
     assert state.state == "ubuntu"
 
-    resp = await client.get("/api/grubstation/aa:bb:cc:dd:ee:ff")
+    resp = await client.get("/api/grubstation/aa:bb:cc:dd:ee:ff?token=test_webhook_id")
     assert resp.status == HTTPStatus.OK
     text = await resp.text()
     assert "set default='ubuntu'" in text

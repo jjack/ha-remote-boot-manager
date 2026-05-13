@@ -26,11 +26,13 @@ async def test_grub_config_view_host_not_found(hass: HomeAssistant) -> None:
     """Test host not found."""
     mock_request = MagicMock(spec=web.Request)
     mock_request.app = {"hass": hass}
+    mock_request.query = {"token": "test_webhook_id"}
 
     mock_manager = MagicMock()
     mock_manager.hosts = {}
 
     mock_entry = MagicMock()
+    mock_entry.data = {"webhook_id": "test_webhook_id"}
     mock_entry.runtime_data = mock_manager
     hass.config_entries.async_entries = MagicMock(return_value=[mock_entry])
 
@@ -44,6 +46,7 @@ async def test_grub_config_view_exception(hass: HomeAssistant) -> None:
     """Test exception generating config."""
     mock_request = MagicMock(spec=web.Request)
     mock_request.app = {"hass": hass}
+    mock_request.query = {"token": "test_webhook_id"}
 
     mock_manager = MagicMock()
     mock_manager.hosts = {
@@ -55,6 +58,7 @@ async def test_grub_config_view_exception(hass: HomeAssistant) -> None:
     mock_manager.async_consume_next_boot_option.side_effect = Exception("Boom")
 
     mock_entry = MagicMock()
+    mock_entry.data = {"webhook_id": "test_webhook_id"}
     mock_entry.runtime_data = mock_manager
     hass.config_entries.async_entries = MagicMock(return_value=[mock_entry])
 
@@ -68,8 +72,10 @@ async def test_grub_config_view_success(hass: HomeAssistant) -> None:
     """Test successful request strictly consumes state and returns GRUB payload."""
     mock_request = MagicMock(spec=web.Request)
     mock_request.app = {"hass": hass}
+    mock_request.query = {"token": "test_webhook_id"}
 
     mock_entry = MagicMock()
+    mock_entry.data = {"webhook_id": "test_webhook_id"}
     hass.config_entries.async_entries = MagicMock(return_value=[mock_entry])
 
     mock_manager = MagicMock()
@@ -97,8 +103,10 @@ async def test_grub_config_view_success_empty(hass: HomeAssistant) -> None:
     """Test successful request strictly consumes state and returns empty string."""
     mock_request = MagicMock(spec=web.Request)
     mock_request.app = {"hass": hass}
+    mock_request.query = {"token": "test_webhook_id"}
 
     mock_entry = MagicMock()
+    mock_entry.data = {"webhook_id": "test_webhook_id"}
     hass.config_entries.async_entries = MagicMock(return_value=[mock_entry])
 
     mock_manager = MagicMock()
@@ -167,10 +175,39 @@ async def test_grub_config_view_malformed_mac_error_path(hass: HomeAssistant) ->
         assert resp.text == "Invalid MAC address format"
 
 
+async def test_grub_config_view_unauthorized(hass: HomeAssistant) -> None:
+    """Test unauthorized request does not consume state and returns empty string."""
+    mock_request = MagicMock(spec=web.Request)
+    mock_request.app = {"hass": hass}
+    mock_request.query = {"token": "wrong_token"}
+
+    mock_entry = MagicMock()
+    mock_entry.data = {"webhook_id": "test_webhook_id"}
+    hass.config_entries.async_entries = MagicMock(return_value=[mock_entry])
+
+    mock_manager = MagicMock()
+    mock_manager.hosts = {
+        "aa:bb:cc:dd:ee:ff": RemoteHost(
+            mac="aa:bb:cc:dd:ee:ff",
+            address="test.local",
+            next_boot_option="windows",
+        )
+    }
+
+    mock_entry.runtime_data = mock_manager
+    view = GrubConfigView()
+
+    resp = await view.get(mock_request, "aa:bb:cc:dd:ee:ff")
+    assert resp.status == HTTPStatus.OK
+    assert resp.text == ""
+    mock_manager.async_consume_next_boot_option.assert_not_called()
+
+
 async def test_grub_config_view_escaping_quotes(hass: HomeAssistant) -> None:
     """Test that single quotes in boot options are escaped for GRUB."""
     mock_request = MagicMock(spec=web.Request)
     mock_request.app = {"hass": hass}
+    mock_request.query = {"token": "test_webhook_id"}
 
     mock_manager = MagicMock()
     # A boot option with a single quote that could break GRUB syntax if not escaped
@@ -178,6 +215,7 @@ async def test_grub_config_view_escaping_quotes(hass: HomeAssistant) -> None:
     mock_manager.async_consume_next_boot_option.return_value = tricky_option
 
     mock_entry = MagicMock()
+    mock_entry.data = {"webhook_id": "test_webhook_id"}
     mock_entry.runtime_data = mock_manager
     hass.config_entries.async_entries = MagicMock(return_value=[mock_entry])
 

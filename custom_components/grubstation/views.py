@@ -60,6 +60,17 @@ class GrubConfigView(HomeAssistantView):
                 text=error_msg or "Internal Server Error", status=status
             )
 
+        entry = entries[0]
+        expected_token = entry.data.get("webhook_id")
+        provided_token = request.query.get("token")
+
+        if not expected_token or provided_token != expected_token:
+            LOGGER.warning(
+                "Unauthorized GRUB request for MAC %s (invalid or missing token)",
+                mac_address,
+            )
+            return web.Response(text="", content_type="text/plain")
+
         try:
             # Strictly consume the boot option
             next_boot_option = manager.async_consume_next_boot_option(mac_address)
