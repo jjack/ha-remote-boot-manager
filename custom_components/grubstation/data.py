@@ -41,10 +41,10 @@ class RemoteHost:
     os: str | None = None
     daemon_service_manager: str | None = None
 
-    # Agent accessibility status
-    is_agent_accessible: bool = False
+    # Daemon accessibility status
+    is_daemon_accessible: bool = False
     is_powered_on: bool = False
-    last_agent_accessible: str | None = None
+    last_daemon_accessible: str | None = None
 
     # this comes from the UI, not the webhook
     next_boot_option: str = DEFAULT_BOOT_OPTION_NONE
@@ -68,8 +68,8 @@ class RemoteHost:
             CONF_DAEMON_SERVICE_MANAGER, self.daemon_service_manager
         )
 
-    def has_agent(self) -> bool:
-        """Determine whether or not the host has an agent configured."""
+    def daemon_is_configured(self) -> bool:
+        """Determine whether or not the host has a daemon configured."""
         return bool(self.address and self.daemon_port and self.daemon_token)
 
 

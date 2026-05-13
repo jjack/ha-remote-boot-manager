@@ -28,7 +28,6 @@ from homeassistant.const import (
 from homeassistant.helpers.entity_registry import async_get as async_get_er
 from homeassistant.helpers.storage import Store
 
-from .agent import async_send_turn_off_command
 from .const import (
     CONF_DAEMON_PORT,
     CONF_DAEMON_TOKEN,
@@ -39,6 +38,7 @@ from .const import (
     LOGGER,
     WEBHOOK_NAME,
 )
+from .daemon import async_send_turn_off_command
 from .manager import GrubStationManager
 from .views import GrubConfigView
 from .webhook import (
@@ -122,7 +122,7 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:  # n
         schema=TURN_ON_COMMAND_SCHEMA,
     )
 
-    # Register our agent's shutdown action
+    # Register our daemon's shutdown action
     hass.services.async_register(
         DOMAIN,
         SERVICE_SEND_TURN_OFF_COMMAND,

@@ -289,7 +289,7 @@ async def test_global_send_turn_off_command_service(
     with patch(
         "custom_components.grubstation.async_send_turn_off_command",
         new_callable=AsyncMock,
-    ) as mock_agent_call:
+    ) as mock_daemon_call:
         await hass.services.async_call(
             DOMAIN,
             "send_turn_off_command",
@@ -300,7 +300,7 @@ async def test_global_send_turn_off_command_service(
             },
             blocking=True,
         )
-        mock_agent_call.assert_called_once_with(hass, "1.2.3.4", 8081, "secret")
+        mock_daemon_call.assert_called_once_with(hass, "1.2.3.4", 8081, "secret")
 
 
 async def test_webhook_validation_error(hass: HomeAssistant, setup_integration) -> None:

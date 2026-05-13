@@ -9,13 +9,13 @@ import homeassistant.util.dt as dt_util
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from icmplib import async_ping
 
-from .agent import async_check_agent_status
 from .const import (
     DOMAIN,
     LOGGER,
     PING_COUNT,
     PING_TIMEOUT_SECONDS,
 )
+from .daemon import async_check_daemon_status
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -66,31 +66,31 @@ class GrubStationCoordinator(DataUpdateCoordinator["RemoteHost"]):
         # 1. Check if host is alive via ICMP
         is_alive = await _async_ping_host(self.host.address)
 
-        # 2. If alive and has agent config, check agent status
+        # 2. If alive and has daemon config, check the daemon status
         is_accessible = False
         if is_alive and self.host.daemon_port and self.host.daemon_token:
-            is_accessible = await async_check_agent_status(
+            is_accessible = await async_check_daemon_status(
                 self.hass,
                 self.host.address,
                 self.host.daemon_port,
                 self.host.daemon_token,
             )
             LOGGER.debug(
-                "Agent status for %s (%s): %s",
+                "Daemon status for %s (%s): %s",
                 self.host.mac,
                 self.host.address,
                 is_accessible,
             )
         elif is_alive:
             LOGGER.debug(
-                "Skipping agent check for %s: missing port or token", self.host.mac
+                "Skipping daemon check for %s: missing port or token", self.host.mac
             )
 
         # Update the host state
-        self.host.is_agent_accessible = is_accessible
+        self.host.is_daemon_accessible = is_accessible
         self.host.is_powered_on = is_alive
 
         if is_accessible:
-            self.host.last_agent_accessible = dt_util.utcnow().isoformat()
+            self.host.last_daemon_accessible = dt_util.utcnow().isoformat()
 
         return self.host

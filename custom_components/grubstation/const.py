@@ -29,7 +29,7 @@ DEFAULT_BOOT_OPTION_NONE: Final = "(none)"
 WEBHOOK_NAME: Final = "GrubStation Ingest"
 WEBHOOK_MAX_PAYLOAD_BYTES: Final = 102400  # 100 KB limit
 
-GRUB_OS_REPORTER_URL: Final = "https://github.com/jjack/grubstation-daemon"
+GRUBSTATION_DAEMON_URL: Final = "https://github.com/jjack/grubstation-daemon"
 GRUB_VIEW_URL: Final = "/api/grubstation/{mac_address}"
 
 SAVE_DELAY: Final = 15.0  # seconds to debounce saving to storage after changes

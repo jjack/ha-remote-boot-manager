@@ -13,10 +13,10 @@ Manage and automate the booting of your remote bare-metal hosts in Home Assistan
 * **Next Boot Selection**: Change the next boot OS via a dropdown `select` entity.
 * **Wake-on-LAN & Power Status**: Sends magic packets to wake hosts and tracks power state via ping.
 * **GRUB Endpoint**: Exposes a smart endpoint for GRUB to fetch the selected OS and automatically reset state to prevent boot loops.
-* **Secure Webhooks**: Uses auto-generated, secure webhooks for agent-to-HA communication.
+* **Secure Webhooks**: Uses auto-generated, secure webhooks for daemon-to-HA communication.
 
 
-This integration creates a new Home Assistant Device for each host discovered by the agent. Each device will have the following entities:
+This integration creates a new Home Assistant Device for each host discovered by the daemon. Each device will have the following entities:
 
 *   **Switch**: A `switch` entity named `[Host Name] Wake` that sends the Wake-on-LAN magic packet and tracks the host's power state via ping.
 
@@ -46,20 +46,20 @@ This integration creates a new Home Assistant Device for each host discovered by
 
 ## Remote Boot Agent (Client Setup)
 
-For this integration to work, you must install a bare-metal GO agent on **every** target host you want to manage.
+For this integration to work, you must install a bare-metal GO daemon on **every** target host you want to manage.
 
 ### Basic Agent Setup:
 1. Download the latest [grubstation-cli](https://github.com/jjack/grubstation-cli/releases/latest).
-2. Install the agent on your target host.
+2. Install the daemon on your target host.
 3. Run `grubstation-cli setup` to auto-detect as much of the configuration as possible (GRUB, init system, network info, etc.) and configure it with GRUB and your init system. This uses the `webhook_id` you saved during the integration setup.
-4. Run the agent manually with `grubstation-cli options push`. The integration uses a **Trust On First Use (TOFU)** model; the first time an agent pings Home Assistant with your secure Webhook ID, it will be automatically registered and appear instantly as a new Device!
+4. Run the daemon manually with `grubstation-cli options push`. The integration uses a **Trust On First Use (TOFU)** model; the first time an daemon pings Home Assistant with your secure Webhook ID, it will be automatically registered and appear instantly as a new Device!
 
 *(For detailed installation instructions, see the grubstation-cli repository).*
 
 ## Usage
 
 ### Configuring Graceful Shutdowns
-By default, turning off a host's `switch` entity will attempt to use the built-in agent shutdown command (which requires the host's IP and API Key to be accessible). However, you can also map a custom Home Assistant **Action** to the host:
+By default, turning off a host's `switch` entity will attempt to use the built-in daemon shutdown command (which requires the host's IP and API Key to be accessible). However, you can also map a custom Home Assistant **Action** to the host:
 1. Go to **Settings** -> **Devices & Services** and find the GrubStation integration.
 2. Click **Configure** on the integration card to open the options flow.
 3. Select your desired host.
@@ -70,7 +70,7 @@ If you suspect your Webhook ID has been compromised, you can securely regenerate
 1. Go to **Settings** -> **Devices & Services** and find the GrubStation integration.
 2. Click the three dots (menu) on the integration card and select **Reconfigure**.
 3. Follow the prompts to generate a new Webhook ID.
-*(Note: Regenerating this ID will immediately break the connection with your existing agents until they are updated with the new ID.)*
+*(Note: Regenerating this ID will immediately break the connection with your existing daemons until they are updated with the new ID.)*
 
 ### API Endpoints
 This integration exposes two primary endpoints for managing remote hosts:
@@ -81,4 +81,4 @@ This integration exposes two primary endpoints for managing remote hosts:
 
 * **Testing GRUB**: The GRUB endpoint is read-only by default so you can safely test it. To actually consume the next boot option, append `?token=YOUR_WEBHOOK_ID` to the request URL.
 * **IP address or hostname changes**: If a host's IP address or hostname changes, the integration will attempt to update the Device Registry automatically. If you need to remove an old host, you can do so directly from the Home Assistant UI via the device page.
-* **Testing Network Configurations**: You can manually adjust a host's `address`, `broadcast_address`, and `broadcast_port` via the **Configure** button (Options Flow). Note that these changes are temporary and will be automatically overwritten by the agent on its next check-in. They should only be used for testing or troubleshooting (e.g. if you are dealing with complex subnets or VLANs).
+* **Testing Network Configurations**: You can manually adjust a host's `address`, `broadcast_address`, and `broadcast_port` via the **Configure** button (Options Flow). Note that these changes are temporary and will be automatically overwritten by the daemon on its next check-in. They should only be used for testing or troubleshooting (e.g. if you are dealing with complex subnets or VLANs).

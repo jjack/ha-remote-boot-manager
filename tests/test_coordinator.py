@@ -32,18 +32,18 @@ async def test_coordinator_update_success(hass, mock_host):
             return_value=True,
         ) as mock_ping,
         patch(
-            "custom_components.grubstation.coordinator.async_check_agent_status",
+            "custom_components.grubstation.coordinator.async_check_daemon_status",
             return_value=True,
-        ) as mock_agent,
+        ) as mock_daemon,
     ):
         await coordinator._async_update_data()
 
         mock_ping.assert_called_once_with("1.2.3.4")
-        mock_agent.assert_called_once_with(hass, "1.2.3.4", 8081, "secret")
+        mock_daemon.assert_called_once_with(hass, "1.2.3.4", 8081, "secret")
 
         assert mock_host.is_powered_on is True
-        assert mock_host.is_agent_accessible is True
-        assert mock_host.last_agent_accessible is not None
+        assert mock_host.is_daemon_accessible is True
+        assert mock_host.last_daemon_accessible is not None
 
 
 async def test_coordinator_update_no_ping(hass, mock_host):
@@ -56,20 +56,20 @@ async def test_coordinator_update_no_ping(hass, mock_host):
             return_value=False,
         ) as mock_ping,
         patch(
-            "custom_components.grubstation.coordinator.async_check_agent_status",
-        ) as mock_agent,
+            "custom_components.grubstation.coordinator.async_check_daemon_status",
+        ) as mock_daemon,
     ):
         await coordinator._async_update_data()
 
         mock_ping.assert_called_once_with("1.2.3.4")
-        mock_agent.assert_not_called()
+        mock_daemon.assert_not_called()
 
         assert mock_host.is_powered_on is False
-        assert mock_host.is_agent_accessible is False
+        assert mock_host.is_daemon_accessible is False
 
 
-async def test_coordinator_update_no_agent(hass, mock_host):
-    """Test coordinator update when agent check fails."""
+async def test_coordinator_update_no_daemon(hass, mock_host):
+    """Test coordinator update when daemon check fails."""
     coordinator = GrubStationCoordinator(hass, mock_host)
 
     with (
@@ -78,17 +78,17 @@ async def test_coordinator_update_no_agent(hass, mock_host):
             return_value=True,
         ) as mock_ping,
         patch(
-            "custom_components.grubstation.coordinator.async_check_agent_status",
+            "custom_components.grubstation.coordinator.async_check_daemon_status",
             return_value=False,
-        ) as mock_agent,
+        ) as mock_daemon,
     ):
         await coordinator._async_update_data()
 
         mock_ping.assert_called_once_with("1.2.3.4")
-        mock_agent.assert_called_once()
+        mock_daemon.assert_called_once()
 
         assert mock_host.is_powered_on is True
-        assert mock_host.is_agent_accessible is False
+        assert mock_host.is_daemon_accessible is False
 
 
 async def test_coordinator_update_no_address(hass):
@@ -98,11 +98,11 @@ async def test_coordinator_update_no_address(hass):
 
     await coordinator._async_update_data()
     assert host.is_powered_on is False
-    assert host.is_agent_accessible is False
+    assert host.is_daemon_accessible is False
 
 
-async def test_coordinator_update_missing_agent_config(hass):
-    """Test coordinator update when host is alive but agent config is missing."""
+async def test_coordinator_update_missing_daemon_config(hass):
+    """Test coordinator update when host is alive but daemon config is missing."""
     # Host has address but no port/token
     host = RemoteHost(mac="00:11:22:33:44:55", address="1.2.3.4")
     coordinator = GrubStationCoordinator(hass, host)
@@ -117,10 +117,10 @@ async def test_coordinator_update_missing_agent_config(hass):
         await coordinator._async_update_data()
 
         mock_log.assert_any_call(
-            "Skipping agent check for %s: missing port or token", "00:11:22:33:44:55"
+            "Skipping daemon check for %s: missing port or token", "00:11:22:33:44:55"
         )
         assert host.is_powered_on is True
-        assert host.is_agent_accessible is False
+        assert host.is_daemon_accessible is False
 
 
 async def test_coordinator_ping_exception_logging(hass):

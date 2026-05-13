@@ -62,7 +62,7 @@ class GrubStationManager:
                         host_data,
                     )
 
-        # Start background agent accessibility polling for all coordinators
+        # Start background daemon accessibility polling for all coordinators
         for coordinator in self.coordinators.values():
             await coordinator.async_refresh()
 

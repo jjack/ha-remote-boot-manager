@@ -1,4 +1,4 @@
-"""A simple agent for telling the GrubStation daemon to turn off."""
+"""Interface to a simple GO daemon that talks to the GruBStation demon."""
 
 from __future__ import annotations
 
@@ -16,12 +16,12 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
 
-# send a POST request to the entry's address with the agent port to /shutdown
+# send a POST request to the entry's address with the daemon port to /shutdown
 # include the api_key as a "Bearer" token
 async def async_send_turn_off_command(
     hass: HomeAssistant, address: str, daemon_port: int, api_key: str
 ) -> None:
-    """Send shutdown command to the GrubStation agent."""
+    """Send shutdown command to the GrubStation daemon."""
     session = async_get_clientsession(hass)
     url = URL.build(scheme="http", host=address, port=daemon_port, path="/shutdown")
     headers = {"Authorization": f"Bearer {api_key}"}
@@ -37,10 +37,10 @@ async def async_send_turn_off_command(
         raise HomeAssistantError(error_msg) from err
 
 
-async def async_check_agent_status(
+async def async_check_daemon_status(
     hass: HomeAssistant, address: str, daemon_port: int, api_key: str
 ) -> bool:
-    """Check if the GrubStation agent is accessible."""
+    """Check if the GrubStation daemon is accessible."""
     session = async_get_clientsession(hass)
     url = URL.build(scheme="http", host=address, port=daemon_port, path="/healthcheck")
     headers = {"Authorization": f"Bearer {api_key}"}
@@ -52,5 +52,5 @@ async def async_check_agent_status(
                 data = await response.text()
                 return data.strip() == "ok"
     except Exception as err:  # noqa: BLE001
-        LOGGER.debug("Agent healthcheck failed for %s: %s", address, err)
+        LOGGER.debug("Daemon healthcheck failed for %s: %s", address, err)
         return False

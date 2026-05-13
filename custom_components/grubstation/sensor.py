@@ -42,8 +42,8 @@ class GrubStationManagerSensor(CoordinatorEntity[GrubStationCoordinator], Sensor
         super().__init__(coordinator)
         self.host = coordinator.host
 
-        self._attr_unique_id = f"{self.host.mac}_last_agent_accessible"
-        self._attr_name = "Last Successful Agent Healthcheck"
+        self._attr_unique_id = f"{self.host.mac}_last_daemon_accessible"
+        self._attr_name = "Last Successful Daemon Healthcheck"
         self._attr_icon = "mdi:heart-pulse"
 
         self._attr_device_info = generate_device_info(self.host)
@@ -51,7 +51,7 @@ class GrubStationManagerSensor(CoordinatorEntity[GrubStationCoordinator], Sensor
     @property
     def native_value(self) -> str | None:
         """Return the value of the sensor."""
-        return self.coordinator.host.last_agent_accessible
+        return self.coordinator.host.last_daemon_accessible
 
 
 async def async_setup_entry(
@@ -76,14 +76,14 @@ async def async_setup_entry(
             return
 
         host = coordinator.host
-        # Only add sensor if host has agent configuration
-        if host.has_agent():
+        # Only add sensor if host has daemon configuration
+        if host.daemon_is_configured():
             LOGGER.debug("Adding healthcheck sensor for %s", mac_address)
             async_add_entities([GrubStationManagerSensor(coordinator)])
             added_hosts.add(mac_address)
         else:
             LOGGER.debug(
-                "Skipping sensor addition for %s: no agent info yet", mac_address
+                "Skipping sensor addition for %s: no daemon info yet", mac_address
             )
 
     @callback

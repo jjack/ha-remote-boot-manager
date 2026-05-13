@@ -13,7 +13,6 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.script import Script
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .agent import async_send_turn_off_command
 from .const import (
     DOMAIN,
     LOGGER,
@@ -22,6 +21,7 @@ from .const import (
     WAIT_FOR_HOST_POWER_SECONDS,
 )
 from .coordinator import GrubStationCoordinator, _async_ping_host
+from .daemon import async_send_turn_off_command
 from .utils import generate_device_info
 
 if TYPE_CHECKING:
@@ -124,7 +124,7 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
             await self._turn_off_action.async_run(
                 context=getattr(self, "_context", None)
             )
-        elif self.host.is_agent_accessible:
+        elif self.host.daemon_token and self.host.address and self.host.daemon_port:
             await async_send_turn_off_command(
                 self.hass,
                 self.host.address,
