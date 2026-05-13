@@ -21,4 +21,4 @@ jobs:
         with:
           # Configure which types are allowed (defaults to standard conventional commits)
           types: |
-            fix, feat, build, chore, ci, docs, style, refactor, perf, test
+            fix, feat, build, chore, ci, docs, style, refactor, perf, test, dev
