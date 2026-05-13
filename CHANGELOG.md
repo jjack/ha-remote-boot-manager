@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.5.1](https://github.com/jjack/ha-grubstation/compare/v0.5.0...v0.5.1) (2026-05-13)
+
+
+### Features
+
+* adding extra entity logging ([30e568e](https://github.com/jjack/ha-grubstation/commit/30e568edc9b1dd2d0c88272d27fee2c7c643a746))
+
+
+### Bug Fixes
+
+* adding default turn_off action to prevent errors in the options flow ([73724c3](https://github.com/jjack/ha-grubstation/commit/73724c38af2ea4c94c4b5206107196b5657bf351))
+* adding turn off action to ui ([02a15a4](https://github.com/jjack/ha-grubstation/commit/02a15a40e02f6269d450f7a0a54fc4a6ebe2cb82))
+* ensuring that the healthcheck sensors get the same DeviceInfo as everything else ([05dbfa5](https://github.com/jjack/ha-grubstation/commit/05dbfa55cf2d0bbbeed9896bc9db680895918d99))
+* fixing issue where boot option gets consumed without the token ([5a86894](https://github.com/jjack/ha-grubstation/commit/5a86894d0604cde8476fa5d62208a75e4412bec5))
+
 ## [0.5.0](https://github.com/jjack/ha-grubstation/compare/v0.4.4...v0.5.0) (2026-05-11)
 
 
