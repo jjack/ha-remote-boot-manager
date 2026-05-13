@@ -65,15 +65,14 @@ class GrubStationManagerSelect(CoordinatorEntity[GrubStationCoordinator], Select
         """Initialize the select entity."""
         super().__init__(coordinator)
         self.manager = manager
-        self.host = coordinator.host
-        self.mac_address = self.host.mac
+        self.mac_address = self.coordinator.host.mac
 
         # This ties the entity to a specific hardware device in HA
         self._attr_unique_id = f"{self.mac_address}_boot_option_select"
         self._attr_name = "Next Boot Option"
         self._attr_has_entity_name = True
 
-        self._attr_device_info = generate_device_info(self.host)
+        self._attr_device_info = generate_device_info(self.coordinator.host)
 
     @property
     def options(self) -> list[str]:

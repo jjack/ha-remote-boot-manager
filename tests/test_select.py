@@ -105,7 +105,8 @@ async def test_select_init_model_name(hass):
     select = GrubStationManagerSelect(manager, coordinator)
     assert select.device_info is not None
     assert select.device_info.get("name") == "00:11:22:33:44:55"
-    assert select.device_info.get("model") == "GrubStation Host (Broadcast: 192.168.1.255)"
+    assert select.device_info.get("model") == "test.local (Broadcast: 192.168.1.255)"
+
     # Without broadcast info
     host2 = RemoteHost(
         mac="AA:BB:CC:DD:EE:FF",
@@ -118,7 +119,20 @@ async def test_select_init_model_name(hass):
 
     select2 = GrubStationManagerSelect(manager, coordinator2)
     assert select2.device_info is not None
-    assert select2.device_info.get("model") == "GrubStation Host"
+    assert select2.device_info.get("model") == "test2.local"
+
+    # Without address
+    host = RemoteHost(
+        mac="00:11:22:33:44:55",
+    )
+    coordinator = MagicMock()
+    coordinator.data = host
+    coordinator.host = host
+
+    select = GrubStationManagerSelect(manager, coordinator)
+    assert select.device_info is not None
+    assert select.device_info.get("name") == "00:11:22:33:44:55"
+    assert select.device_info.get("model") == "GrubStation Host"
 
 
 async def test_select_properties(hass):
