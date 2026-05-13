@@ -17,6 +17,7 @@ async def test_async_send_turn_off_command_success(hass: HomeAssistant) -> None:
         mock_session = MagicMock()
         mock_response = MagicMock()
         mock_response.status = HTTPStatus.OK
+        mock_response.json = AsyncMock(return_value={"status": "ok"})
         mock_session.post.return_value = AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
         mock_session_getter.return_value = mock_session
 
@@ -29,6 +30,20 @@ async def test_async_send_turn_off_command_success(hass: HomeAssistant) -> None:
         assert url.port == 8081
         assert url.path == "/shutdown"
         assert kwargs["headers"]["Authorization"] == "Bearer secret_key"
+
+
+async def test_async_send_turn_off_command_daemon_error(hass: HomeAssistant) -> None:
+    """Test shutdown command handles error status in JSON."""
+    with patch("custom_components.grubstation.daemon.async_get_clientsession") as mock_session_getter:
+        mock_session = MagicMock()
+        mock_response = MagicMock()
+        mock_response.status = HTTPStatus.OK
+        mock_response.json = AsyncMock(return_value={"status": "error", "error": "Something went wrong"})
+        mock_session.post.return_value = AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
+        mock_session_getter.return_value = mock_session
+
+        with pytest.raises(HomeAssistantError, match="Something went wrong"):
+            await async_send_turn_off_command(hass, "1.2.3.4", 8081, "key")
 
 
 async def test_async_send_turn_off_command_http_error(hass: HomeAssistant) -> None:

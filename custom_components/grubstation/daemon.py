@@ -29,7 +29,12 @@ async def async_send_turn_off_command(hass: HomeAssistant, address: str, daemon_
         async with asyncio.timeout(5):
             async with session.post(url, headers=headers) as response:
                 response.raise_for_status()
+                data = await response.json()
+                if data.get("status") == "error":
+                    raise HomeAssistantError(data.get("error", "Unknown error from daemon"))
     except Exception as err:
+        if isinstance(err, HomeAssistantError):
+            raise
         if not isinstance(err, (aiohttp.ClientError, asyncio.TimeoutError)):
             LOGGER.exception("Unexpected error sending shutdown command to %s", address)
         error_msg = f"Shutdown command failed: {err}"
