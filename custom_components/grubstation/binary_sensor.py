@@ -62,6 +62,7 @@ class GrubStationManagerBinarySensor(
         """Return the state attributes."""
         return {
             "last_daemon_accessible": self.coordinator.host.last_daemon_accessible,
+            "recent_activity": self.coordinator.host.activity_history,
         }
 
 

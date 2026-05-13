@@ -121,15 +121,25 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
         self.async_write_ha_state()
 
         if self._turn_off_action:
+            self.coordinator.manager.async_log_activity(
+                self.host.mac, "Running shutdown script"
+            )
             await self._turn_off_action.async_run(
                 context=getattr(self, "_context", None)
             )
         elif self.host.daemon_token and self.host.address and self.host.daemon_port:
+            self.coordinator.manager.async_log_activity(
+                self.host.mac, "Sending shutdown command to daemon"
+            )
             await async_send_turn_off_command(
                 self.hass,
                 self.host.address,
                 self.host.daemon_port,
                 self.host.daemon_token,
+            )
+        else:
+            self.coordinator.manager.async_log_activity(
+                self.host.mac, "Shutdown requested (no action configured)"
             )
 
         target = self._ping_target
@@ -159,6 +169,12 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
         for _ in range(36):  # 36 iterations * 5 seconds = 180 seconds (3 mins)
             is_awake = await _async_ping_host(host)
             if is_awake == target_state:
+                # Log success
+                verb = "Power On" if target_state else "Power Off"
+                self.coordinator.manager.async_log_activity(
+                    self.host.mac, f"{verb} verified"
+                )
+
                 # Trigger a coordinator refresh to sync all entities
                 await self.coordinator.async_request_refresh()
                 return
@@ -174,6 +190,13 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
         self._attr_is_on = not target_state
         if self.hass is not None:
             self.async_write_ha_state()
+
+        # Log the failure
+        verb = "Turn On" if target_state else "Turn Off"
+        self.coordinator.manager.async_log_activity(
+            self.host.mac,
+            f"Failed to {verb} within 3 minutes (Host did not respond to ping)",
+        )
 
 
 async def async_setup_entry(

@@ -56,7 +56,8 @@ async def test_binary_sensor_properties(
     # The entity doesn't have an entity_id assigned yet, so we just check state properties
     assert sensor.is_on is True
     assert sensor.extra_state_attributes == {
-        "last_daemon_accessible": "2023-01-01T12:00:00+00:00"
+        "last_daemon_accessible": "2023-01-01T12:00:00+00:00",
+        "recent_activity": [],
     }
 
     # Test state change

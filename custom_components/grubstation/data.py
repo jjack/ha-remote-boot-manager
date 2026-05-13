@@ -52,6 +52,9 @@ class RemoteHost:
     # this also comes from the UI
     off_action: list[dict[str, Any]] | None = None
 
+    # recent activity log
+    activity_history: list[str] = field(default_factory=list)
+
     def update_from_payload(self, payload: dict[str, Any]) -> None:
         """Safely update the host state from incoming webhook data."""
         self.address = payload.get(CONF_ADDRESS, self.address)

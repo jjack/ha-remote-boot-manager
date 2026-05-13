@@ -21,6 +21,8 @@ def get_mock_coordinator(hass: HomeAssistant, host: RemoteHost) -> MagicMock:
     coordinator.hass = hass
     coordinator.data = host
     coordinator.host = host
+    coordinator.manager = MagicMock()
+    coordinator.manager.async_log_activity = MagicMock()
     coordinator.async_request_refresh = AsyncMock()
     return coordinator
 

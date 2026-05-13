@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
     from .data import RemoteHost
+    from .manager import GrubStationManager
 
 
 async def _async_ping_host(address: str) -> bool:
@@ -46,10 +47,12 @@ class GrubStationCoordinator(DataUpdateCoordinator["RemoteHost"]):
     def __init__(
         self,
         hass: HomeAssistant,
+        manager: GrubStationManager,
         host: RemoteHost,
     ) -> None:
         """Initialize the coordinator."""
         self.host = host
+        self.manager = manager
         super().__init__(
             hass,
             LOGGER,
@@ -85,6 +88,11 @@ class GrubStationCoordinator(DataUpdateCoordinator["RemoteHost"]):
             LOGGER.debug(
                 "Skipping daemon check for %s: missing port or token", self.host.mac
             )
+
+        # Log accessibility transitions
+        if is_accessible != self.host.is_daemon_accessible:
+            status = "Online" if is_accessible else "Offline"
+            self.manager.async_log_activity(self.host.mac, f"Daemon is {status}")
 
         # Update the host state
         self.host.is_daemon_accessible = is_accessible

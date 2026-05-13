@@ -1,6 +1,6 @@
 """Tests for the GrubStationCoordinator."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -22,9 +22,17 @@ def mock_host():
     )
 
 
-async def test_coordinator_update_success(hass, mock_host):
+@pytest.fixture
+def mock_manager():
+    """Return a mock manager."""
+    manager = MagicMock()
+    manager.async_log_activity = MagicMock()
+    return manager
+
+
+async def test_coordinator_update_success(hass, mock_host, mock_manager):
     """Test successful coordinator update."""
-    coordinator = GrubStationCoordinator(hass, mock_host)
+    coordinator = GrubStationCoordinator(hass, mock_manager, mock_host)
 
     with (
         patch(
@@ -46,9 +54,9 @@ async def test_coordinator_update_success(hass, mock_host):
         assert mock_host.last_daemon_accessible is not None
 
 
-async def test_coordinator_update_no_ping(hass, mock_host):
+async def test_coordinator_update_no_ping(hass, mock_host, mock_manager):
     """Test coordinator update when host is not pingable."""
-    coordinator = GrubStationCoordinator(hass, mock_host)
+    coordinator = GrubStationCoordinator(hass, mock_manager, mock_host)
 
     with (
         patch(
@@ -68,9 +76,9 @@ async def test_coordinator_update_no_ping(hass, mock_host):
         assert mock_host.is_daemon_accessible is False
 
 
-async def test_coordinator_update_no_daemon(hass, mock_host):
+async def test_coordinator_update_no_daemon(hass, mock_host, mock_manager):
     """Test coordinator update when daemon check fails."""
-    coordinator = GrubStationCoordinator(hass, mock_host)
+    coordinator = GrubStationCoordinator(hass, mock_manager, mock_host)
 
     with (
         patch(
@@ -91,21 +99,21 @@ async def test_coordinator_update_no_daemon(hass, mock_host):
         assert mock_host.is_daemon_accessible is False
 
 
-async def test_coordinator_update_no_address(hass):
+async def test_coordinator_update_no_address(hass, mock_manager):
     """Test coordinator update with no address."""
     host = RemoteHost(mac="00:11:22:33:44:55")
-    coordinator = GrubStationCoordinator(hass, host)
+    coordinator = GrubStationCoordinator(hass, mock_manager, host)
 
     await coordinator._async_update_data()
     assert host.is_powered_on is False
     assert host.is_daemon_accessible is False
 
 
-async def test_coordinator_update_missing_daemon_config(hass):
+async def test_coordinator_update_missing_daemon_config(hass, mock_manager):
     """Test coordinator update when host is alive but daemon config is missing."""
     # Host has address but no port/token
     host = RemoteHost(mac="00:11:22:33:44:55", address="1.2.3.4")
-    coordinator = GrubStationCoordinator(hass, host)
+    coordinator = GrubStationCoordinator(hass, mock_manager, host)
 
     with (
         patch(

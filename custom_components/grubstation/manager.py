@@ -5,6 +5,7 @@ from __future__ import annotations
 import dataclasses
 from typing import TYPE_CHECKING, Any
 
+import homeassistant.util.dt as dt_util
 from homeassistant.core import callback
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.dispatcher import async_dispatcher_send
@@ -54,7 +55,9 @@ class GrubStationManager:
                     }
                     host = RemoteHost(**filtered_data)
                     self.hosts[mac] = host
-                    self.coordinators[mac] = GrubStationCoordinator(self.hass, host)
+                    self.coordinators[mac] = GrubStationCoordinator(
+                        self.hass, self, host
+                    )
                 else:
                     LOGGER.warning(
                         "Discarding invalid host data for %s: %s",
@@ -122,7 +125,9 @@ class GrubStationManager:
                 daemon_version=payload.get("daemon_version"),
             )
             self.hosts[mac_address] = host
-            self.coordinators[mac_address] = GrubStationCoordinator(self.hass, host)
+            self.coordinators[mac_address] = GrubStationCoordinator(
+                self.hass, self, host
+            )
             self.hass.async_create_task(self.coordinators[mac_address].async_refresh())
             async_dispatcher_send(self.hass, SIGNAL_NEW_HOST, mac_address)
         else:
@@ -149,7 +154,9 @@ class GrubStationManager:
                 daemon_version=payload.get("daemon_version"),
             )
             self.hosts[mac_address] = host
-            self.coordinators[mac_address] = GrubStationCoordinator(self.hass, host)
+            self.coordinators[mac_address] = GrubStationCoordinator(
+                self.hass, self, host
+            )
             self.hass.async_create_task(self.coordinators[mac_address].async_refresh())
             async_dispatcher_send(self.hass, SIGNAL_NEW_HOST, mac_address)
         else:
@@ -208,6 +215,10 @@ class GrubStationManager:
         # prevent boot loops
         next_boot_option = host.next_boot_option
         host.next_boot_option = DEFAULT_BOOT_OPTION_NONE
+
+        if next_boot_option != DEFAULT_BOOT_OPTION_NONE:
+            self.async_log_activity(mac_address, f"Booting into: {next_boot_option}")
+
         self.save()
 
         # Push the updated data to the coordinator
@@ -215,3 +226,33 @@ class GrubStationManager:
         self.coordinators[mac_address].async_set_updated_data(host)
 
         return next_boot_option
+
+    @callback
+    def async_log_activity(self, mac_address: str, message: str) -> None:
+        """Log an activity message for a host and update history."""
+        mac_address = format_mac(mac_address)
+        if mac_address not in self.hosts:
+            return
+
+        host = self.hosts[mac_address]
+        LOGGER.info("[%s] %s", mac_address, message)
+
+        # Add to history, keeping only the last 5 entries
+        host.activity_history.insert(
+            0, f"{dt_util.now().strftime('%Y-%m-%d %H:%M:%S')}: {message}"
+        )
+        host.activity_history = host.activity_history[:5]
+
+        # Dispatch event for logbook
+        self.hass.bus.async_fire(
+            f"{DOMAIN}_activity",
+            {
+                "mac": mac_address,
+                "message": message,
+                "host_name": host.os or mac_address,
+            },
+        )
+
+        self.save()
+        if mac_address in self.coordinators:
+            self.coordinators[mac_address].async_set_updated_data(host)
