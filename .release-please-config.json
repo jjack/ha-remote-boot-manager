@@ -11,7 +11,12 @@
           "type": "json",
           "path": "custom_components/grubstation/manifest.json",
           "jsonpath": "$.version"
-        }
+        },
+        {
+          "type": "toml",
+          "path": "uv.lock",
+          "jsonpath": "$.package[?(@.name=='grubstation')].version"
+       }
       ],
       "changelog-sections": [
         { "type": "feat", "section": "Features" },
