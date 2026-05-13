@@ -78,10 +78,8 @@ def test_validate_register_daemon_token_payload():
         "action": "register_daemon_token",
         "mac": "00:11:22:33:44:55",
         "address": "test.local",
-        "host_os": "linux",
         "daemon_port": 8000,
         "daemon_token": "secret",
-        "daemon_version": "1.0.0",
     }
     validated = validate_register_daemon_token_payload(valid_payload)
     assert validated["mac"] == "00:11:22:33:44:55"
@@ -98,8 +96,6 @@ def test_validate_update_boot_options_payload():
         "action": "update_boot_options",
         "mac": "00:11:22:33:44:55",
         "address": "test.local",
-        "host_os": "linux",
-        "daemon_version": "1.0.0",
         "boot_options": ["ubuntu", "windows"],
     }
     validated = validate_update_boot_options_payload(valid_payload)
@@ -110,8 +106,6 @@ def test_validate_update_boot_options_payload():
         "action": "update_boot_options",
         "mac": "00:11:22:33:44:55",
         "address": "test.local",
-        "host_os": "linux",
-        "daemon_version": "1.0.0",
         "boot_options": {"not": "a list"},
     }
     with pytest.raises(vol.Invalid):

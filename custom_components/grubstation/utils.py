@@ -40,9 +40,7 @@ def generate_model_name(host_data: RemoteHost | None) -> str:
     if host_data.broadcast_port and host_data.broadcast_port != DEFAULT_BROADCAST_PORT:
         broadcast_info.append(f"Port: {host_data.broadcast_port}")
 
-    model_name = f"{host_data.os}"
-    if host_data.daemon_service_manager:
-        model_name = f"{model_name}-{host_data.daemon_service_manager}"
+    model_name = "GrubStation Host"
 
     if broadcast_info:
         model_name = f"{model_name} ({', '.join(broadcast_info)})"

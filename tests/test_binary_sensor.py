@@ -30,6 +30,9 @@ def mock_host():
         daemon_token="secret",  # noqa: S106
         is_daemon_accessible=True,
         last_daemon_accessible="2023-01-01T12:00:00+00:00",
+        os="linux",
+        daemon_service_manager="systemd",
+        daemon_version="1.0.0",
     )
 
 
@@ -58,6 +61,9 @@ async def test_binary_sensor_properties(
     assert sensor.extra_state_attributes == {
         "last_daemon_accessible": "2023-01-01T12:00:00+00:00",
         "recent_activity": [],
+        "os": "linux",
+        "service_manager": "systemd",
+        "version": "1.0.0",
     }
 
     # Test state change

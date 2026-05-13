@@ -63,6 +63,9 @@ class GrubStationManagerBinarySensor(
         return {
             "last_daemon_accessible": self.coordinator.host.last_daemon_accessible,
             "recent_activity": self.coordinator.host.activity_history,
+            "os": self.coordinator.host.os,
+            "service_manager": self.coordinator.host.daemon_service_manager,
+            "version": self.coordinator.host.daemon_version,
         }
 
 

@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.grubstation.daemon import (
-    async_check_daemon_status,
+    async_get_daemon_status,
     async_send_turn_off_command,
 )
 
@@ -95,52 +95,44 @@ async def test_async_send_turn_off_command_unexpected_error(
         )
 
 
-async def test_async_check_daemon_status_success(hass: HomeAssistant) -> None:
-    """Test successful health check."""
+async def test_async_get_daemon_status_success(hass: HomeAssistant) -> None:
+    """Test successful status check."""
     with patch(
         "custom_components.grubstation.daemon.async_get_clientsession"
     ) as mock_session_getter:
         mock_session = MagicMock()
         mock_response = MagicMock()
         mock_response.status = HTTPStatus.OK
-        mock_response.text = AsyncMock(return_value="ok\n")
+        mock_response.json = AsyncMock(
+            return_value={
+                "os": "linux",
+                "service_manager": "systemd",
+                "version": "1.0.0",
+            }
+        )
         mock_session.get.return_value = AsyncMock(
             __aenter__=AsyncMock(return_value=mock_response)
         )
         mock_session_getter.return_value = mock_session
 
-        result = await async_check_daemon_status(hass, "1.2.3.4", 8081, "secret_key")
+        result = await async_get_daemon_status(hass, "1.2.3.4", 8081, "secret_key")
 
-        assert result is True
+        assert result == {
+            "os": "linux",
+            "service_manager": "systemd",
+            "version": "1.0.0",
+        }
         mock_session.get.assert_called_once()
         args, kwargs = mock_session.get.call_args
         url = args[0]
         assert url.host == "1.2.3.4"
         assert url.port == 8081
-        assert url.path == "/healthcheck"
+        assert url.path == "/status"
         assert kwargs["headers"]["Authorization"] == "Bearer secret_key"
 
 
-async def test_async_check_daemon_status_invalid_payload(hass: HomeAssistant) -> None:
-    """Test health check handles invalid payload gracefully."""
-    with patch(
-        "custom_components.grubstation.daemon.async_get_clientsession"
-    ) as mock_session_getter:
-        mock_session = MagicMock()
-        mock_response = MagicMock()
-        mock_response.status = HTTPStatus.OK
-        mock_response.text = AsyncMock(return_value="error")
-        mock_session.get.return_value = AsyncMock(
-            __aenter__=AsyncMock(return_value=mock_response)
-        )
-        mock_session_getter.return_value = mock_session
-
-        result = await async_check_daemon_status(hass, "1.2.3.4", 8081, "key")
-        assert result is False
-
-
-async def test_async_check_daemon_status_failure(hass: HomeAssistant) -> None:
-    """Test health check handles failures gracefully."""
+async def test_async_get_daemon_status_failure(hass: HomeAssistant) -> None:
+    """Test status check handles failures gracefully."""
     with patch(
         "custom_components.grubstation.daemon.async_get_clientsession"
     ) as mock_session_getter:
@@ -148,5 +140,5 @@ async def test_async_check_daemon_status_failure(hass: HomeAssistant) -> None:
         mock_session.get.side_effect = TimeoutError()
         mock_session_getter.return_value = mock_session
 
-        result = await async_check_daemon_status(hass, "1.2.3.4", 8081, "key")
-        assert result is False
+        result = await async_get_daemon_status(hass, "1.2.3.4", 8081, "key")
+        assert result is None

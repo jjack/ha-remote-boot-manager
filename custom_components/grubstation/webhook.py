@@ -21,10 +21,7 @@ from homeassistant.helpers.device_registry import format_mac
 from .const import (
     CONF_BOOT_OPTIONS,
     CONF_DAEMON_PORT,
-    CONF_DAEMON_SERVICE_MANAGER,
     CONF_DAEMON_TOKEN,
-    CONF_DAEMON_VERSION,
-    CONF_HOST_OS,
     DEFAULT_BROADCAST_ADDRESS,
     DEFAULT_BROADCAST_PORT,
     DEFAULT_DAEMON_PORT,
@@ -37,9 +34,6 @@ BASE_SCHEMA = vol.Schema(
         vol.Required(CONF_ACTION): cv.string,
         vol.Required(CONF_MAC): format_mac,
         vol.Required(CONF_ADDRESS): cv.string,
-        vol.Required(CONF_HOST_OS): cv.string,
-        vol.Required(CONF_DAEMON_VERSION): cv.string,
-        vol.Optional(CONF_DAEMON_SERVICE_MANAGER): cv.string,
     }
 )
 

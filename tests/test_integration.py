@@ -50,8 +50,6 @@ async def discovered_client(hass: HomeAssistant, setup_integration):
         "action": "update_boot_options",
         "mac": "aa:bb:cc:dd:ee:ff",
         "address": "test.local",
-        "host_os": "linux",
-        "daemon_version": "1.0.0",
         "boot_options": ["ubuntu", "windows"],
     }
     resp = await client.post(webhook_url, json=payload)
@@ -71,8 +69,6 @@ async def test_webhook_discovery_boot_options(
         "action": "update_boot_options",
         "mac": "aa:bb:cc:dd:ee:ff",
         "address": "test.local",
-        "host_os": "linux",
-        "daemon_version": "1.0.0",
         "boot_options": ["ubuntu", "windows"],
     }
 
@@ -96,10 +92,8 @@ async def test_webhook_discovery_daemon_token(
         "action": "register_daemon_token",
         "mac": "aa:bb:cc:dd:ee:ff",
         "address": "test.local",
-        "host_os": "linux",
         "daemon_port": 8000,
         "daemon_token": "secret",
-        "daemon_version": "1.0.0",
     }
 
     resp = await client.post(webhook_url, json=payload)
@@ -128,10 +122,8 @@ async def test_minimal_webhook_discovery_and_switch(
         "action": "register_daemon_token",
         "mac": "de:ad:be:ef:00:01",
         "address": "minimal.local",
-        "host_os": "linux",
         "daemon_port": 8000,
         "daemon_token": "secret",
-        "daemon_version": "1.0.0",
     }
 
     resp = await client.post(webhook_url, json=payload)
@@ -143,8 +135,6 @@ async def test_minimal_webhook_discovery_and_switch(
         "action": "update_boot_options",
         "mac": "de:ad:be:ef:00:01",
         "address": "minimal.local",
-        "host_os": "linux",
-        "daemon_version": "1.0.0",
         "boot_options": ["ubuntu"],
     }
     resp = await client.post(webhook_url, json=update_payload)
@@ -354,7 +344,6 @@ async def test_webhook_unknown_action(hass: HomeAssistant, setup_integration) ->
         "action": "unknown_action",
         "mac": "aa:bb:cc:dd:ee:ff",
         "address": "test.local",
-        "host_os": "linux",
     }
 
     resp = await client.post(webhook_url, json=payload)
@@ -389,10 +378,8 @@ async def test_webhook_register_daemon_token_existing_host(
         "action": "register_daemon_token",
         "mac": "aa:bb:cc:dd:ee:ff",
         "address": "test.local",
-        "host_os": "linux",
         "daemon_port": 8000,
         "daemon_token": "secret",
-        "daemon_version": "1.0.0",
     }
 
     # First registration
@@ -416,8 +403,6 @@ async def test_webhook_update_boot_options_unregistered_host(
         "action": "update_boot_options",
         "mac": "00:00:00:00:00:00",
         "address": "test.local",
-        "host_os": "linux",
-        "daemon_version": "1.0.0",
         "boot_options": ["ubuntu"],
     }
 
@@ -463,7 +448,6 @@ async def test_webhook_invalid_schema_update_boot_options(
         "action": "update_boot_options",
         "mac": "aa:bb:cc:dd:ee:ff",
         "address": "test.local",
-        "host_os": "linux",
     }
 
     resp = await client.post(webhook_url, json=payload)
@@ -505,8 +489,6 @@ async def test_webhook_internal_server_error(
         "action": "update_boot_options",
         "mac": "aa:bb:cc:dd:ee:ff",
         "address": "test.local",
-        "host_os": "linux",
-        "daemon_version": "1.0.0",
         "boot_options": ["ubuntu", "windows"],
     }
 

@@ -40,8 +40,12 @@ async def test_coordinator_update_success(hass, mock_host, mock_manager):
             return_value=True,
         ) as mock_ping,
         patch(
-            "custom_components.grubstation.coordinator.async_check_daemon_status",
-            return_value=True,
+            "custom_components.grubstation.coordinator.async_get_daemon_status",
+            return_value={
+                "os": "linux",
+                "service_manager": "systemd",
+                "version": "1.0.0",
+            },
         ) as mock_daemon,
     ):
         await coordinator._async_update_data()
@@ -52,6 +56,9 @@ async def test_coordinator_update_success(hass, mock_host, mock_manager):
         assert mock_host.is_powered_on is True
         assert mock_host.is_daemon_accessible is True
         assert mock_host.last_daemon_accessible is not None
+        assert mock_host.os == "linux"
+        assert mock_host.daemon_service_manager == "systemd"
+        assert mock_host.daemon_version == "1.0.0"
 
 
 async def test_coordinator_update_no_ping(hass, mock_host, mock_manager):
@@ -64,7 +71,7 @@ async def test_coordinator_update_no_ping(hass, mock_host, mock_manager):
             return_value=False,
         ) as mock_ping,
         patch(
-            "custom_components.grubstation.coordinator.async_check_daemon_status",
+            "custom_components.grubstation.coordinator.async_get_daemon_status",
         ) as mock_daemon,
     ):
         await coordinator._async_update_data()
@@ -86,8 +93,8 @@ async def test_coordinator_update_no_daemon(hass, mock_host, mock_manager):
             return_value=True,
         ) as mock_ping,
         patch(
-            "custom_components.grubstation.coordinator.async_check_daemon_status",
-            return_value=False,
+            "custom_components.grubstation.coordinator.async_get_daemon_status",
+            return_value=None,
         ) as mock_daemon,
     ):
         await coordinator._async_update_data()

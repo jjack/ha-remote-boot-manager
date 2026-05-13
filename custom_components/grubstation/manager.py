@@ -6,13 +6,16 @@ import dataclasses
 from typing import TYPE_CHECKING, Any
 
 import homeassistant.util.dt as dt_util
+from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import callback
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.storage import Store
 
 from .const import (
+    CONF_BOOT_OPTIONS,
     CONF_DAEMON_PORT,
+    CONF_DAEMON_TOKEN,
     DEFAULT_BOOT_OPTION_NONE,
     DOMAIN,
     LOGGER,
@@ -118,11 +121,9 @@ class GrubStationManager:
         if mac_address not in self.hosts:
             host = RemoteHost(
                 mac=mac_address,
-                address=payload["address"],
-                os=payload["host_os"],
+                address=payload[CONF_ADDRESS],
                 daemon_port=payload.get(CONF_DAEMON_PORT),
-                daemon_token=payload.get("daemon_token"),
-                daemon_version=payload.get("daemon_version"),
+                daemon_token=payload.get(CONF_DAEMON_TOKEN),
             )
             self.hosts[mac_address] = host
             self.coordinators[mac_address] = GrubStationCoordinator(
@@ -148,10 +149,8 @@ class GrubStationManager:
         if mac_address not in self.hosts:
             host = RemoteHost(
                 mac=mac_address,
-                address=payload["address"],
-                os=payload["host_os"],
-                boot_options=payload["boot_options"],
-                daemon_version=payload.get("daemon_version"),
+                address=payload[CONF_ADDRESS],
+                boot_options=payload[CONF_BOOT_OPTIONS],
             )
             self.hosts[mac_address] = host
             self.coordinators[mac_address] = GrubStationCoordinator(

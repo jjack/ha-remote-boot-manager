@@ -48,10 +48,8 @@ async def test_async_register_daemon_token_new_host(manager, hass, mock_coordina
         "action": "register_daemon_token",
         "mac": "00:11:22:33:44:55",
         "address": "test.local",
-        "host_os": "linux",
         "daemon_port": 8000,
         "daemon_token": "secret",
-        "daemon_version": "1.0.0",
     }
 
     with patch(
@@ -77,8 +75,6 @@ async def test_async_update_boot_options_new_host(manager, hass, mock_coordinato
         "action": "update_boot_options",
         "mac": "00:11:22:33:44:55",
         "address": "test.local",
-        "host_os": "linux",
-        "daemon_version": "1.0.0",
         "boot_options": ["ubuntu", "windows"],
     }
 
@@ -103,9 +99,7 @@ async def test_async_update_boot_options_none_option_already_present(
         "action": "register_daemon_token",
         "mac": "00:11:22:33:44:55",
         "address": "test.local",
-        "host_os": "linux",
         "daemon_token": "secret",
-        "daemon_version": "1.0.0",
         "daemon_port": 8000,
     }
     manager.async_register_daemon_token("00:11:22:33:44:55", reg_payload)
@@ -114,7 +108,6 @@ async def test_async_update_boot_options_none_option_already_present(
         "action": "update_boot_options",
         "mac": "00:11:22:33:44:55",
         "address": "test.local",
-        "host_os": "linux",
         "boot_options": [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "windows"],
     }
 
@@ -135,9 +128,7 @@ async def test_async_update_boot_options_empty_boot_options(
         "action": "register_daemon_token",
         "mac": "00:11:22:33:44:55",
         "address": "test.local",
-        "host_os": "linux",
         "daemon_token": "secret",
-        "daemon_version": "1.0.0",
         "daemon_port": 8000,
     }
     manager.async_register_daemon_token("00:11:22:33:44:55", reg_payload)
@@ -146,7 +137,6 @@ async def test_async_update_boot_options_empty_boot_options(
         "action": "update_boot_options",
         "mac": "00:11:22:33:44:55",
         "address": "test.local",
-        "host_os": "linux",
         "boot_options": [],
     }
 
@@ -175,7 +165,6 @@ async def test_async_update_boot_options_update_existing_host(
         "action": "update_boot_options",
         "mac": mac,
         "address": "new-hostname.local",
-        "host_os": "linux",
         "boot_options": ["ubuntu", "arch"],
     }
 
@@ -315,7 +304,6 @@ async def test_async_update_boot_options_resets_invalid_next_boot(
         "action": "update_boot_options",
         "mac": mac,
         "address": "test.local",
-        "host_os": "linux",
         "boot_options": ["ubuntu", "fedora"],
     }
 

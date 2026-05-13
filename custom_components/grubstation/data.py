@@ -15,10 +15,7 @@ from homeassistant.const import (
 from .const import (
     CONF_BOOT_OPTIONS,
     CONF_DAEMON_PORT,
-    CONF_DAEMON_SERVICE_MANAGER,
     CONF_DAEMON_TOKEN,
-    CONF_DAEMON_VERSION,
-    CONF_HOST_OS,
     DEFAULT_BOOT_OPTION_NONE,
 )
 
@@ -58,7 +55,6 @@ class RemoteHost:
     def update_from_payload(self, payload: dict[str, Any]) -> None:
         """Safely update the host state from incoming webhook data."""
         self.address = payload.get(CONF_ADDRESS, self.address)
-        self.daemon_version = payload.get(CONF_DAEMON_VERSION, self.daemon_version)
         self.daemon_port = payload.get(CONF_DAEMON_PORT, self.daemon_port)
         self.daemon_token = payload.get(CONF_DAEMON_TOKEN, self.daemon_token)
         self.boot_options = payload.get(CONF_BOOT_OPTIONS, self.boot_options) or []
@@ -66,10 +62,6 @@ class RemoteHost:
             CONF_BROADCAST_ADDRESS, self.broadcast_address
         )
         self.broadcast_port = payload.get(CONF_BROADCAST_PORT, self.broadcast_port)
-        self.os = payload.get(CONF_HOST_OS, self.os)
-        self.daemon_service_manager = payload.get(
-            CONF_DAEMON_SERVICE_MANAGER, self.daemon_service_manager
-        )
 
     def daemon_is_configured(self) -> bool:
         """Determine whether or not the host has a daemon configured."""

@@ -15,7 +15,7 @@ from .const import (
     PING_COUNT,
     PING_TIMEOUT_SECONDS,
 )
-from .daemon import async_check_daemon_status
+from .daemon import async_get_daemon_status
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -71,13 +71,15 @@ class GrubStationCoordinator(DataUpdateCoordinator["RemoteHost"]):
 
         # 2. If alive and has daemon config, check the daemon status
         is_accessible = False
+        daemon_status = None
         if is_alive and self.host.daemon_port and self.host.daemon_token:
-            is_accessible = await async_check_daemon_status(
+            daemon_status = await async_get_daemon_status(
                 self.hass,
                 self.host.address,
                 self.host.daemon_port,
                 self.host.daemon_token,
             )
+            is_accessible = daemon_status is not None
             LOGGER.debug(
                 "Daemon status for %s (%s): %s",
                 self.host.mac,
@@ -98,7 +100,10 @@ class GrubStationCoordinator(DataUpdateCoordinator["RemoteHost"]):
         self.host.is_daemon_accessible = is_accessible
         self.host.is_powered_on = is_alive
 
-        if is_accessible:
+        if is_accessible and daemon_status:
             self.host.last_daemon_accessible = dt_util.utcnow().isoformat()
+            self.host.os = daemon_status.get("os")
+            self.host.daemon_service_manager = daemon_status.get("service_manager")
+            self.host.daemon_version = daemon_status.get("version")
 
         return self.host

@@ -37,20 +37,24 @@ async def async_send_turn_off_command(
         raise HomeAssistantError(error_msg) from err
 
 
-async def async_check_daemon_status(
+async def async_get_daemon_status(
     hass: HomeAssistant, address: str, daemon_port: int, api_key: str
-) -> bool:
-    """Check if the GrubStation daemon is accessible."""
+) -> dict[str, str] | None:
+    """Get the status and metadata from the GrubStation daemon."""
     session = async_get_clientsession(hass)
-    url = URL.build(scheme="http", host=address, port=daemon_port, path="/healthcheck")
+    url = URL.build(scheme="http", host=address, port=daemon_port, path="/status")
     headers = {"Authorization": f"Bearer {api_key}"}
 
     try:
         async with asyncio.timeout(5):
             async with session.get(url, headers=headers) as response:
                 response.raise_for_status()
-                data = await response.text()
-                return data.strip() == "ok"
+                data = await response.json()
+                return {
+                    "os": data.get("os"),
+                    "service_manager": data.get("service_manager"),
+                    "version": data.get("version"),
+                }
     except Exception as err:  # noqa: BLE001
-        LOGGER.debug("Daemon healthcheck failed for %s: %s", address, err)
-        return False
+        LOGGER.debug("Daemon status check failed for %s: %s", address, err)
+        return None
