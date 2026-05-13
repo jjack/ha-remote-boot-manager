@@ -3,23 +3,19 @@
 import json
 from unittest.mock import MagicMock, patch
 
+from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+from custom_components.grubstation.config_flow import GrubStationManagerOptionsFlow
+from custom_components.grubstation.const import DOMAIN
+from custom_components.grubstation.data import RemoteHost
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
-from pytest_homeassistant_custom_component.common import MockConfigEntry
-
-from custom_components.grubstation.config_flow import (
-    GrubStationManagerOptionsFlow,
-)
-from custom_components.grubstation.const import DOMAIN
-from custom_components.grubstation.data import RemoteHost
 
 
 async def test_form(hass: HomeAssistant) -> None:
     """Test we get the form."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
     assert result.get("type") == FlowResultType.FORM
     assert result.get("errors") == {}
 
@@ -46,16 +42,12 @@ async def test_form(hass: HomeAssistant) -> None:
 
 async def test_form_missing_documentation(hass: HomeAssistant) -> None:
     """Test we abort if documentation is missing."""
-    with patch(
-        "custom_components.grubstation.config_flow.async_get_loaded_integration"
-    ) as mock_get_integration:
+    with patch("custom_components.grubstation.config_flow.async_get_loaded_integration") as mock_get_integration:
         mock_integration = MagicMock()
         mock_integration.documentation = None
         mock_get_integration.return_value = mock_integration
 
-        result = await hass.config_entries.flow.async_init(
-            DOMAIN, context={"source": config_entries.SOURCE_USER}
-        )
+        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
 
         assert result.get("type") == FlowResultType.ABORT
         assert result.get("reason") == "missing_documentation"
@@ -66,9 +58,7 @@ async def test_single_instance_allowed(hass: HomeAssistant) -> None:
     entry = MockConfigEntry(domain=DOMAIN, data={"webhook_id": "test_id"})
     entry.add_to_hass(hass)
 
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
 
     assert result.get("type") == FlowResultType.ABORT
     assert result.get("reason") == "single_instance_allowed"
@@ -327,9 +317,7 @@ async def test_options_flow_serialization_safety(hass: HomeAssistant) -> None:
     schema = result3.get("data_schema")
     assert schema is not None
 
-    descriptions = [
-        key.description for key in schema.schema if hasattr(key, "description")
-    ]
+    descriptions = [key.description for key in schema.schema if hasattr(key, "description")]
 
     # This would raise TypeError if vol.UNDEFINED was present
     json_str = json.dumps(descriptions)

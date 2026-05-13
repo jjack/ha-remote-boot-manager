@@ -7,19 +7,14 @@ from functools import partial
 from typing import TYPE_CHECKING, Any
 
 import wakeonlan
+
 from homeassistant.components.switch import SwitchDeviceClass, SwitchEntity
 from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.script import Script
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import (
-    DOMAIN,
-    LOGGER,
-    SIGNAL_HOST_REMOVED,
-    SIGNAL_NEW_HOST,
-    WAIT_FOR_HOST_POWER_SECONDS,
-)
+from .const import DOMAIN, LOGGER, SIGNAL_HOST_REMOVED, SIGNAL_NEW_HOST, WAIT_FOR_HOST_POWER_SECONDS
 from .coordinator import GrubStationCoordinator, _async_ping_host
 from .daemon import async_send_turn_off_command
 from .utils import generate_device_info
@@ -49,17 +44,11 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
         self._attr_device_class = SwitchDeviceClass.SWITCH
 
         # Use the initial state from the coordinator
-        self._attr_is_on: bool = (
-            bool(self.coordinator.host.is_powered_on)
-            if self.coordinator.host
-            else False
-        )
+        self._attr_is_on: bool = bool(self.coordinator.host.is_powered_on) if self.coordinator.host else False
 
         self._ping_task: asyncio.Task | None = None
         self._turn_off_action = (
-            Script(hass, self.host.off_action, self.host.mac, DOMAIN)
-            if self.host.off_action
-            else None
+            Script(hass, self.host.off_action, self.host.mac, DOMAIN) if self.host.off_action else None
         )
 
         self._attr_device_info = generate_device_info(self.host)
@@ -88,7 +77,7 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
         """Coordinator handles polling."""
         return False
 
-    async def async_turn_on(self, **kwargs: Any) -> None:  # noqa: ARG002
+    async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the entity on."""
         self._attr_is_on = True
         self.async_write_ha_state()
@@ -101,9 +90,7 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
 
         # wakeonlan uses blocking sockets; offload to an executor thread to prevent
         # stalling the HA event loop.
-        await self.hass.async_add_executor_job(
-            partial(wakeonlan.send_magic_packet, self.host.mac, **wol_kwargs)
-        )
+        await self.hass.async_add_executor_job(partial(wakeonlan.send_magic_packet, self.host.mac, **wol_kwargs))
 
         target = self._ping_target
         if target:
@@ -115,22 +102,16 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
                 "wol_ping_on",
             )
 
-    async def async_turn_off(self, **kwargs: Any) -> None:  # noqa: ARG002
+    async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the entity off."""
         self._attr_is_on = False
         self.async_write_ha_state()
 
         if self._turn_off_action:
-            self.coordinator.manager.async_log_activity(
-                self.host.mac, "Running shutdown script"
-            )
-            await self._turn_off_action.async_run(
-                context=getattr(self, "_context", None)
-            )
+            self.coordinator.manager.async_log_activity(self.host.mac, "Running shutdown script")
+            await self._turn_off_action.async_run(context=getattr(self, "_context", None))
         elif self.host.daemon_token and self.host.address and self.host.daemon_port:
-            self.coordinator.manager.async_log_activity(
-                self.host.mac, "Sending shutdown command to daemon"
-            )
+            self.coordinator.manager.async_log_activity(self.host.mac, "Sending shutdown command to daemon")
             await async_send_turn_off_command(
                 self.hass,
                 self.host.address,
@@ -138,9 +119,7 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
                 self.host.daemon_token,
             )
         else:
-            self.coordinator.manager.async_log_activity(
-                self.host.mac, "Shutdown requested (no action configured)"
-            )
+            self.coordinator.manager.async_log_activity(self.host.mac, "Shutdown requested (no action configured)")
 
         target = self._ping_target
         if target:
@@ -171,9 +150,7 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
             if is_awake == target_state:
                 # Log success
                 verb = "Power On" if target_state else "Power Off"
-                self.coordinator.manager.async_log_activity(
-                    self.host.mac, f"{verb} verified"
-                )
+                self.coordinator.manager.async_log_activity(self.host.mac, f"{verb} verified")
 
                 # Trigger a coordinator refresh to sync all entities
                 await self.coordinator.async_request_refresh()
@@ -232,9 +209,5 @@ async def async_setup_entry(
         async_add_host_switch(mac)
 
     # Listen for the signal to add new hosts discovered via webhook
-    entry.async_on_unload(
-        async_dispatcher_connect(hass, SIGNAL_NEW_HOST, async_add_host_switch)
-    )
-    entry.async_on_unload(
-        async_dispatcher_connect(hass, SIGNAL_HOST_REMOVED, async_remove_host_switch)
-    )
+    entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_NEW_HOST, async_add_host_switch))
+    entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_HOST_REMOVED, async_remove_host_switch))

@@ -4,10 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from custom_components.grubstation.coordinator import (
-    GrubStationCoordinator,
-    _async_ping_host,
-)
+from custom_components.grubstation.coordinator import GrubStationCoordinator, _async_ping_host
 from custom_components.grubstation.data import RemoteHost
 
 
@@ -18,7 +15,7 @@ def mock_host():
         mac="00:11:22:33:44:55",
         address="1.2.3.4",
         daemon_port=8081,
-        daemon_token="secret",  # noqa: S106
+        daemon_token="secret",
     )
 
 
@@ -131,9 +128,7 @@ async def test_coordinator_update_missing_daemon_config(hass, mock_manager):
     ):
         await coordinator._async_update_data()
 
-        mock_log.assert_any_call(
-            "Skipping daemon check for %s: missing port or token", "00:11:22:33:44:55"
-        )
+        mock_log.assert_any_call("Skipping daemon check for %s: missing port or token", "00:11:22:33:44:55")
         assert host.is_powered_on is True
         assert host.is_daemon_accessible is False
 
@@ -153,10 +148,7 @@ async def test_coordinator_ping_exception_logging(hass):
         found = False
         for call_args in mock_log.call_args_list:
             # call_args is (args, kwargs). args[0] is the format string.
-            if (
-                call_args[0][0] == "Ping failed for %s: %s"
-                and call_args[0][1] == "1.2.3.4"
-            ):
+            if call_args[0][0] == "Ping failed for %s: %s" and call_args[0][1] == "1.2.3.4":
                 found = True
                 break
         assert found

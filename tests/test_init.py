@@ -2,7 +2,6 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from homeassistant.const import CONF_ADDRESS
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.grubstation import (
@@ -14,11 +13,8 @@ from custom_components.grubstation import (
     async_setup_entry,
     async_unload_entry,
 )
-from custom_components.grubstation.const import (
-    CONF_DAEMON_PORT,
-    CONF_DAEMON_TOKEN,
-    DOMAIN,
-)
+from custom_components.grubstation.const import CONF_DAEMON_PORT, CONF_DAEMON_TOKEN, DOMAIN
+from homeassistant.const import CONF_ADDRESS
 
 
 async def test_async_remove_entry_with_runtime_data(hass):
@@ -67,9 +63,7 @@ async def test_async_remove_config_entry_device(hass):
     mock_device_entry = MagicMock()
     mock_device_entry.identifiers = {(DOMAIN, "00:11:22:33:44:55")}
 
-    result = await async_remove_config_entry_device(
-        hass, mock_config_entry, mock_device_entry
-    )
+    result = await async_remove_config_entry_device(hass, mock_config_entry, mock_device_entry)
 
     assert result is True
     mock_manager.async_remove_host.assert_called_once_with("00:11:22:33:44:55")
@@ -84,9 +78,7 @@ async def test_async_remove_config_entry_device_no_match(hass):
     mock_device_entry = MagicMock()
     mock_device_entry.identifiers = {("other_domain", "some_id")}
 
-    result = await async_remove_config_entry_device(
-        hass, mock_config_entry, mock_device_entry
-    )
+    result = await async_remove_config_entry_device(hass, mock_config_entry, mock_device_entry)
 
     assert result is True
     mock_manager.async_remove_host.assert_not_called()
@@ -116,9 +108,7 @@ async def test_async_setup_registers_send_turn_on_service(hass):
 
     with (
         patch.object(hass.http, "register_view"),
-        patch(
-            "custom_components.grubstation.wakeonlan.send_magic_packet"
-        ) as mock_send_on,
+        patch("custom_components.grubstation.wakeonlan.send_magic_packet") as mock_send_on,
     ):
         assert await async_setup(hass, {}) is True
 
@@ -133,9 +123,7 @@ async def test_async_setup_registers_send_turn_on_service(hass):
             },
             blocking=True,
         )
-        mock_send_on.assert_called_with(
-            "00:11:22:33:44:55", ip_address="192.168.1.255", port=9
-        )
+        mock_send_on.assert_called_with("00:11:22:33:44:55", ip_address="192.168.1.255", port=9)
 
         # Test with minimal args
         await hass.services.async_call(
@@ -146,9 +134,7 @@ async def test_async_setup_registers_send_turn_on_service(hass):
             },
             blocking=True,
         )
-        mock_send_on.assert_called_with(
-            "00:11:22:33:44:55", ip_address="255.255.255.255", port=9
-        )
+        mock_send_on.assert_called_with("00:11:22:33:44:55", ip_address="255.255.255.255", port=9)
 
 
 async def test_async_setup_registers_send_turn_off_service(hass):
@@ -187,9 +173,7 @@ async def test_async_unload_entry_full(hass):
 
     with (
         patch("homeassistant.components.webhook.async_unregister") as mock_unregister,
-        patch.object(
-            hass.config_entries, "async_unload_platforms", return_value=True
-        ) as mock_unload_platforms,
+        patch.object(hass.config_entries, "async_unload_platforms", return_value=True) as mock_unload_platforms,
     ):
         result = await async_unload_entry(hass, entry)
         assert result is True
@@ -205,9 +189,7 @@ async def test_async_unload_entry_no_webhook(hass):
 
     with (
         patch("homeassistant.components.webhook.async_unregister") as mock_unregister,
-        patch.object(
-            hass.config_entries, "async_unload_platforms", return_value=True
-        ) as mock_unload_platforms,
+        patch.object(hass.config_entries, "async_unload_platforms", return_value=True) as mock_unload_platforms,
     ):
         result = await async_unload_entry(hass, entry)
         assert result is True
@@ -225,9 +207,7 @@ async def test_async_unload_entry_no_runtime_data(hass):
 
     with (
         patch("homeassistant.components.webhook.async_unregister") as mock_unregister,
-        patch.object(
-            hass.config_entries, "async_unload_platforms", return_value=True
-        ) as mock_unload_platforms,
+        patch.object(hass.config_entries, "async_unload_platforms", return_value=True) as mock_unload_platforms,
     ):
         result = await async_unload_entry(hass, entry)
         assert result is True

@@ -3,9 +3,9 @@
 from http import HTTPStatus
 from unittest.mock import AsyncMock, MagicMock
 
+from aiohttp import web
 import pytest
 import voluptuous as vol
-from aiohttp import web
 
 from custom_components.grubstation.webhook import (
     async_parse_webhook_request,

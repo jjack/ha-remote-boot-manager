@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-import logging
 from http import HTTPStatus
+import logging
 
 from aiohttp import web
+
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.http import HomeAssistantView
 
@@ -35,9 +36,7 @@ class GrubConfigView(HomeAssistantView):
         try:
             mac_address = format_mac(mac_address)
         except ValueError:
-            return web.Response(
-                text="Invalid MAC address format", status=HTTPStatus.BAD_REQUEST
-            )
+            return web.Response(text="Invalid MAC address format", status=HTTPStatus.BAD_REQUEST)
 
         error_msg = None
         status = HTTPStatus.INTERNAL_SERVER_ERROR
@@ -56,9 +55,7 @@ class GrubConfigView(HomeAssistantView):
             error_msg, status = "Host not found", HTTPStatus.NOT_FOUND
 
         if error_msg or not host or not manager or not entries:
-            return web.Response(
-                text=error_msg or "Internal Server Error", status=status
-            )
+            return web.Response(text=error_msg or "Internal Server Error", status=status)
 
         entry = entries[0]
         expected_token = entry.data.get("webhook_id")
@@ -86,6 +83,4 @@ class GrubConfigView(HomeAssistantView):
             return web.Response(text=content, content_type="text/plain")
         except Exception:
             LOGGER.exception("Error generating boot config for %s", mac_address)
-            return web.Response(
-                text="Internal Server Error", status=HTTPStatus.INTERNAL_SERVER_ERROR
-            )
+            return web.Response(text="Internal Server Error", status=HTTPStatus.INTERNAL_SERVER_ERROR)

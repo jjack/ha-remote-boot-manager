@@ -3,16 +3,11 @@
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from homeassistant.core import HomeAssistant
-
 from custom_components.grubstation.const import SIGNAL_NEW_HOST
 from custom_components.grubstation.coordinator import GrubStationCoordinator
 from custom_components.grubstation.data import RemoteHost
-from custom_components.grubstation.switch import (
-    GrubStationManagerSwitch,
-    _async_ping_host,
-    async_setup_entry,
-)
+from custom_components.grubstation.switch import GrubStationManagerSwitch, _async_ping_host, async_setup_entry
+from homeassistant.core import HomeAssistant
 
 
 def get_mock_coordinator(hass: HomeAssistant, host: RemoteHost) -> MagicMock:
@@ -71,9 +66,7 @@ async def test_switch_async_turn_on_starts_task(hass):
     switch.hass = hass
 
     with (
-        patch(
-            "custom_components.grubstation.switch.wakeonlan.send_magic_packet"
-        ) as mock_send,
+        patch("custom_components.grubstation.switch.wakeonlan.send_magic_packet") as mock_send,
         patch.object(hass, "async_create_background_task") as mock_task_creator,
         patch.object(switch, "async_write_ha_state") as mock_write,
     ):
@@ -125,9 +118,7 @@ async def test_switch_async_turn_on_with_broadcast_and_cancels_task(hass):
     switch._ping_task = mock_task
 
     with (
-        patch(
-            "custom_components.grubstation.switch.wakeonlan.send_magic_packet"
-        ) as mock_send,
+        patch("custom_components.grubstation.switch.wakeonlan.send_magic_packet") as mock_send,
         patch.object(hass, "async_create_background_task") as mock_create_task,
         patch.object(switch, "async_write_ha_state") as mock_write,
     ):
@@ -138,9 +129,7 @@ async def test_switch_async_turn_on_with_broadcast_and_cancels_task(hass):
         await switch.async_turn_on()
         await hass.async_block_till_done()
 
-        mock_send.assert_called_once_with(
-            "00:11:22:33:44:55", ip_address="192.168.1.255", port=9
-        )
+        mock_send.assert_called_once_with("00:11:22:33:44:55", ip_address="192.168.1.255", port=9)
         mock_task.cancel.assert_called_once()
         mock_create_task.assert_called_once()
         assert switch.is_on is True
@@ -188,7 +177,7 @@ async def test_switch_async_turn_off_via_daemon(hass: HomeAssistant) -> None:
         mac="00:11:22:33:44:55",
         address="192.168.1.50",
         daemon_port=8081,
-        daemon_token="daemon_secret",  # noqa: S106
+        daemon_token="daemon_secret",
         off_action=None,  # No script configured
     )
     coordinator = get_mock_coordinator(hass, host)
@@ -211,9 +200,7 @@ async def test_switch_async_turn_off_via_daemon(hass: HomeAssistant) -> None:
         await switch.async_turn_off()
 
         assert switch.is_on is False
-        mock_daemon_call.assert_called_once_with(
-            hass, "192.168.1.50", 8081, "daemon_secret"
-        )
+        mock_daemon_call.assert_called_once_with(hass, "192.168.1.50", 8081, "daemon_secret")
         mock_task_creator.assert_called_once()
         mock_write.assert_called_once()
         mock_task_creator.call_args[0][0].close()
@@ -372,9 +359,7 @@ async def test_async_setup_entry(hass):
     mock_entry.runtime_data = mock_manager
     async_add_entities = MagicMock()
 
-    with patch(
-        "custom_components.grubstation.switch.async_dispatcher_connect"
-    ) as mock_connect:
+    with patch("custom_components.grubstation.switch.async_dispatcher_connect") as mock_connect:
         await async_setup_entry(hass, mock_entry, async_add_entities)
 
         # Both switch entities should be added
@@ -383,11 +368,7 @@ async def test_async_setup_entry(hass):
         assert mock_entry.async_on_unload.call_count == 2
 
         # Verify the dispatcher callback adds the new entity
-        callback = next(
-            call[0][2]
-            for call in mock_connect.call_args_list
-            if call[0][1] == SIGNAL_NEW_HOST
-        )
+        callback = next(call[0][2] for call in mock_connect.call_args_list if call[0][1] == SIGNAL_NEW_HOST)
         host3 = RemoteHost(mac="11:22:33:44:55:66", address="new.local")
         mock_manager.hosts[host3.mac] = host3
         mock_manager.coordinators[host3.mac] = get_mock_coordinator(hass, host3)
@@ -405,15 +386,9 @@ async def test_async_setup_entry_no_coordinator(hass):
     mock_entry.runtime_data = mock_manager
     async_add_entities = MagicMock()
 
-    with patch(
-        "custom_components.grubstation.switch.async_dispatcher_connect"
-    ) as mock_connect:
+    with patch("custom_components.grubstation.switch.async_dispatcher_connect") as mock_connect:
         await async_setup_entry(hass, mock_entry, async_add_entities)
-        callback = next(
-            call[0][2]
-            for call in mock_connect.call_args_list
-            if call[0][1] == SIGNAL_NEW_HOST
-        )
+        callback = next(call[0][2] for call in mock_connect.call_args_list if call[0][1] == SIGNAL_NEW_HOST)
         callback("00:AA:BB:CC:DD:EE")
         assert async_add_entities.call_count == 0
 

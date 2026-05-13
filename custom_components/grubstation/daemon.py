@@ -6,9 +6,10 @@ import asyncio
 from typing import TYPE_CHECKING
 
 import aiohttp
+from yarl import URL
+
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from yarl import URL
 
 from .const import LOGGER
 
@@ -18,9 +19,7 @@ if TYPE_CHECKING:
 
 # send a POST request to the entry's address with the daemon port to /shutdown
 # include the api_key as a "Bearer" token
-async def async_send_turn_off_command(
-    hass: HomeAssistant, address: str, daemon_port: int, api_key: str
-) -> None:
+async def async_send_turn_off_command(hass: HomeAssistant, address: str, daemon_port: int, api_key: str) -> None:
     """Send shutdown command to the GrubStation daemon."""
     session = async_get_clientsession(hass)
     url = URL.build(scheme="http", host=address, port=daemon_port, path="/shutdown")

@@ -4,21 +4,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.components.binary_sensor import (
-    BinarySensorDeviceClass,
-    BinarySensorEntity,
-)
+from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
 from homeassistant.const import EntityCategory
 from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import (
-    LOGGER,
-    SIGNAL_HOST_REMOVED,
-    SIGNAL_HOST_UPDATED,
-    SIGNAL_NEW_HOST,
-)
+from .const import LOGGER, SIGNAL_HOST_REMOVED, SIGNAL_HOST_UPDATED, SIGNAL_NEW_HOST
 from .coordinator import GrubStationCoordinator
 from .utils import generate_device_info
 
@@ -29,9 +21,7 @@ if TYPE_CHECKING:
     from .data import GrubStationManagerConfigEntry
 
 
-class GrubStationManagerBinarySensor(
-    CoordinatorEntity[GrubStationCoordinator], BinarySensorEntity
-):
+class GrubStationManagerBinarySensor(CoordinatorEntity[GrubStationCoordinator], BinarySensorEntity):
     """GrubStation binary sensor class."""
 
     _attr_has_entity_name = True
@@ -109,16 +99,6 @@ async def async_setup_entry(
         async_add_host_binary_sensor(mac)
 
     # Listen for the signal to add new hosts discovered via webhook
-    entry.async_on_unload(
-        async_dispatcher_connect(hass, SIGNAL_NEW_HOST, async_add_host_binary_sensor)
-    )
-    entry.async_on_unload(
-        async_dispatcher_connect(
-            hass, SIGNAL_HOST_UPDATED, async_add_host_binary_sensor
-        )
-    )
-    entry.async_on_unload(
-        async_dispatcher_connect(
-            hass, SIGNAL_HOST_REMOVED, async_remove_host_binary_sensor
-        )
-    )
+    entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_NEW_HOST, async_add_host_binary_sensor))
+    entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_HOST_UPDATED, async_add_host_binary_sensor))
+    entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_HOST_REMOVED, async_remove_host_binary_sensor))

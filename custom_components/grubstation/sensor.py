@@ -10,12 +10,7 @@ from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import (
-    LOGGER,
-    SIGNAL_HOST_REMOVED,
-    SIGNAL_HOST_UPDATED,
-    SIGNAL_NEW_HOST,
-)
+from .const import LOGGER, SIGNAL_HOST_REMOVED, SIGNAL_HOST_UPDATED, SIGNAL_NEW_HOST
 from .coordinator import GrubStationCoordinator
 from .utils import generate_device_info
 
@@ -82,9 +77,7 @@ async def async_setup_entry(
             async_add_entities([GrubStationManagerSensor(coordinator)])
             added_hosts.add(mac_address)
         else:
-            LOGGER.debug(
-                "Skipping sensor addition for %s: no daemon info yet", mac_address
-            )
+            LOGGER.debug("Skipping sensor addition for %s: no daemon info yet", mac_address)
 
     @callback
     def async_remove_host_sensor(mac_address: str) -> None:
@@ -97,12 +90,6 @@ async def async_setup_entry(
         async_add_host_sensor(mac)
 
     # Listen for the signal to add new hosts discovered via webhook
-    entry.async_on_unload(
-        async_dispatcher_connect(hass, SIGNAL_NEW_HOST, async_add_host_sensor)
-    )
-    entry.async_on_unload(
-        async_dispatcher_connect(hass, SIGNAL_HOST_UPDATED, async_add_host_sensor)
-    )
-    entry.async_on_unload(
-        async_dispatcher_connect(hass, SIGNAL_HOST_REMOVED, async_remove_host_sensor)
-    )
+    entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_NEW_HOST, async_add_host_sensor))
+    entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_HOST_UPDATED, async_add_host_sensor))
+    entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_HOST_REMOVED, async_remove_host_sensor))

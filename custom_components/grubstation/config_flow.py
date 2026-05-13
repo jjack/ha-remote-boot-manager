@@ -6,13 +6,10 @@ import time
 from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
+
 from homeassistant import config_entries
 from homeassistant.components import webhook
-from homeassistant.const import (
-    CONF_ADDRESS,
-    CONF_BROADCAST_ADDRESS,
-    CONF_BROADCAST_PORT,
-)
+from homeassistant.const import CONF_ADDRESS, CONF_BROADCAST_ADDRESS, CONF_BROADCAST_PORT
 from homeassistant.core import callback
 from homeassistant.helpers import selector
 from homeassistant.loader import async_get_loaded_integration
@@ -71,9 +68,7 @@ class GrubStationManagerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> config_entries.ConfigFlowResult:
         """Show the generated webhook ID to the user."""
         if user_input is not None:
-            return self.async_create_entry(
-                title="GrubStation", data={"webhook_id": self._webhook_id}
-            )
+            return self.async_create_entry(title="GrubStation", data={"webhook_id": self._webhook_id})
 
         webhook_url = webhook.async_generate_url(self.hass, self._webhook_id)
 
@@ -135,7 +130,7 @@ class GrubStationManagerOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_init(
         self,
-        user_input: dict[str, Any] | None = None,  # noqa: ARG002
+        user_input: dict[str, Any] | None = None,
     ) -> config_entries.ConfigFlowResult:
         """Manage the options."""
         manager = self._config_entry.runtime_data
@@ -156,9 +151,7 @@ class GrubStationManagerOptionsFlow(config_entries.OptionsFlow):
             description_placeholders={"menu_description": menu_description},
         )
 
-    async def async_step_select_host(
-        self, user_input: dict[str, Any] | None = None
-    ) -> config_entries.ConfigFlowResult:
+    async def async_step_select_host(self, user_input: dict[str, Any] | None = None) -> config_entries.ConfigFlowResult:
         """Select a host to configure."""
         manager = self._config_entry.runtime_data
 
@@ -188,9 +181,7 @@ class GrubStationManagerOptionsFlow(config_entries.OptionsFlow):
             description_placeholders={"webhook_id": webhook_id},
         )
 
-    async def async_step_host_config(
-        self, user_input: dict[str, Any] | None = None
-    ) -> config_entries.ConfigFlowResult:
+    async def async_step_host_config(self, user_input: dict[str, Any] | None = None) -> config_entries.ConfigFlowResult:
         """Configure specific host."""
         manager = self._config_entry.runtime_data
 
@@ -219,15 +210,11 @@ class GrubStationManagerOptionsFlow(config_entries.OptionsFlow):
 
         def _add_optional(key: str, value: Any, type_: Any) -> None:
             if value is not None:
-                data_schema[
-                    vol.Optional(key, description={"suggested_value": value})
-                ] = type_
+                data_schema[vol.Optional(key, description={"suggested_value": value})] = type_
             else:
                 data_schema[vol.Optional(key)] = type_
 
-        _add_optional(
-            CONF_TURN_OFF_ACTION, host.off_action, selector.ActionSelector({})
-        )
+        _add_optional(CONF_TURN_OFF_ACTION, host.off_action, selector.ActionSelector({}))
         _add_optional(CONF_ADDRESS, host.address, str)
         _add_optional(CONF_BROADCAST_ADDRESS, host.broadcast_address, str)
         _add_optional(CONF_BROADCAST_PORT, host.broadcast_port, int)

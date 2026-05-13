@@ -4,17 +4,14 @@ from http import HTTPStatus
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+from custom_components.grubstation import async_reload_entry, async_remove_config_entry_device
+from custom_components.grubstation.const import DEFAULT_BOOT_OPTION_NONE, DOMAIN
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import async_get as async_get_dr
 from homeassistant.helpers.entity_registry import async_get as async_get_er
 from homeassistant.setup import async_setup_component
-from pytest_homeassistant_custom_component.common import MockConfigEntry
-
-from custom_components.grubstation import (
-    async_reload_entry,
-    async_remove_config_entry_device,
-)
-from custom_components.grubstation.const import DEFAULT_BOOT_OPTION_NONE, DOMAIN
 
 
 @pytest.fixture
@@ -59,9 +56,7 @@ async def discovered_client(hass: HomeAssistant, setup_integration):
     return client
 
 
-async def test_webhook_discovery_boot_options(
-    hass: HomeAssistant, setup_integration
-) -> None:
+async def test_webhook_discovery_boot_options(hass: HomeAssistant, setup_integration) -> None:
     """Test that posting boot options to the webhook creates the appropriate entities."""
     client = setup_integration
     webhook_url = "/api/webhook/test_webhook_id"
@@ -82,9 +77,7 @@ async def test_webhook_discovery_boot_options(
     assert state.state == DEFAULT_BOOT_OPTION_NONE
 
 
-async def test_webhook_discovery_daemon_token(
-    hass: HomeAssistant, setup_integration
-) -> None:
+async def test_webhook_discovery_daemon_token(hass: HomeAssistant, setup_integration) -> None:
     """Test that posting to the webhook creates the appropriate entities."""
     client = setup_integration
     webhook_url = "/api/webhook/test_webhook_id"
@@ -112,9 +105,7 @@ async def test_webhook_discovery_daemon_token(
     assert state is not None
 
 
-async def test_minimal_webhook_discovery_and_switch(
-    hass: HomeAssistant, setup_integration
-) -> None:
+async def test_minimal_webhook_discovery_and_switch(hass: HomeAssistant, setup_integration) -> None:
     """Test discovery and switch functionality with a minimal payload (mac)."""
     client = setup_integration
     webhook_url = "/api/webhook/test_webhook_id"
@@ -154,21 +145,13 @@ async def test_minimal_webhook_discovery_and_switch(
     ]
 
     # Verify the switch works by calling turn_on
-    with patch(
-        "custom_components.grubstation.switch.wakeonlan.send_magic_packet"
-    ) as mock_wake:
-        await hass.services.async_call(
-            "switch", "turn_on", {"entity_id": entity_id_switch}, blocking=True
-        )
+    with patch("custom_components.grubstation.switch.wakeonlan.send_magic_packet") as mock_wake:
+        await hass.services.async_call("switch", "turn_on", {"entity_id": entity_id_switch}, blocking=True)
         # With no broadcast args, it should be called with just the MAC
-        mock_wake.assert_called_once_with(
-            "de:ad:be:ef:00:01", ip_address="255.255.255.255", port=9
-        )
+        mock_wake.assert_called_once_with("de:ad:be:ef:00:01", ip_address="255.255.255.255", port=9)
 
 
-async def test_select_and_grub_config_view(
-    hass: HomeAssistant, discovered_client
-) -> None:
+async def test_select_and_grub_config_view(hass: HomeAssistant, discovered_client) -> None:
     """Test selecting a boot option and retrieving the GRUB config view."""
     client = discovered_client
     entity_id_select = "select.aa_bb_cc_dd_ee_ff_next_boot_option"
@@ -190,9 +173,7 @@ async def test_select_and_grub_config_view(
     assert "set default='ubuntu'" in text
 
 
-async def test_switch_turn_on_does_not_reset_boot_option(
-    hass: HomeAssistant, discovered_client
-) -> None:
+async def test_switch_turn_on_does_not_reset_boot_option(hass: HomeAssistant, discovered_client) -> None:
     """Test that turning on the wake host switch sends magic packet and does not reset boot option."""
     entity_id_select = "select.aa_bb_cc_dd_ee_ff_next_boot_option"
     entity_id_switch = "switch.aa_bb_cc_dd_ee_ff_wake"
@@ -209,9 +190,7 @@ async def test_switch_turn_on_does_not_reset_boot_option(
     assert state.state == "windows"
 
     # Next, turn on the switch
-    with patch(
-        "custom_components.grubstation.switch.wakeonlan.send_magic_packet"
-    ) as mock_wake:
+    with patch("custom_components.grubstation.switch.wakeonlan.send_magic_packet") as mock_wake:
         await hass.services.async_call(
             "switch",
             "turn_on",
@@ -227,9 +206,7 @@ async def test_switch_turn_on_does_not_reset_boot_option(
     assert state.state != DEFAULT_BOOT_OPTION_NONE
 
 
-async def test_remove_integration_cleans_up(
-    hass: HomeAssistant, discovered_client, mock_config_entry
-) -> None:
+async def test_remove_integration_cleans_up(hass: HomeAssistant, discovered_client, mock_config_entry) -> None:
     """Test that removing the integration cleans up devices and entities."""
     entity_id_select = "select.aa_bb_cc_dd_ee_ff_next_boot_option"
     entity_id_switch = "switch.aa_bb_cc_dd_ee_ff_wake"
@@ -249,13 +226,9 @@ async def test_remove_integration_cleans_up(
     assert device is None
 
 
-async def test_global_send_magic_packet_service(
-    hass: HomeAssistant, setup_integration
-) -> None:
+async def test_global_send_magic_packet_service(hass: HomeAssistant, setup_integration) -> None:
     """Test that the global send_turn_on_command service works."""
-    with patch(
-        "custom_components.grubstation.wakeonlan.send_magic_packet"
-    ) as mock_wake:
+    with patch("custom_components.grubstation.wakeonlan.send_magic_packet") as mock_wake:
         await hass.services.async_call(
             DOMAIN,
             "send_turn_on_command",
@@ -267,14 +240,10 @@ async def test_global_send_magic_packet_service(
             blocking=True,
         )
         await hass.async_block_till_done()
-        mock_wake.assert_called_once_with(
-            "aa:bb:cc:dd:ee:ff", ip_address="192.168.1.255", port=9
-        )
+        mock_wake.assert_called_once_with("aa:bb:cc:dd:ee:ff", ip_address="192.168.1.255", port=9)
 
 
-async def test_global_send_turn_off_command_service(
-    hass: HomeAssistant, setup_integration
-) -> None:
+async def test_global_send_turn_off_command_service(hass: HomeAssistant, setup_integration) -> None:
     """Test that the global send_turn_off_command service works."""
     with patch(
         "custom_components.grubstation.async_send_turn_off_command",
@@ -304,9 +273,7 @@ async def test_webhook_validation_error(hass: HomeAssistant, setup_integration) 
     assert "Invalid JSON payload" in text
 
 
-async def test_webhook_unexpected_empty_payload(
-    hass: HomeAssistant, setup_integration
-) -> None:
+async def test_webhook_unexpected_empty_payload(hass: HomeAssistant, setup_integration) -> None:
     """Test webhook returns HTTPStatus.INTERNAL_SERVER_ERROR if payload is unexpectedly None."""
     client = setup_integration
     webhook_url = "/api/webhook/test_webhook_id"
@@ -368,9 +335,7 @@ async def test_webhook_invalid_schema(hass: HomeAssistant, setup_integration) ->
     assert "Invalid payload format" in text
 
 
-async def test_webhook_register_daemon_token_existing_host(
-    hass: HomeAssistant, setup_integration
-) -> None:
+async def test_webhook_register_daemon_token_existing_host(hass: HomeAssistant, setup_integration) -> None:
     """Test registering an already registered host."""
     client = setup_integration
     webhook_url = "/api/webhook/test_webhook_id"
@@ -393,9 +358,7 @@ async def test_webhook_register_daemon_token_existing_host(
     await hass.async_block_till_done()
 
 
-async def test_webhook_update_boot_options_unregistered_host(
-    hass: HomeAssistant, setup_integration
-) -> None:
+async def test_webhook_update_boot_options_unregistered_host(hass: HomeAssistant, setup_integration) -> None:
     """Test updating boot options for a host that isn't registered creates entities."""
     client = setup_integration
     webhook_url = "/api/webhook/test_webhook_id"
@@ -416,13 +379,9 @@ async def test_webhook_update_boot_options_unregistered_host(
     assert state.attributes.get("options") == [DEFAULT_BOOT_OPTION_NONE, "ubuntu"]
 
 
-async def test_global_send_magic_packet_service_minimal(
-    hass: HomeAssistant, setup_integration
-) -> None:
+async def test_global_send_magic_packet_service_minimal(hass: HomeAssistant, setup_integration) -> None:
     """Test that the global send_turn_on_command service works with minimal data."""
-    with patch(
-        "custom_components.grubstation.wakeonlan.send_magic_packet"
-    ) as mock_wake:
+    with patch("custom_components.grubstation.wakeonlan.send_magic_packet") as mock_wake:
         await hass.services.async_call(
             DOMAIN,
             "send_turn_on_command",
@@ -432,14 +391,10 @@ async def test_global_send_magic_packet_service_minimal(
             blocking=True,
         )
         await hass.async_block_till_done()
-        mock_wake.assert_called_once_with(
-            "aa:bb:cc:dd:ee:ff", ip_address="255.255.255.255", port=9
-        )
+        mock_wake.assert_called_once_with("aa:bb:cc:dd:ee:ff", ip_address="255.255.255.255", port=9)
 
 
-async def test_webhook_invalid_schema_update_boot_options(
-    hass: HomeAssistant, setup_integration
-) -> None:
+async def test_webhook_invalid_schema_update_boot_options(hass: HomeAssistant, setup_integration) -> None:
     """Test webhook returns HTTPStatus.BAD_REQUEST for invalid schema in update_boot_options."""
     client = setup_integration
     webhook_url = "/api/webhook/test_webhook_id"
@@ -456,9 +411,7 @@ async def test_webhook_invalid_schema_update_boot_options(
     assert "Invalid payload format" in text
 
 
-async def test_reload_entry(
-    hass: HomeAssistant, setup_integration, mock_config_entry
-) -> None:
+async def test_reload_entry(hass: HomeAssistant, setup_integration, mock_config_entry) -> None:
     """Test reloading the config entry."""
     with patch.object(hass.config_entries, "async_reload") as mock_reload:
         # Trigger reload via the listener (simulated)
@@ -479,9 +432,7 @@ async def test_remove_config_entry_device_integration(
     assert "aa:bb:cc:dd:ee:ff" not in mock_config_entry.runtime_data.hosts
 
 
-async def test_webhook_internal_server_error(
-    hass: HomeAssistant, setup_integration
-) -> None:
+async def test_webhook_internal_server_error(hass: HomeAssistant, setup_integration) -> None:
     """Test webhook returns HTTPStatus.INTERNAL_SERVER_ERROR on unexpected exception."""
     client = setup_integration
     webhook_url = "/api/webhook/test_webhook_id"

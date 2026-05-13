@@ -9,12 +9,7 @@ from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import (
-    DEFAULT_BOOT_OPTION_NONE,
-    LOGGER,
-    SIGNAL_HOST_REMOVED,
-    SIGNAL_NEW_HOST,
-)
+from .const import DEFAULT_BOOT_OPTION_NONE, LOGGER, SIGNAL_HOST_REMOVED, SIGNAL_NEW_HOST
 from .coordinator import GrubStationCoordinator
 from .utils import generate_device_info
 
@@ -59,20 +54,14 @@ async def async_setup_entry(
         async_add_host_select(mac)
 
     # Listen for the signal to add new hosts discovered via webhook
-    entry.async_on_unload(
-        async_dispatcher_connect(hass, SIGNAL_NEW_HOST, async_add_host_select)
-    )
-    entry.async_on_unload(
-        async_dispatcher_connect(hass, SIGNAL_HOST_REMOVED, async_remove_host_select)
-    )
+    entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_NEW_HOST, async_add_host_select))
+    entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_HOST_REMOVED, async_remove_host_select))
 
 
 class GrubStationManagerSelect(CoordinatorEntity[GrubStationCoordinator], SelectEntity):
     """GrubStation select class."""
 
-    def __init__(
-        self, manager: GrubStationManager, coordinator: GrubStationCoordinator
-    ) -> None:
+    def __init__(self, manager: GrubStationManager, coordinator: GrubStationCoordinator) -> None:
         """Initialize the select entity."""
         super().__init__(coordinator)
         self.manager = manager
@@ -102,11 +91,7 @@ class GrubStationManagerSelect(CoordinatorEntity[GrubStationCoordinator], Select
     def current_option(self) -> str | None:
         """Return the currently pending boot option."""
         host_data = self.coordinator.host
-        return (
-            host_data.next_boot_option
-            if host_data and host_data.next_boot_option
-            else DEFAULT_BOOT_OPTION_NONE
-        )
+        return host_data.next_boot_option if host_data and host_data.next_boot_option else DEFAULT_BOOT_OPTION_NONE
 
     async def async_select_option(self, option: str) -> None:
         """Change the selected option."""

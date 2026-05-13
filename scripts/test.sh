@@ -4,4 +4,4 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-pytest --cov=custom_components.grubstation "$@"
+uv run pytest --cov=custom_components.grubstation "$@"

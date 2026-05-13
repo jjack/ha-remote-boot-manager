@@ -4,19 +4,12 @@ from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+from custom_components.grubstation.const import SIGNAL_HOST_REMOVED, SIGNAL_HOST_UPDATED, SIGNAL_NEW_HOST
+from custom_components.grubstation.data import RemoteHost
+from custom_components.grubstation.sensor import GrubStationManagerSensor, async_setup_entry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-
-from custom_components.grubstation.const import (
-    SIGNAL_HOST_REMOVED,
-    SIGNAL_HOST_UPDATED,
-    SIGNAL_NEW_HOST,
-)
-from custom_components.grubstation.data import RemoteHost
-from custom_components.grubstation.sensor import (
-    GrubStationManagerSensor,
-    async_setup_entry,
-)
 
 
 @pytest.fixture
@@ -26,7 +19,7 @@ def mock_host_with_daemon():
         mac="00:11:22:33:44:55",
         address="192.168.1.100",
         daemon_port=8080,
-        daemon_token="test-key",  # noqa: S106
+        daemon_token="test-key",
         is_daemon_accessible=True,
         last_daemon_accessible="2023-01-01T12:00:00+00:00",
     )
@@ -96,7 +89,7 @@ async def test_async_setup_entry_with_daemon_hosts(hass: HomeAssistant):
         mac="00:11:22:33:44:55",
         address="192.168.1.100",
         daemon_port=8080,
-        daemon_token="test-key",  # noqa: S106
+        daemon_token="test-key",
     )
     coordinator_with_daemon = MagicMock()
     coordinator_with_daemon.data = host_with_daemon
@@ -123,9 +116,7 @@ async def test_async_setup_entry_with_daemon_hosts(hass: HomeAssistant):
 
     mock_add_entities = MagicMock(spec=AddEntitiesCallback)
 
-    with patch(
-        "custom_components.grubstation.sensor.async_dispatcher_connect"
-    ) as mock_dispatch:
+    with patch("custom_components.grubstation.sensor.async_dispatcher_connect") as mock_dispatch:
         await async_setup_entry(hass, mock_entry, mock_add_entities)
 
         # Should only add sensor for host with daemon config
@@ -164,9 +155,7 @@ async def test_async_setup_entry_no_daemon_hosts(hass: HomeAssistant):
 
     mock_add_entities = MagicMock(spec=AddEntitiesCallback)
 
-    with patch(
-        "custom_components.grubstation.sensor.async_dispatcher_connect"
-    ) as mock_dispatch:
+    with patch("custom_components.grubstation.sensor.async_dispatcher_connect") as mock_dispatch:
         await async_setup_entry(hass, mock_entry, mock_add_entities)
 
         # Should not add any sensors since host has no daemon config
@@ -190,17 +179,11 @@ async def test_async_setup_entry_signal_callback_with_daemon(hass: HomeAssistant
 
     mock_add_entities = MagicMock(spec=AddEntitiesCallback)
 
-    with patch(
-        "custom_components.grubstation.sensor.async_dispatcher_connect"
-    ) as mock_dispatch:
+    with patch("custom_components.grubstation.sensor.async_dispatcher_connect") as mock_dispatch:
         await async_setup_entry(hass, mock_entry, mock_add_entities)
 
         # Get the callback function for SIGNAL_NEW_HOST
-        callback = next(
-            call[0][2]
-            for call in mock_dispatch.call_args_list
-            if call[0][1] == SIGNAL_NEW_HOST
-        )
+        callback = next(call[0][2] for call in mock_dispatch.call_args_list if call[0][1] == SIGNAL_NEW_HOST)
 
         # Add a new host with daemon config
         new_mac = "00:11:22:33:44:55"
@@ -208,7 +191,7 @@ async def test_async_setup_entry_signal_callback_with_daemon(hass: HomeAssistant
             mac=new_mac,
             address="192.168.1.100",
             daemon_port=8080,
-            daemon_token="test-key",  # noqa: S106
+            daemon_token="test-key",
         )
         new_coordinator = MagicMock()
         new_coordinator.data = new_host
@@ -238,17 +221,11 @@ async def test_async_setup_entry_signal_callback_without_daemon(hass: HomeAssist
 
     mock_add_entities = MagicMock(spec=AddEntitiesCallback)
 
-    with patch(
-        "custom_components.grubstation.sensor.async_dispatcher_connect"
-    ) as mock_dispatch:
+    with patch("custom_components.grubstation.sensor.async_dispatcher_connect") as mock_dispatch:
         await async_setup_entry(hass, mock_entry, mock_add_entities)
 
         # Get the callback function for SIGNAL_NEW_HOST
-        callback = next(
-            call[0][2]
-            for call in mock_dispatch.call_args_list
-            if call[0][1] == SIGNAL_NEW_HOST
-        )
+        callback = next(call[0][2] for call in mock_dispatch.call_args_list if call[0][1] == SIGNAL_NEW_HOST)
 
         # Add a new host without daemon config
         new_mac = "AA:BB:CC:DD:EE:FF"
@@ -280,14 +257,8 @@ async def test_async_setup_entry_no_coordinator(hass: HomeAssistant):
     mock_entry.runtime_data = mock_manager
     mock_add_entities = MagicMock(spec=AddEntitiesCallback)
 
-    with patch(
-        "custom_components.grubstation.sensor.async_dispatcher_connect"
-    ) as mock_dispatch:
+    with patch("custom_components.grubstation.sensor.async_dispatcher_connect") as mock_dispatch:
         await async_setup_entry(hass, mock_entry, mock_add_entities)
-        callback = next(
-            call[0][2]
-            for call in mock_dispatch.call_args_list
-            if call[0][1] == SIGNAL_NEW_HOST
-        )
+        callback = next(call[0][2] for call in mock_dispatch.call_args_list if call[0][1] == SIGNAL_NEW_HOST)
         callback("00:AA:BB:CC:DD:EE")
         assert mock_add_entities.call_count == 0

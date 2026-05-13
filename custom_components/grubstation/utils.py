@@ -2,13 +2,8 @@
 
 from typing import TYPE_CHECKING
 
+from custom_components.grubstation.const import DEFAULT_BROADCAST_ADDRESS, DEFAULT_BROADCAST_PORT, DOMAIN
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
-
-from custom_components.grubstation.const import (
-    DEFAULT_BROADCAST_ADDRESS,
-    DEFAULT_BROADCAST_PORT,
-    DOMAIN,
-)
 
 if TYPE_CHECKING:
     from .data import RemoteHost
@@ -32,10 +27,7 @@ def generate_model_name(host_data: RemoteHost | None) -> str:
         return "Unknown Host"
 
     broadcast_info = []
-    if (
-        host_data.broadcast_address
-        and host_data.broadcast_address != DEFAULT_BROADCAST_ADDRESS
-    ):
+    if host_data.broadcast_address and host_data.broadcast_address != DEFAULT_BROADCAST_ADDRESS:
         broadcast_info.append(f"Broadcast: {host_data.broadcast_address}")
     if host_data.broadcast_port and host_data.broadcast_port != DEFAULT_BROADCAST_PORT:
         broadcast_info.append(f"Port: {host_data.broadcast_port}")

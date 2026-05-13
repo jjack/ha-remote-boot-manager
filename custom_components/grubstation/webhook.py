@@ -2,20 +2,15 @@
 
 from __future__ import annotations
 
-import json
 from http import HTTPStatus
+import json
 from typing import Any, cast
 
-import homeassistant.helpers.config_validation as cv
-import voluptuous as vol
 from aiohttp import web
-from homeassistant.const import (
-    CONF_ACTION,
-    CONF_ADDRESS,
-    CONF_BROADCAST_ADDRESS,
-    CONF_BROADCAST_PORT,
-    CONF_MAC,
-)
+import voluptuous as vol
+
+from homeassistant.const import CONF_ACTION, CONF_ADDRESS, CONF_BROADCAST_ADDRESS, CONF_BROADCAST_PORT, CONF_MAC
+import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.device_registry import format_mac
 
 from .const import (
@@ -47,9 +42,7 @@ REGISTER_DAEMON_TOKEN_SCHEMA = BASE_SCHEMA.extend(
 UPDATE_BOOT_OPTIONS_SCHEMA = BASE_SCHEMA.extend(
     {
         vol.Required(CONF_BOOT_OPTIONS): vol.All(cv.ensure_list, [cv.string]),
-        vol.Optional(
-            CONF_BROADCAST_ADDRESS, default=DEFAULT_BROADCAST_ADDRESS
-        ): cv.string,
+        vol.Optional(CONF_BROADCAST_ADDRESS, default=DEFAULT_BROADCAST_ADDRESS): cv.string,
         vol.Optional(CONF_BROADCAST_PORT, default=DEFAULT_BROADCAST_PORT): cv.port,
     }
 )
@@ -66,24 +59,18 @@ async def async_parse_webhook_request(
 
     if len(body) > WEBHOOK_MAX_PAYLOAD_BYTES:
         LOGGER.warning("Webhook payload too large")
-        return None, web.Response(
-            status=HTTPStatus.REQUEST_ENTITY_TOO_LARGE, text="Payload too large"
-        )
+        return None, web.Response(status=HTTPStatus.REQUEST_ENTITY_TOO_LARGE, text="Payload too large")
 
     try:
         raw_payload = json.loads(body)
     except json.JSONDecodeError:
         LOGGER.warning("Webhook payload is not valid JSON")
         LOGGER.debug("Received invalid JSON payload: %s", body)
-        return None, web.Response(
-            status=HTTPStatus.BAD_REQUEST, text="Invalid JSON payload"
-        )
+        return None, web.Response(status=HTTPStatus.BAD_REQUEST, text="Invalid JSON payload")
 
     if not isinstance(raw_payload, dict):
         LOGGER.warning("Webhook payload is not a JSON object")
-        return None, web.Response(
-            status=HTTPStatus.BAD_REQUEST, text="Payload must be a JSON object"
-        )
+        return None, web.Response(status=HTTPStatus.BAD_REQUEST, text="Payload must be a JSON object")
 
     LOGGER.debug("Received GrubStation webhook with payload: %s", raw_payload)
     return raw_payload, None

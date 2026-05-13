@@ -11,10 +11,10 @@ from functools import partial
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any
 
-import homeassistant.helpers.config_validation as cv
+from aiohttp import web
 import voluptuous as vol
 import wakeonlan
-from aiohttp import web
+
 from homeassistant.components import webhook as ha_webhook
 from homeassistant.const import (
     ATTR_ENTITY_ID,
@@ -25,6 +25,7 @@ from homeassistant.const import (
     CONF_MAC,
     Platform,
 )
+import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity_registry import async_get as async_get_er
 from homeassistant.helpers.storage import Store
 
@@ -61,9 +62,7 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 TURN_ON_COMMAND_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_MAC): cv.string,
-        vol.Optional(
-            CONF_BROADCAST_ADDRESS, default=DEFAULT_BROADCAST_ADDRESS
-        ): cv.string,
+        vol.Optional(CONF_BROADCAST_ADDRESS, default=DEFAULT_BROADCAST_ADDRESS): cv.string,
         vol.Optional(CONF_BROADCAST_PORT, default=DEFAULT_BROADCAST_PORT): cv.port,
     }
 )
@@ -85,10 +84,10 @@ PLATFORMS: list[Platform] = [
 
 
 # https://developers.home-assistant.io/docs/config_entries_index/#setting-up-an-entry
-async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:  # noqa: ARG001
+async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     """Set up the GrubStation component."""
     # Register the unauthenticated GRUB get request view
-    # (ie - GET /api/grubstation/{mac_address})   # noqa: ERA001
+    # (ie - GET /api/grubstation/{mac_address})
     hass.http.register_view(GrubConfigView())
 
     async def send_turn_on_command(call: ServiceCall) -> None:
@@ -102,9 +101,7 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:  # n
 
         # wakeonlan uses blocking sockets; offload to an executor thread to prevent
         # stalling the HA event loop.
-        await hass.async_add_executor_job(
-            partial(wakeonlan.send_magic_packet, mac_address, **kwargs)
-        )
+        await hass.async_add_executor_job(partial(wakeonlan.send_magic_packet, mac_address, **kwargs))
 
     async def send_turn_off_command(call: ServiceCall) -> None:
         """Handle service call to send shutdown command to a host."""
@@ -142,9 +139,9 @@ async def async_setup_entry(
     await manager.async_load()
     entry.runtime_data = manager
 
-    async def handle_webhook(  # noqa: PLR0911
+    async def handle_webhook(
         hass: HomeAssistant,
-        webhook_id: str,  # noqa: ARG001
+        webhook_id: str,
         request: web.Request,
     ) -> web.Response:
         """Handle incoming boot option push requests."""
@@ -161,9 +158,7 @@ async def async_setup_entry(
 
             action = raw_payload.get(CONF_ACTION)
             if not action:
-                return web.Response(
-                    status=HTTPStatus.BAD_REQUEST, text="Missing action in payload"
-                )
+                return web.Response(status=HTTPStatus.BAD_REQUEST, text="Missing action in payload")
 
             try:
                 if action == "register_daemon_token":
@@ -200,9 +195,7 @@ async def async_setup_entry(
             return web.Response(status=HTTPStatus.OK, text="OK")
         except Exception:  # noqa: BLE001
             LOGGER.exception("Error handling webhook")
-            return web.Response(
-                status=HTTPStatus.INTERNAL_SERVER_ERROR, text="Internal Server Error"
-            )
+            return web.Response(status=HTTPStatus.INTERNAL_SERVER_ERROR, text="Internal Server Error")
 
     # Register the webhook to receive the boot options push requests
     webhook_id = entry.data.get("webhook_id")
@@ -260,7 +253,7 @@ async def async_remove_entry(
 
 
 async def async_remove_config_entry_device(
-    hass: HomeAssistant,  # noqa: ARG001
+    hass: HomeAssistant,
     config_entry: GrubStationManagerConfigEntry,
     device_entry: DeviceEntry,
 ) -> bool:
@@ -269,11 +262,7 @@ async def async_remove_config_entry_device(
 
     # Extract the MAC address from the device's identifiers
     mac_address = next(
-        (
-            identifier[1]
-            for identifier in device_entry.identifiers
-            if identifier[0] == DOMAIN
-        ),
+        (identifier[1] for identifier in device_entry.identifiers if identifier[0] == DOMAIN),
         None,
     )
 

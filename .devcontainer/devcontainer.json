@@ -1,7 +1,7 @@
 {
     "name": "jjack/ha-grubstation",
     "image": "mcr.microsoft.com/devcontainers/python:3.14",
-    "postCreateCommand": "scripts/setup.sh",
+    "postCreateCommand": "uv sync && scripts/setup.sh",
     "forwardPorts": [
         8123
     ],
@@ -14,6 +14,7 @@
     "customizations": {
         "vscode": {
             "extensions": [
+                "astral-sh.uv",
                 "charliermarsh.ruff",
                 "github.vscode-pull-request-github",
                 "ms-python.python",
@@ -31,14 +32,21 @@
                 "python.analysis.autoImportCompletions": true,
                 "[python]": {
                     "editor.defaultFormatter": "charliermarsh.ruff"
-                }
+                },
+                "githubLocalActions.actCommand": "/usr/local/bin/act"
             }
         }
     },
     "remoteUser": "vscode",
     "features": {
         "ghcr.io/devcontainers-extra/features/apt-packages:1": {
-            "packages": "ffmpeg,libturbojpeg0,libpcap-dev"
-        }
+            "packages": "build-essential,git,ffmpeg,libturbojpeg0,libpcap-dev"
+        },
+        "ghcr.io/devcontainers-extra/features/uv:1": {},
+        "ghcr.io/devcontainers/features/docker-in-docker:2": {
+            "version": "latest",
+            "moby": false
+        },
+        "ghcr.io/devcontainers-extra/features/act:1": {}
     }
 }

@@ -5,12 +5,12 @@ from __future__ import annotations
 import dataclasses
 from typing import TYPE_CHECKING, Any
 
-import homeassistant.util.dt as dt_util
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import callback
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.storage import Store
+import homeassistant.util.dt as dt_util
 
 from .const import (
     CONF_BOOT_OPTIONS,
@@ -53,14 +53,10 @@ class GrubStationManager:
                     # dataclass instantiation errors if the underlying data model has
                     # changed since the data was saved.
                     valid_keys = {f.name for f in dataclasses.fields(RemoteHost)}
-                    filtered_data = {
-                        k: v for k, v in host_data.items() if k in valid_keys
-                    }
+                    filtered_data = {k: v for k, v in host_data.items() if k in valid_keys}
                     host = RemoteHost(**filtered_data)
                     self.hosts[mac] = host
-                    self.coordinators[mac] = GrubStationCoordinator(
-                        self.hass, self, host
-                    )
+                    self.coordinators[mac] = GrubStationCoordinator(self.hass, self, host)
                 else:
                     LOGGER.warning(
                         "Discarding invalid host data for %s: %s",
@@ -107,14 +103,10 @@ class GrubStationManager:
     @callback
     def _data_to_save(self) -> dict[str, Any]:
         """Return data for storage."""
-        return {
-            "hosts": {mac: dataclasses.asdict(host) for mac, host in self.hosts.items()}
-        }
+        return {"hosts": {mac: dataclasses.asdict(host) for mac, host in self.hosts.items()}}
 
     @callback
-    def async_register_daemon_token(
-        self, mac_address: str, payload: dict[str, Any]
-    ) -> None:
+    def async_register_daemon_token(self, mac_address: str, payload: dict[str, Any]) -> None:
         """Update the daemon token for a host."""
         mac_address = format_mac(mac_address)
 
@@ -126,9 +118,7 @@ class GrubStationManager:
                 daemon_token=payload.get(CONF_DAEMON_TOKEN),
             )
             self.hosts[mac_address] = host
-            self.coordinators[mac_address] = GrubStationCoordinator(
-                self.hass, self, host
-            )
+            self.coordinators[mac_address] = GrubStationCoordinator(self.hass, self, host)
             self.hass.async_create_task(self.coordinators[mac_address].async_refresh())
             async_dispatcher_send(self.hass, SIGNAL_NEW_HOST, mac_address)
         else:
@@ -140,9 +130,7 @@ class GrubStationManager:
         self.save()
 
     @callback
-    def async_update_boot_options(
-        self, mac_address: str, payload: dict[str, Any]
-    ) -> None:
+    def async_update_boot_options(self, mac_address: str, payload: dict[str, Any]) -> None:
         """Update the boot options for a host."""
         mac_address = format_mac(mac_address)
 
@@ -153,9 +141,7 @@ class GrubStationManager:
                 boot_options=payload[CONF_BOOT_OPTIONS],
             )
             self.hosts[mac_address] = host
-            self.coordinators[mac_address] = GrubStationCoordinator(
-                self.hass, self, host
-            )
+            self.coordinators[mac_address] = GrubStationCoordinator(self.hass, self, host)
             self.hass.async_create_task(self.coordinators[mac_address].async_refresh())
             async_dispatcher_send(self.hass, SIGNAL_NEW_HOST, mac_address)
         else:
@@ -169,10 +155,7 @@ class GrubStationManager:
             host.boot_options = [DEFAULT_BOOT_OPTION_NONE, *host.boot_options]
 
         # If the selected boot option is no longer in the list, reset it
-        if (
-            host.next_boot_option not in host.boot_options
-            and host.next_boot_option != DEFAULT_BOOT_OPTION_NONE
-        ):
+        if host.next_boot_option not in host.boot_options and host.next_boot_option != DEFAULT_BOOT_OPTION_NONE:
             host.next_boot_option = DEFAULT_BOOT_OPTION_NONE
 
         # Sync the updated data with the coordinator
@@ -182,17 +165,13 @@ class GrubStationManager:
         self.save()
 
     @callback
-    def async_set_next_boot_option(
-        self, mac_address: str, next_boot_option: str
-    ) -> None:
+    def async_set_next_boot_option(self, mac_address: str, next_boot_option: str) -> None:
         """Notify listeners that the selected boot option has changed."""
         mac_address = format_mac(mac_address)
         if mac_address in self.hosts:
             self.hosts[mac_address].next_boot_option = next_boot_option
             self.save()
-            self.coordinators[mac_address].async_set_updated_data(
-                self.hosts[mac_address]
-            )
+            self.coordinators[mac_address].async_set_updated_data(self.hosts[mac_address])
             LOGGER.debug(
                 "Set selected boot option for %s to %s",
                 mac_address,
@@ -204,9 +183,7 @@ class GrubStationManager:
         """Retrieve the requested boot option and immediately resets the state."""
         mac_address = format_mac(mac_address)
         if mac_address not in self.hosts:
-            LOGGER.warning(
-                "GRUB requested boot option for unknown MAC address: %s", mac_address
-            )
+            LOGGER.warning("GRUB requested boot option for unknown MAC address: %s", mac_address)
             return DEFAULT_BOOT_OPTION_NONE
 
         host = self.hosts[mac_address]
@@ -237,9 +214,7 @@ class GrubStationManager:
         LOGGER.info("[%s] %s", mac_address, message)
 
         # Add to history, keeping only the last 5 entries
-        host.activity_history.insert(
-            0, f"{dt_util.now().strftime('%Y-%m-%d %H:%M:%S')}: {message}"
-        )
+        host.activity_history.insert(0, f"{dt_util.now().strftime('%Y-%m-%d %H:%M:%S')}: {message}")
         host.activity_history = host.activity_history[:5]
 
         # Dispatch event for logbook

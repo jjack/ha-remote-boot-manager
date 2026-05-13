@@ -23,9 +23,7 @@ def mock_store():
 @pytest.fixture
 def mock_coordinator():
     """Mock the GrubStationCoordinator."""
-    with patch(
-        "custom_components.grubstation.manager.GrubStationCoordinator"
-    ) as mock_class:
+    with patch("custom_components.grubstation.manager.GrubStationCoordinator") as mock_class:
         mock_instance = MagicMock()
         mock_instance.async_refresh = AsyncMock()
         mock_instance.async_set_updated_data = MagicMock()
@@ -52,9 +50,7 @@ async def test_async_register_daemon_token_new_host(manager, hass, mock_coordina
         "daemon_token": "secret",
     }
 
-    with patch(
-        "custom_components.grubstation.manager.async_dispatcher_send"
-    ) as mock_dispatch:
+    with patch("custom_components.grubstation.manager.async_dispatcher_send") as mock_dispatch:
         manager.async_register_daemon_token("00:11:22:33:44:55", payload)
 
         assert "00:11:22:33:44:55" in manager.hosts
@@ -62,7 +58,7 @@ async def test_async_register_daemon_token_new_host(manager, hass, mock_coordina
         host = manager.hosts["00:11:22:33:44:55"]
         assert isinstance(host, RemoteHost)
         assert host.address == "test.local"
-        assert host.daemon_token == "secret"  # noqa: S105
+        assert host.daemon_token == "secret"
         assert host.daemon_port == 8000
 
         mock_dispatch.assert_called_once()
@@ -78,9 +74,7 @@ async def test_async_update_boot_options_new_host(manager, hass, mock_coordinato
         "boot_options": ["ubuntu", "windows"],
     }
 
-    with patch(
-        "custom_components.grubstation.manager.async_dispatcher_send"
-    ) as mock_dispatch:
+    with patch("custom_components.grubstation.manager.async_dispatcher_send") as mock_dispatch:
         manager.async_update_boot_options("00:11:22:33:44:55", payload)
 
         assert "00:11:22:33:44:55" in manager.hosts
@@ -90,9 +84,7 @@ async def test_async_update_boot_options_new_host(manager, hass, mock_coordinato
         mock_coordinator.async_set_updated_data.assert_called()
 
 
-async def test_async_update_boot_options_none_option_already_present(
-    manager, hass, mock_coordinator
-):
+async def test_async_update_boot_options_none_option_already_present(manager, hass, mock_coordinator):
     """Test that the default none boot option is not duplicated if already present."""
     # Setup host first via registration
     reg_payload = {
@@ -119,9 +111,7 @@ async def test_async_update_boot_options_none_option_already_present(
     assert mock_coordinator.async_set_updated_data.call_count == 2
 
 
-async def test_async_update_boot_options_empty_boot_options(
-    manager, hass, mock_coordinator
-):
+async def test_async_update_boot_options_empty_boot_options(manager, hass, mock_coordinator):
     """Test that DEFAULT_BOOT_OPTION_NONE is added when boot_options is empty."""
     # Setup host
     reg_payload = {
@@ -146,9 +136,7 @@ async def test_async_update_boot_options_empty_boot_options(
     assert host.boot_options == [DEFAULT_BOOT_OPTION_NONE]
 
 
-async def test_async_update_boot_options_update_existing_host(
-    manager, hass, mock_coordinator
-):
+async def test_async_update_boot_options_update_existing_host(manager, hass, mock_coordinator):
     """Test that an existing host is updated correctly."""
     # Setup existing host
     mac = "00:11:22:33:44:55"
@@ -243,9 +231,7 @@ async def test_async_load_valid_data(manager, mock_store, mock_coordinator):
 
 async def test_async_load_invalid_data_format(manager, mock_store):
     """Test loading invalid host data format logs a warning and skips it."""
-    mock_store.async_load.return_value = {
-        "hosts": {"00:11:22:33:44:55": ["list", "instead", "of", "dict"]}
-    }
+    mock_store.async_load.return_value = {"hosts": {"00:11:22:33:44:55": ["list", "instead", "of", "dict"]}}
 
     with patch("custom_components.grubstation.manager.LOGGER.warning") as mock_warn:
         await manager.async_load()
@@ -277,18 +263,14 @@ async def test_async_load_filters_extra_keys(manager, mock_store, mock_coordinat
 
 async def test_async_purge_data(manager, mock_store):
     """Test that purging data clears hosts and removes the store file."""
-    manager.hosts["00:11:22:33:44:55"] = RemoteHost(
-        mac="00:11:22:33:44:55", address="test.local"
-    )
+    manager.hosts["00:11:22:33:44:55"] = RemoteHost(mac="00:11:22:33:44:55", address="test.local")
     await manager.async_purge_data()
     assert not manager.hosts
     assert not manager.coordinators
     mock_store.async_remove.assert_awaited_once()
 
 
-async def test_async_update_boot_options_resets_invalid_next_boot(
-    manager, hass, mock_coordinator
-):
+async def test_async_update_boot_options_resets_invalid_next_boot(manager, hass, mock_coordinator):
     """Test that next_boot_option is reset if it becomes invalid after an update."""
     mac = "00:11:22:33:44:55"
     host = RemoteHost(
@@ -316,9 +298,7 @@ async def test_async_update_boot_options_resets_invalid_next_boot(
 
 async def test_async_set_next_boot_option_invalid_mac(manager, hass):
     """Test setting a boot option for a non-existent MAC does nothing."""
-    with patch(
-        "custom_components.grubstation.manager.async_dispatcher_send"
-    ) as mock_dispatch:
+    with patch("custom_components.grubstation.manager.async_dispatcher_send") as mock_dispatch:
         manager.async_set_next_boot_option("FF:FF:FF:FF:FF:FF", "windows")
         assert "FF:FF:FF:FF:FF:FF" not in manager.hosts
         mock_dispatch.assert_not_called()

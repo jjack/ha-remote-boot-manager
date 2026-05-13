@@ -5,26 +5,19 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiohttp
 import pytest
+
+from custom_components.grubstation.daemon import async_get_daemon_status, async_send_turn_off_command
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-
-from custom_components.grubstation.daemon import (
-    async_get_daemon_status,
-    async_send_turn_off_command,
-)
 
 
 async def test_async_send_turn_off_command_success(hass: HomeAssistant) -> None:
     """Test successful shutdown command."""
-    with patch(
-        "custom_components.grubstation.daemon.async_get_clientsession"
-    ) as mock_session_getter:
+    with patch("custom_components.grubstation.daemon.async_get_clientsession") as mock_session_getter:
         mock_session = MagicMock()
         mock_response = MagicMock()
         mock_response.status = HTTPStatus.OK
-        mock_session.post.return_value = AsyncMock(
-            __aenter__=AsyncMock(return_value=mock_response)
-        )
+        mock_session.post.return_value = AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
         mock_session_getter.return_value = mock_session
 
         await async_send_turn_off_command(hass, "1.2.3.4", 8081, "secret_key")
@@ -40,9 +33,7 @@ async def test_async_send_turn_off_command_success(hass: HomeAssistant) -> None:
 
 async def test_async_send_turn_off_command_http_error(hass: HomeAssistant) -> None:
     """Test shutdown command handles non-200 responses."""
-    with patch(
-        "custom_components.grubstation.daemon.async_get_clientsession"
-    ) as mock_session_getter:
+    with patch("custom_components.grubstation.daemon.async_get_clientsession") as mock_session_getter:
         mock_session = MagicMock()
         mock_response = MagicMock()
         mock_response.status = HTTPStatus.FORBIDDEN
@@ -51,9 +42,7 @@ async def test_async_send_turn_off_command_http_error(hass: HomeAssistant) -> No
             history=(),
             status=HTTPStatus.FORBIDDEN,
         )
-        mock_session.post.return_value = AsyncMock(
-            __aenter__=AsyncMock(return_value=mock_response)
-        )
+        mock_session.post.return_value = AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
         mock_session_getter.return_value = mock_session
 
         with pytest.raises(HomeAssistantError, match="Shutdown command failed"):
@@ -62,9 +51,7 @@ async def test_async_send_turn_off_command_http_error(hass: HomeAssistant) -> No
 
 async def test_async_send_turn_off_command_timeout(hass: HomeAssistant) -> None:
     """Test shutdown command handles timeouts."""
-    with patch(
-        "custom_components.grubstation.daemon.async_get_clientsession"
-    ) as mock_session_getter:
+    with patch("custom_components.grubstation.daemon.async_get_clientsession") as mock_session_getter:
         mock_session = MagicMock()
         mock_session.post.side_effect = TimeoutError()
         mock_session_getter.return_value = mock_session
@@ -77,9 +64,7 @@ async def test_async_send_turn_off_command_unexpected_error(
     hass: HomeAssistant,
 ) -> None:
     """Test shutdown command handles unexpected exceptions."""
-    with patch(
-        "custom_components.grubstation.daemon.async_get_clientsession"
-    ) as mock_session_getter:
+    with patch("custom_components.grubstation.daemon.async_get_clientsession") as mock_session_getter:
         mock_session = MagicMock()
         mock_session.post.side_effect = RuntimeError("Boom")
         mock_session_getter.return_value = mock_session
@@ -90,16 +75,12 @@ async def test_async_send_turn_off_command_unexpected_error(
         ):
             await async_send_turn_off_command(hass, "1.2.3.4", 8081, "key")
 
-        mock_log.assert_called_once_with(
-            "Unexpected error sending shutdown command to %s", "1.2.3.4"
-        )
+        mock_log.assert_called_once_with("Unexpected error sending shutdown command to %s", "1.2.3.4")
 
 
 async def test_async_get_daemon_status_success(hass: HomeAssistant) -> None:
     """Test successful status check."""
-    with patch(
-        "custom_components.grubstation.daemon.async_get_clientsession"
-    ) as mock_session_getter:
+    with patch("custom_components.grubstation.daemon.async_get_clientsession") as mock_session_getter:
         mock_session = MagicMock()
         mock_response = MagicMock()
         mock_response.status = HTTPStatus.OK
@@ -110,9 +91,7 @@ async def test_async_get_daemon_status_success(hass: HomeAssistant) -> None:
                 "version": "1.0.0",
             }
         )
-        mock_session.get.return_value = AsyncMock(
-            __aenter__=AsyncMock(return_value=mock_response)
-        )
+        mock_session.get.return_value = AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
         mock_session_getter.return_value = mock_session
 
         result = await async_get_daemon_status(hass, "1.2.3.4", 8081, "secret_key")
@@ -133,9 +112,7 @@ async def test_async_get_daemon_status_success(hass: HomeAssistant) -> None:
 
 async def test_async_get_daemon_status_failure(hass: HomeAssistant) -> None:
     """Test status check handles failures gracefully."""
-    with patch(
-        "custom_components.grubstation.daemon.async_get_clientsession"
-    ) as mock_session_getter:
+    with patch("custom_components.grubstation.daemon.async_get_clientsession") as mock_session_getter:
         mock_session = MagicMock()
         mock_session.get.side_effect = TimeoutError()
         mock_session_getter.return_value = mock_session

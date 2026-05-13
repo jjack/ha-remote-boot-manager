@@ -5,16 +5,12 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, cast
 
-import homeassistant.util.dt as dt_util
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from icmplib import async_ping
 
-from .const import (
-    DOMAIN,
-    LOGGER,
-    PING_COUNT,
-    PING_TIMEOUT_SECONDS,
-)
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+import homeassistant.util.dt as dt_util
+
+from .const import DOMAIN, LOGGER, PING_COUNT, PING_TIMEOUT_SECONDS
 from .daemon import async_get_daemon_status
 
 if TYPE_CHECKING:
@@ -87,9 +83,7 @@ class GrubStationCoordinator(DataUpdateCoordinator["RemoteHost"]):
                 is_accessible,
             )
         elif is_alive:
-            LOGGER.debug(
-                "Skipping daemon check for %s: missing port or token", self.host.mac
-            )
+            LOGGER.debug("Skipping daemon check for %s: missing port or token", self.host.mac)
 
         # Log accessibility transitions
         if is_accessible != self.host.is_daemon_accessible:

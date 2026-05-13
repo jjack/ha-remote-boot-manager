@@ -2,15 +2,9 @@
 
 from unittest.mock import MagicMock, patch
 
-from custom_components.grubstation.const import (
-    DEFAULT_BOOT_OPTION_NONE,
-    SIGNAL_NEW_HOST,
-)
+from custom_components.grubstation.const import DEFAULT_BOOT_OPTION_NONE, SIGNAL_NEW_HOST
 from custom_components.grubstation.data import RemoteHost
-from custom_components.grubstation.select import (
-    GrubStationManagerSelect,
-    async_setup_entry,
-)
+from custom_components.grubstation.select import GrubStationManagerSelect, async_setup_entry
 
 
 async def test_async_setup_entry(hass):
@@ -27,9 +21,7 @@ async def test_async_setup_entry(hass):
     mock_entry.runtime_data = mock_manager
     async_add_entities = MagicMock()
 
-    with patch(
-        "custom_components.grubstation.select.async_dispatcher_connect"
-    ) as mock_connect:
+    with patch("custom_components.grubstation.select.async_dispatcher_connect") as mock_connect:
         await async_setup_entry(hass, mock_entry, async_add_entities)
 
         assert async_add_entities.call_count == 1
@@ -37,11 +29,7 @@ async def test_async_setup_entry(hass):
         assert mock_entry.async_on_unload.call_count == 2
 
         # Verify the dispatcher callback adds the new entity
-        callback = next(
-            call[0][2]
-            for call in mock_connect.call_args_list
-            if call[0][1] == SIGNAL_NEW_HOST
-        )
+        callback = next(call[0][2] for call in mock_connect.call_args_list if call[0][1] == SIGNAL_NEW_HOST)
         new_mac = "AA:BB:CC:DD:EE:FF"
         new_host = MagicMock()
         new_coordinator = MagicMock()
@@ -66,20 +54,14 @@ async def test_async_setup_entry_duplicate_host(hass):
     mock_entry.runtime_data = mock_manager
     async_add_entities = MagicMock()
 
-    with patch(
-        "custom_components.grubstation.select.async_dispatcher_connect"
-    ) as mock_connect:
+    with patch("custom_components.grubstation.select.async_dispatcher_connect") as mock_connect:
         await async_setup_entry(hass, mock_entry, async_add_entities)
 
         # First call adds the entity (from the setup loop)
         assert async_add_entities.call_count == 1
 
         # Get the callback
-        callback = next(
-            call[0][2]
-            for call in mock_connect.call_args_list
-            if call[0][1] == SIGNAL_NEW_HOST
-        )
+        callback = next(call[0][2] for call in mock_connect.call_args_list if call[0][1] == SIGNAL_NEW_HOST)
 
         # Call again with same MAC
         callback(mac)
@@ -97,15 +79,9 @@ async def test_async_setup_entry_no_coordinator(hass):
     mock_entry.runtime_data = mock_manager
     async_add_entities = MagicMock()
 
-    with patch(
-        "custom_components.grubstation.select.async_dispatcher_connect"
-    ) as mock_connect:
+    with patch("custom_components.grubstation.select.async_dispatcher_connect") as mock_connect:
         await async_setup_entry(hass, mock_entry, async_add_entities)
-        callback = next(
-            call[0][2]
-            for call in mock_connect.call_args_list
-            if call[0][1] == SIGNAL_NEW_HOST
-        )
+        callback = next(call[0][2] for call in mock_connect.call_args_list if call[0][1] == SIGNAL_NEW_HOST)
         callback("00:AA:BB:CC:DD:EE")
         assert async_add_entities.call_count == 0
 
@@ -129,7 +105,7 @@ async def test_select_init_model_name(hass):
     select = GrubStationManagerSelect(manager, coordinator)
     assert select.device_info is not None
     assert select.device_info.get("name") == "00:11:22:33:44:55"
-    assert select.device_info.get("model") == "linux (Broadcast: 192.168.1.255)"
+    assert select.device_info.get("model") == "GrubStation Host (Broadcast: 192.168.1.255)"
     # Without broadcast info
     host2 = RemoteHost(
         mac="AA:BB:CC:DD:EE:FF",
@@ -142,7 +118,7 @@ async def test_select_init_model_name(hass):
 
     select2 = GrubStationManagerSelect(manager, coordinator2)
     assert select2.device_info is not None
-    assert select2.device_info.get("model") == "windows"
+    assert select2.device_info.get("model") == "GrubStation Host"
 
 
 async def test_select_properties(hass):
@@ -187,6 +163,4 @@ async def test_async_select_option(hass):
     select = GrubStationManagerSelect(manager, coordinator)
 
     await select.async_select_option("ubuntu")
-    manager.async_set_next_boot_option.assert_called_once_with(
-        "00:11:22:33:44:55", "ubuntu"
-    )
+    manager.async_set_next_boot_option.assert_called_once_with("00:11:22:33:44:55", "ubuntu")

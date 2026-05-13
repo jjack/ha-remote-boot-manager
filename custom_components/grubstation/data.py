@@ -6,18 +6,9 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    CONF_ADDRESS,
-    CONF_BROADCAST_ADDRESS,
-    CONF_BROADCAST_PORT,
-)
+from homeassistant.const import CONF_ADDRESS, CONF_BROADCAST_ADDRESS, CONF_BROADCAST_PORT
 
-from .const import (
-    CONF_BOOT_OPTIONS,
-    CONF_DAEMON_PORT,
-    CONF_DAEMON_TOKEN,
-    DEFAULT_BOOT_OPTION_NONE,
-)
+from .const import CONF_BOOT_OPTIONS, CONF_DAEMON_PORT, CONF_DAEMON_TOKEN, DEFAULT_BOOT_OPTION_NONE
 
 if TYPE_CHECKING:
     from .manager import GrubStationManager
@@ -58,9 +49,7 @@ class RemoteHost:
         self.daemon_port = payload.get(CONF_DAEMON_PORT, self.daemon_port)
         self.daemon_token = payload.get(CONF_DAEMON_TOKEN, self.daemon_token)
         self.boot_options = payload.get(CONF_BOOT_OPTIONS, self.boot_options) or []
-        self.broadcast_address = payload.get(
-            CONF_BROADCAST_ADDRESS, self.broadcast_address
-        )
+        self.broadcast_address = payload.get(CONF_BROADCAST_ADDRESS, self.broadcast_address)
         self.broadcast_port = payload.get(CONF_BROADCAST_PORT, self.broadcast_port)
 
     def daemon_is_configured(self) -> bool:

@@ -11,7 +11,7 @@ ACTION_TURN_OFF: Final = "turn_off"
 
 CONF_DAEMON_PORT: Final = "daemon_port"
 CONF_DAEMON_SERVICE_MANAGER: Final = "daemon_service_manager"
-CONF_DAEMON_TOKEN: Final = "daemon_token"  # noqa: S105
+CONF_DAEMON_TOKEN: Final = "daemon_token"
 CONF_DAEMON_VERSION: Final = "daemon_version"
 CONF_BOOT_OPTIONS: Final = "boot_options"
 CONF_HOST_OS: Final = "host_os"
