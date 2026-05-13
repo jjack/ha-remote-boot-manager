@@ -45,17 +45,17 @@ class GrubStationManagerBinarySensor(CoordinatorEntity[GrubStationCoordinator], 
     @property
     def is_on(self) -> bool:
         """Return true if the binary sensor is on."""
-        return self.coordinator.host.is_daemon_accessible
+        return self.coordinator.data.is_daemon_accessible
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return the state attributes."""
         return {
-            "last_daemon_accessible": self.coordinator.host.last_daemon_accessible,
-            "recent_activity": self.coordinator.host.activity_history,
-            "os": self.coordinator.host.os,
-            "service_manager": self.coordinator.host.daemon_service_manager,
-            "version": self.coordinator.host.daemon_version,
+            "last_daemon_accessible": self.coordinator.data.last_daemon_accessible,
+            "recent_activity": self.coordinator.data.activity_history,
+            "os": self.coordinator.data.os,
+            "service_manager": self.coordinator.data.daemon_service_manager,
+            "version": self.coordinator.data.daemon_version,
         }
 
 

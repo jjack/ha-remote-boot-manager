@@ -49,6 +49,7 @@ async def async_get_daemon_status(
             async with session.get(url, headers=headers) as response:
                 response.raise_for_status()
                 data = await response.json()
+                LOGGER.debug("Got daemon status: %s", data)
                 return {
                     "os": data.get("os"),
                     "service_manager": data.get("service_manager"),

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.const import EntityCategory
@@ -46,7 +46,17 @@ class GrubStationManagerSensor(CoordinatorEntity[GrubStationCoordinator], Sensor
     @property
     def native_value(self) -> str | None:
         """Return the value of the sensor."""
-        return self.coordinator.host.last_daemon_accessible
+        return self.coordinator.data.last_daemon_accessible
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return the state attributes."""
+        return {
+            "os": self.coordinator.data.os,
+            "service_manager": self.coordinator.data.daemon_service_manager,
+            "version": self.coordinator.data.daemon_version,
+            "recent_activity": self.coordinator.data.activity_history,
+        }
 
 
 async def async_setup_entry(

@@ -16,7 +16,6 @@ def generate_device_info(host: RemoteHost) -> DeviceInfo:
         name=host.mac,
         manufacturer="GrubStation",
         model=generate_model_name(host),
-        sw_version=host.daemon_version,
         connections={(CONNECTION_NETWORK_MAC, host.mac)},
     )
 

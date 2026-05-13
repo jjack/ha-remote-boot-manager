@@ -80,7 +80,7 @@ class GrubStationCoordinator(DataUpdateCoordinator["RemoteHost"]):
                 "Daemon status for %s (%s): %s",
                 self.host.mac,
                 self.host.address,
-                is_accessible,
+                "accessible" if is_accessible else "not accessible",
             )
         elif is_alive:
             LOGGER.debug("Skipping daemon check for %s: missing port or token", self.host.mac)
