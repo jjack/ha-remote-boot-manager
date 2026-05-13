@@ -50,14 +50,7 @@ class RemoteHost:
     next_boot_option: str = DEFAULT_BOOT_OPTION_NONE
 
     # this also comes from the UI
-    off_action: list[dict[str, Any]] | None = field(
-        default_factory=lambda: [
-            {
-                "action": "grubstation.send_turn_off_command",
-                "data": {"address": "{{ address }}"},
-            }
-        ]
-    )
+    off_action: list[dict[str, Any]] | None = None
 
     def update_from_payload(self, payload: dict[str, Any]) -> None:
         """Safely update the host state from incoming webhook data."""

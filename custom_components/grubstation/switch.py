@@ -124,7 +124,7 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
             await self._turn_off_action.async_run(
                 context=getattr(self, "_context", None)
             )
-        if self.host.daemon_token and self.host.address and self.host.daemon_port:
+        elif self.host.is_agent_accessible:
             await async_send_turn_off_command(
                 self.hass,
                 self.host.address,
