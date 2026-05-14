@@ -4,13 +4,13 @@
         {
             "label": "Run Home Assistant on port 8123",
             "type": "shell",
-            "command": "scripts/develop.sh",
+            "command": "uv run scripts/develop.sh",
             "problemMatcher": []
         },
         {
             "label": "Run code linters and formatters",
             "type": "shell",
-            "command": "scripts/lint.sh",
+            "command": "uv run scripts/lint.sh",
             "problemMatcher": []
         }
     ]
