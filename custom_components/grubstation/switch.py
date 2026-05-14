@@ -37,8 +37,8 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
         """Initialize the switch class."""
         super().__init__(coordinator)
 
-        self._attr_unique_id = f"{self.coordinator.host.mac}_wake_switch"
-        self._attr_name = "Wake"
+        self._attr_unique_id = f"{self.coordinator.host.mac}_power_switch"
+        self._attr_name = "Power"
         self._attr_has_entity_name = True
         self._attr_device_class = SwitchDeviceClass.SWITCH
 
@@ -210,7 +210,7 @@ async def async_setup_entry(
         if not coordinator:
             return
 
-        LOGGER.debug("Adding wake switch for %s", mac_address)
+        LOGGER.debug("Adding power switch for %s", mac_address)
         async_add_entities([GrubStationManagerSwitch(hass, coordinator)])
         added_hosts.add(mac_address)
 
