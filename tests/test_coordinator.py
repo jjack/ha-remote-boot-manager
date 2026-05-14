@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from custom_components.grubstation.const import API_KEY_OS, API_KEY_SERVICE_MANAGER, API_KEY_STATUS, API_KEY_VERSION
 from custom_components.grubstation.coordinator import GrubStationCoordinator, _async_ping_host
 from custom_components.grubstation.data import RemoteHost
 
@@ -39,9 +40,10 @@ async def test_coordinator_update_success(hass, mock_host, mock_manager):
         patch(
             "custom_components.grubstation.coordinator.async_get_agent_status",
             return_value={
-                "host_os": "linux",
-                "service_manager": "systemd",
-                "version": "1.0.0",
+                API_KEY_STATUS: "ok",
+                API_KEY_OS: "linux",
+                API_KEY_SERVICE_MANAGER: "systemd",
+                API_KEY_VERSION: "1.0.0",
             },
         ) as mock_agent,
     ):

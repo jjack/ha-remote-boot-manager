@@ -9,11 +9,19 @@ LOGGER: Logger = getLogger(__package__)
 
 ACTION_TURN_OFF: Final = "turn_off"
 
-ATTR_LAST_AGENT_ACCESSIBLE: Final = "last_agent_accessible"
+# API response keys (from the remote agent)
+API_KEY_OS: Final = "os"
+API_KEY_SERVICE_MANAGER: Final = "service_manager"
+API_KEY_STATUS: Final = "status"
+API_KEY_VERSION: Final = "version"
+
+# UI attribute labels (for Home Assistant)
+ATTR_AGENT_SERVICE_MANAGER: Final = "agent_service_manager"
+ATTR_AGENT_STATUS: Final = "agent_status"
+ATTR_AGENT_VERSION: Final = "agent_version"
 ATTR_HOST_OS: Final = "host_os"
+ATTR_LAST_AGENT_ACCESSIBLE: Final = "last_agent_accessible"
 ATTR_RECENT_ACTIVITY: Final = "recent_activity"
-ATTR_SERVICE_MANAGER: Final = "service_manager"
-ATTR_VERSION: Final = "version"
 
 CONF_AGENT_PORT: Final = "agent_port"
 CONF_AGENT_TOKEN: Final = "agent_token"

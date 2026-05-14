@@ -7,11 +7,12 @@ import pytest
 
 from custom_components.grubstation.binary_sensor import GrubStationManagerBinarySensor, async_setup_entry
 from custom_components.grubstation.const import (
+    ATTR_AGENT_SERVICE_MANAGER,
+    ATTR_AGENT_STATUS,
+    ATTR_AGENT_VERSION,
     ATTR_HOST_OS,
     ATTR_LAST_AGENT_ACCESSIBLE,
     ATTR_RECENT_ACTIVITY,
-    ATTR_SERVICE_MANAGER,
-    ATTR_VERSION,
     SIGNAL_HOST_REMOVED,
     SIGNAL_HOST_UPDATED,
     SIGNAL_NEW_HOST,
@@ -52,7 +53,7 @@ async def test_binary_sensor_properties(hass: HomeAssistant, mock_coordinator: M
     sensor = GrubStationManagerBinarySensor(mock_coordinator)
 
     assert sensor.unique_id == "00:11:22:33:44:55_health_status"
-    assert sensor.name == "Agent Status"
+    assert sensor.translation_key == "agent_status"
     assert sensor.device_class == BinarySensorDeviceClass.CONNECTIVITY
     assert sensor.should_poll is False
 
@@ -62,8 +63,9 @@ async def test_binary_sensor_properties(hass: HomeAssistant, mock_coordinator: M
         ATTR_LAST_AGENT_ACCESSIBLE: "2023-01-01T12:00:00+00:00",
         ATTR_RECENT_ACTIVITY: [],
         ATTR_HOST_OS: "linux",
-        ATTR_SERVICE_MANAGER: "systemd",
-        ATTR_VERSION: "1.0.0",
+        ATTR_AGENT_SERVICE_MANAGER: "systemd",
+        ATTR_AGENT_VERSION: "1.0.0",
+        ATTR_AGENT_STATUS: None,
     }
 
     # Test state change

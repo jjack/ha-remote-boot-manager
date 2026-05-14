@@ -11,11 +11,21 @@ if TYPE_CHECKING:
 
 def generate_device_info(host: RemoteHost) -> DeviceInfo:
     """Generate a DeviceInfo object with common values for all the platforms."""
+    # Combine OS and Service Manager for the model name as requested
+    model_parts = []
+    if host.os:
+        model_parts.append(host.os)
+    if host.agent_service_manager:
+        model_parts.append(host.agent_service_manager)
+
+    model = "-".join(model_parts) if model_parts else generate_model_name(host)
+
     return DeviceInfo(
         identifiers={(DOMAIN, host.mac)},
         name=host.mac,
         manufacturer="GrubStation",
-        model=generate_model_name(host),
+        model=model,
+        sw_version=host.agent_version,
         connections={(CONNECTION_NETWORK_MAC, host.mac)},
     )
 

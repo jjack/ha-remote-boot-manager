@@ -13,17 +13,19 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
 
-from .const import ATTR_HOST_OS, ATTR_SERVICE_MANAGER, ATTR_VERSION, LOGGER
+from .const import API_KEY_OS, API_KEY_SERVICE_MANAGER, API_KEY_STATUS, API_KEY_VERSION, LOGGER
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
 AGENT_STATUS_SCHEMA = vol.Schema(
     {
-        vol.Required(ATTR_HOST_OS): cv.string,
-        vol.Optional(ATTR_SERVICE_MANAGER): cv.string,
-        vol.Optional(ATTR_VERSION): cv.string,
-    }
+        vol.Required(API_KEY_STATUS): cv.string,
+        vol.Required(API_KEY_OS): cv.string,
+        vol.Required(API_KEY_SERVICE_MANAGER): cv.string,
+        vol.Required(API_KEY_VERSION): cv.string,
+    },
+    extra=vol.ALLOW_EXTRA,
 )
 
 
@@ -63,9 +65,7 @@ async def async_get_agent_status(
             async with session.get(url, headers=headers) as response:
                 response.raise_for_status()
                 data = await response.json()
-                validated_data = AGENT_STATUS_SCHEMA(data)
-                LOGGER.debug("Got agent status: %s", validated_data)
-                return validated_data
+                return AGENT_STATUS_SCHEMA(data)
     except Exception as err:  # noqa: BLE001
         LOGGER.debug("Agent status check failed for %s: %s", address, err)
         return None

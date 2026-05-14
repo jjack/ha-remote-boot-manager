@@ -11,11 +11,12 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
+    ATTR_AGENT_SERVICE_MANAGER,
+    ATTR_AGENT_STATUS,
+    ATTR_AGENT_VERSION,
     ATTR_HOST_OS,
     ATTR_LAST_AGENT_ACCESSIBLE,
     ATTR_RECENT_ACTIVITY,
-    ATTR_SERVICE_MANAGER,
-    ATTR_VERSION,
     LOGGER,
     SIGNAL_HOST_REMOVED,
     SIGNAL_HOST_UPDATED,
@@ -48,7 +49,7 @@ class GrubStationManagerBinarySensor(CoordinatorEntity[GrubStationCoordinator], 
         self.host = coordinator.host
 
         self._attr_unique_id = f"{self.host.mac}_health_status"
-        self._attr_name = "Agent Status"
+        self._attr_translation_key = "agent_status"
 
         self._attr_device_info = generate_device_info(self.host)
 
@@ -62,10 +63,11 @@ class GrubStationManagerBinarySensor(CoordinatorEntity[GrubStationCoordinator], 
         """Return the state attributes."""
         return {
             ATTR_LAST_AGENT_ACCESSIBLE: self.coordinator.host.last_agent_accessible,
-            ATTR_RECENT_ACTIVITY: self.coordinator.host.activity_history,
+            ATTR_AGENT_STATUS: self.coordinator.host.agent_status,
             ATTR_HOST_OS: self.coordinator.host.os,
-            ATTR_SERVICE_MANAGER: self.coordinator.host.agent_service_manager,
-            ATTR_VERSION: self.coordinator.host.agent_version,
+            ATTR_AGENT_SERVICE_MANAGER: self.coordinator.host.agent_service_manager,
+            ATTR_AGENT_VERSION: self.coordinator.host.agent_version,
+            ATTR_RECENT_ACTIVITY: self.coordinator.host.activity_history,
         }
 
 

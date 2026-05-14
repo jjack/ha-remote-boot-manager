@@ -7,7 +7,7 @@ import aiohttp
 import pytest
 
 from custom_components.grubstation.agent import async_get_agent_status, async_send_turn_off_command
-from custom_components.grubstation.const import ATTR_HOST_OS, ATTR_SERVICE_MANAGER, ATTR_VERSION
+from custom_components.grubstation.const import API_KEY_OS, API_KEY_SERVICE_MANAGER, API_KEY_STATUS, API_KEY_VERSION
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
@@ -102,9 +102,10 @@ async def test_async_get_agent_status_success(hass: HomeAssistant) -> None:
         mock_response.status = HTTPStatus.OK
         mock_response.json = AsyncMock(
             return_value={
-                ATTR_HOST_OS: "linux",
-                ATTR_SERVICE_MANAGER: "systemd",
-                ATTR_VERSION: "1.0.0",
+                API_KEY_STATUS: "ok",
+                API_KEY_OS: "linux",
+                API_KEY_SERVICE_MANAGER: "systemd",
+                API_KEY_VERSION: "1.0.0",
             }
         )
         mock_session.get.return_value = AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
@@ -113,10 +114,12 @@ async def test_async_get_agent_status_success(hass: HomeAssistant) -> None:
         result = await async_get_agent_status(hass, "1.2.3.4", 8081, "secret_key")
 
         assert result == {
-            ATTR_HOST_OS: "linux",
-            ATTR_SERVICE_MANAGER: "systemd",
-            ATTR_VERSION: "1.0.0",
+            API_KEY_STATUS: "ok",
+            API_KEY_OS: "linux",
+            API_KEY_SERVICE_MANAGER: "systemd",
+            API_KEY_VERSION: "1.0.0",
         }
+
         mock_session.get.assert_called_once()
         args, kwargs = mock_session.get.call_args
         url = args[0]

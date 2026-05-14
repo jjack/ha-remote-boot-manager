@@ -15,15 +15,7 @@ from homeassistant.helpers.script import Script
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .agent import async_send_turn_off_command
-from .const import (
-    ATTR_HOST_OS,
-    ATTR_LAST_AGENT_ACCESSIBLE,
-    DOMAIN,
-    LOGGER,
-    SIGNAL_HOST_REMOVED,
-    SIGNAL_NEW_HOST,
-    WAIT_FOR_HOST_POWER_SECONDS,
-)
+from .const import DOMAIN, LOGGER, SIGNAL_HOST_REMOVED, SIGNAL_NEW_HOST, WAIT_FOR_HOST_POWER_SECONDS
 from .coordinator import GrubStationCoordinator, _async_ping_host
 from .utils import generate_device_info
 
@@ -85,14 +77,6 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
     def should_poll(self) -> bool:
         """Coordinator handles polling."""
         return False
-
-    @property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        """Return the state attributes."""
-        return {
-            ATTR_LAST_AGENT_ACCESSIBLE: self.coordinator.host.last_agent_accessible,
-            ATTR_HOST_OS: self.coordinator.host.os,
-        }
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the entity on."""

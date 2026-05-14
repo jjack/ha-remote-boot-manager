@@ -106,5 +106,54 @@
                 }
             }
         }
+    },
+    "entity": {
+        "binary_sensor": {
+            "agent_status": {
+                "name": "Agent status",
+                "state_attributes": {
+                    "agent_status": {
+                        "name": "Status"
+                    },
+                    "last_agent_accessible": {
+                        "name": "Last successful check"
+                    },
+                    "recent_activity": {
+                        "name": "Recent activity"
+                    },
+                    "host_os": {
+                        "name": "Host OS"
+                    },
+                    "agent_service_manager": {
+                        "name": "Service Manager"
+                    },
+                    "agent_version": {
+                        "name": "Agent version"
+                    }
+                }
+            }
+        },
+        "sensor": {
+            "last_agent_accessible": {
+                "name": "Last successful check",
+                "state_attributes": {
+                    "agent_status": {
+                        "name": "Status"
+                    },
+                    "host_os": {
+                        "name": "Host OS"
+                    },
+                    "agent_service_manager": {
+                        "name": "Service Manager"
+                    },
+                    "agent_version": {
+                        "name": "Agent version"
+                    },
+                    "recent_activity": {
+                        "name": "Recent activity"
+                    }
+                }
+            }
+        }
     }
 }

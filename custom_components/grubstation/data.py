@@ -21,6 +21,7 @@ class RemoteHost:
     mac: str
     address: str | None = None
     agent_version: str | None = None
+    agent_status: str | None = None
     agent_port: int | None = None
     agent_token: str | None = None
     boot_options: list[str] = field(default_factory=list)

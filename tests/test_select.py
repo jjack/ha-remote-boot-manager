@@ -12,7 +12,7 @@ async def test_async_setup_entry(hass):
     mock_entry = MagicMock()
     mock_manager = MagicMock()
     mac = "00:11:22:33:44:55"
-    mock_host = MagicMock()
+    mock_host = RemoteHost(mac=mac)
     mock_coordinator = MagicMock()
     mock_coordinator.data = mock_host
     mock_coordinator.host = mock_host
@@ -31,7 +31,7 @@ async def test_async_setup_entry(hass):
         # Verify the dispatcher callback adds the new entity
         callback = next(call[0][2] for call in mock_connect.call_args_list if call[0][1] == SIGNAL_NEW_HOST)
         new_mac = "AA:BB:CC:DD:EE:FF"
-        new_host = MagicMock()
+        new_host = RemoteHost(mac=new_mac)
         new_coordinator = MagicMock()
         new_coordinator.data = new_host
         new_coordinator.host = new_host
@@ -94,7 +94,6 @@ async def test_select_init_model_name(hass):
     host = RemoteHost(
         mac="00:11:22:33:44:55",
         address="test.local",
-        os="linux",
         broadcast_address="192.168.1.255",
         broadcast_port=9,
     )
@@ -111,7 +110,6 @@ async def test_select_init_model_name(hass):
     host2 = RemoteHost(
         mac="AA:BB:CC:DD:EE:FF",
         address="test2.local",
-        os="windows",
     )
     coordinator2 = MagicMock()
     coordinator2.data = host2
