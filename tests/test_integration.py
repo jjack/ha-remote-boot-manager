@@ -95,7 +95,7 @@ async def test_webhook_discovery_agent_token(hass: HomeAssistant, setup_integrat
 
     # The entity ID is based on the MAC address since 'name' is removed from webhook
     entity_id_select = "select.aa_bb_cc_dd_ee_ff_next_boot_option"
-    entity_id_switch = "switch.aa_bb_cc_dd_ee_ff_wake"
+    entity_id_switch = "switch.aa_bb_cc_dd_ee_ff_power"
 
     state = hass.states.get(entity_id_select)
     assert state is not None
@@ -133,7 +133,7 @@ async def test_minimal_webhook_discovery_and_switch(hass: HomeAssistant, setup_i
     await hass.async_block_till_done()
 
     # Verify entities are created
-    entity_id_switch = "switch.de_ad_be_ef_00_01_wake"
+    entity_id_switch = "switch.de_ad_be_ef_00_01_power"
     entity_id_select = "select.de_ad_be_ef_00_01_next_boot_option"
 
     assert hass.states.get(entity_id_switch) is not None
@@ -176,7 +176,7 @@ async def test_select_and_grub_config_view(hass: HomeAssistant, discovered_clien
 async def test_switch_turn_on_does_not_reset_boot_option(hass: HomeAssistant, discovered_client) -> None:
     """Test that turning on the wake host switch sends magic packet and does not reset boot option."""
     entity_id_select = "select.aa_bb_cc_dd_ee_ff_next_boot_option"
-    entity_id_switch = "switch.aa_bb_cc_dd_ee_ff_wake"
+    entity_id_switch = "switch.aa_bb_cc_dd_ee_ff_power"
 
     # First, select a boot option
     await hass.services.async_call(
@@ -209,7 +209,7 @@ async def test_switch_turn_on_does_not_reset_boot_option(hass: HomeAssistant, di
 async def test_remove_integration_cleans_up(hass: HomeAssistant, discovered_client, mock_config_entry) -> None:
     """Test that removing the integration cleans up devices and entities."""
     entity_id_select = "select.aa_bb_cc_dd_ee_ff_next_boot_option"
-    entity_id_switch = "switch.aa_bb_cc_dd_ee_ff_wake"
+    entity_id_switch = "switch.aa_bb_cc_dd_ee_ff_power"
 
     assert await hass.config_entries.async_remove(mock_config_entry.entry_id)
     await hass.async_block_till_done()

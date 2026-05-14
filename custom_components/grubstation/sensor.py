@@ -46,16 +46,16 @@ class GrubStationManagerSensor(CoordinatorEntity[GrubStationCoordinator], Sensor
     @property
     def native_value(self) -> str | None:
         """Return the value of the sensor."""
-        return self.coordinator.data.last_agent_accessible
+        return self.coordinator.host.last_agent_accessible
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return the state attributes."""
         return {
-            "os": self.coordinator.data.os,
-            "service_manager": self.coordinator.data.agent_service_manager,
-            "version": self.coordinator.data.agent_version,
-            "recent_activity": self.coordinator.data.activity_history,
+            "os": self.coordinator.host.os,
+            "service_manager": self.coordinator.host.agent_service_manager,
+            "version": self.coordinator.host.agent_version,
+            "recent_activity": self.coordinator.host.activity_history,
         }
 
 

@@ -11,6 +11,7 @@ from custom_components.grubstation.data import RemoteHost
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers.device_registry import async_get as async_get_dr
 
 
 async def test_form(hass: HomeAssistant) -> None:
@@ -322,3 +323,44 @@ async def test_options_flow_serialization_safety(hass: HomeAssistant) -> None:
     # This would raise TypeError if vol.UNDEFINED was present
     json_str = json.dumps(descriptions)
     assert "suggested_value" not in json_str
+
+
+async def test_options_flow_select_host_display(hass: HomeAssistant) -> None:
+    """Test the options flow select_host step display names using registry."""
+    entry = MockConfigEntry(domain=DOMAIN, data={"webhook_id": "test_id"})
+    entry.add_to_hass(hass)
+
+    mock_manager = MagicMock()
+    mock_host1 = RemoteHost(mac="00:11:22:33:44:55")
+    mock_host2 = RemoteHost(mac="AA:BB:CC:DD:EE:FF")
+    mock_manager.hosts = {
+        "00:11:22:33:44:55": mock_host1,
+        "AA:BB:CC:DD:EE:FF": mock_host2,
+    }
+    entry.runtime_data = mock_manager
+
+    dr = async_get_dr(hass)
+    dr.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, "00:11:22:33:44:55")},
+        name="Registry Name",
+    )
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result2 = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={"next_step_id": "select_host"},
+    )
+
+    assert result2.get("type") == FlowResultType.FORM
+    assert result2.get("step_id") == "select_host"
+
+    schema = result2.get("data_schema")
+    assert schema is not None
+
+    # The 'host' field should have vol.In(hosts)
+    host_select = schema.schema["host"]
+    hosts_dict = host_select.container
+
+    assert hosts_dict["00:11:22:33:44:55"] == "Registry Name (00:11:22:33:44:55)"
+    assert hosts_dict["AA:BB:CC:DD:EE:FF"] == "AA:BB:CC:DD:EE:FF"

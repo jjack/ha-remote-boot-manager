@@ -109,8 +109,10 @@ class GrubStationManager:
     def async_register_agent_token(self, mac_address: str, payload: dict[str, Any]) -> None:
         """Update the agent token for a host."""
         mac_address = format_mac(mac_address)
+        is_new_host = False
 
         if mac_address not in self.hosts:
+            is_new_host = True
             host = RemoteHost(
                 mac=mac_address,
                 address=payload[CONF_ADDRESS],
@@ -120,12 +122,14 @@ class GrubStationManager:
             self.hosts[mac_address] = host
             self.coordinators[mac_address] = GrubStationCoordinator(self.hass, self, host)
             self.hass.async_create_task(self.coordinators[mac_address].async_refresh())
-            async_dispatcher_send(self.hass, SIGNAL_NEW_HOST, mac_address)
         else:
             self.hosts[mac_address].update_from_payload(payload)
 
         # Sync the updated data with the coordinator
         self.coordinators[mac_address].async_set_updated_data(self.hosts[mac_address])
+
+        if is_new_host:
+            async_dispatcher_send(self.hass, SIGNAL_NEW_HOST, mac_address)
 
         self.save()
 
@@ -133,8 +137,10 @@ class GrubStationManager:
     def async_update_boot_options(self, mac_address: str, payload: dict[str, Any]) -> None:
         """Update the boot options for a host."""
         mac_address = format_mac(mac_address)
+        is_new_host = False
 
         if mac_address not in self.hosts:
+            is_new_host = True
             host = RemoteHost(
                 mac=mac_address,
                 address=payload[CONF_ADDRESS],
@@ -143,7 +149,6 @@ class GrubStationManager:
             self.hosts[mac_address] = host
             self.coordinators[mac_address] = GrubStationCoordinator(self.hass, self, host)
             self.hass.async_create_task(self.coordinators[mac_address].async_refresh())
-            async_dispatcher_send(self.hass, SIGNAL_NEW_HOST, mac_address)
         else:
             self.hosts[mac_address].update_from_payload(payload)
 
@@ -161,7 +166,11 @@ class GrubStationManager:
         # Sync the updated data with the coordinator
         self.coordinators[mac_address].async_set_updated_data(host)
 
+        if is_new_host:
+            async_dispatcher_send(self.hass, SIGNAL_NEW_HOST, mac_address)
+
         async_dispatcher_send(self.hass, SIGNAL_HOST_UPDATED, mac_address)
+
         self.save()
 
     @callback

@@ -11,7 +11,7 @@ from homeassistant import config_entries
 from homeassistant.components import webhook
 from homeassistant.const import CONF_ADDRESS, CONF_BROADCAST_ADDRESS, CONF_BROADCAST_PORT
 from homeassistant.core import callback
-from homeassistant.helpers import selector
+from homeassistant.helpers import device_registry as dr, selector
 from homeassistant.loader import async_get_loaded_integration
 
 from .const import CONF_TURN_OFF_ACTION, DOMAIN, GRUBSTATION_AGENT_URL
@@ -154,6 +154,7 @@ class GrubStationManagerOptionsFlow(config_entries.OptionsFlow):
     async def async_step_select_host(self, user_input: dict[str, Any] | None = None) -> config_entries.ConfigFlowResult:
         """Select a host to configure."""
         manager = self._config_entry.runtime_data
+        registry = dr.async_get(self.hass)
 
         if user_input is not None:
             if host := user_input.get("host"):
@@ -161,7 +162,13 @@ class GrubStationManagerOptionsFlow(config_entries.OptionsFlow):
                 return await self.async_step_host_config()
             return self.async_create_entry(title="", data={})
 
-        hosts = {mac: mac for mac in manager.hosts}
+        hosts = {}
+        for mac in manager.hosts:
+            name = mac
+            if device := registry.async_get_device(identifiers={(DOMAIN, mac)}):
+                name = device.name_by_user or device.name
+
+            hosts[mac] = f"{name} ({mac})" if name != mac else mac
 
         return self.async_show_form(
             step_id="select_host",
