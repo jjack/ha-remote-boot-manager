@@ -39,7 +39,7 @@ async def test_coordinator_update_success(hass, mock_host, mock_manager):
         patch(
             "custom_components.grubstation.coordinator.async_get_agent_status",
             return_value={
-                "os": "linux",
+                "host_os": "linux",
                 "service_manager": "systemd",
                 "version": "1.0.0",
             },

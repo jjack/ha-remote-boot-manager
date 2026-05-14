@@ -11,7 +11,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 import homeassistant.util.dt as dt_util
 
 from .agent import async_get_agent_status
-from .const import DOMAIN, LOGGER, PING_COUNT, PING_TIMEOUT_SECONDS
+from .const import ATTR_HOST_OS, ATTR_SERVICE_MANAGER, ATTR_VERSION, DOMAIN, LOGGER, PING_COUNT, PING_TIMEOUT_SECONDS
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -96,8 +96,8 @@ class GrubStationCoordinator(DataUpdateCoordinator["RemoteHost"]):
 
         if is_accessible and agent_status:
             self.host.last_agent_accessible = dt_util.utcnow().isoformat()
-            self.host.os = agent_status.get("os")
-            self.host.agent_service_manager = agent_status.get("service_manager")
-            self.host.agent_version = agent_status.get("version")
+            self.host.os = agent_status.get(ATTR_HOST_OS)
+            self.host.agent_service_manager = agent_status.get(ATTR_SERVICE_MANAGER)
+            self.host.agent_version = agent_status.get(ATTR_VERSION)
 
         return self.host

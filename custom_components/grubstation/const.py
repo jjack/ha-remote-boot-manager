@@ -9,12 +9,15 @@ LOGGER: Logger = getLogger(__package__)
 
 ACTION_TURN_OFF: Final = "turn_off"
 
+ATTR_LAST_AGENT_ACCESSIBLE: Final = "last_agent_accessible"
+ATTR_HOST_OS: Final = "host_os"
+ATTR_RECENT_ACTIVITY: Final = "recent_activity"
+ATTR_SERVICE_MANAGER: Final = "service_manager"
+ATTR_VERSION: Final = "version"
+
 CONF_AGENT_PORT: Final = "agent_port"
-CONF_AGENT_SERVICE_MANAGER: Final = "agent_service_manager"
 CONF_AGENT_TOKEN: Final = "agent_token"
-CONF_AGENT_VERSION: Final = "version"
 CONF_BOOT_OPTIONS: Final = "boot_options"
-CONF_HOST_OS: Final = "os"
 CONF_TURN_OFF_ACTION: Final = "turn_off_action"
 
 DEFAULT_NAME: Final = "GrubStation"

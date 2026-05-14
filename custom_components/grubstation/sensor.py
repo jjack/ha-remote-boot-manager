@@ -10,7 +10,16 @@ from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import LOGGER, SIGNAL_HOST_REMOVED, SIGNAL_HOST_UPDATED, SIGNAL_NEW_HOST
+from .const import (
+    ATTR_HOST_OS,
+    ATTR_RECENT_ACTIVITY,
+    ATTR_SERVICE_MANAGER,
+    ATTR_VERSION,
+    LOGGER,
+    SIGNAL_HOST_REMOVED,
+    SIGNAL_HOST_UPDATED,
+    SIGNAL_NEW_HOST,
+)
 from .coordinator import GrubStationCoordinator
 from .utils import generate_device_info
 
@@ -52,10 +61,10 @@ class GrubStationManagerSensor(CoordinatorEntity[GrubStationCoordinator], Sensor
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return the state attributes."""
         return {
-            "os": self.coordinator.host.os,
-            "service_manager": self.coordinator.host.agent_service_manager,
-            "version": self.coordinator.host.agent_version,
-            "recent_activity": self.coordinator.host.activity_history,
+            ATTR_HOST_OS: self.coordinator.host.os,
+            ATTR_SERVICE_MANAGER: self.coordinator.host.agent_service_manager,
+            ATTR_VERSION: self.coordinator.host.agent_version,
+            ATTR_RECENT_ACTIVITY: self.coordinator.host.activity_history,
         }
 
 

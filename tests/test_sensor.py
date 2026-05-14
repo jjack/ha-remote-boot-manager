@@ -5,7 +5,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from custom_components.grubstation.const import SIGNAL_HOST_REMOVED, SIGNAL_HOST_UPDATED, SIGNAL_NEW_HOST
+from custom_components.grubstation.const import (
+    ATTR_HOST_OS,
+    ATTR_SERVICE_MANAGER,
+    ATTR_VERSION,
+    SIGNAL_HOST_REMOVED,
+    SIGNAL_HOST_UPDATED,
+    SIGNAL_NEW_HOST,
+)
 from custom_components.grubstation.data import RemoteHost
 from custom_components.grubstation.sensor import GrubStationManagerSensor, async_setup_entry
 from homeassistant.core import HomeAssistant
@@ -77,6 +84,23 @@ async def test_sensor_device_info(hass: HomeAssistant, mock_coordinator: MagicMo
     # (Home Assistant converts DeviceInfo to dict)
     device_info = sensor._attr_device_info
     assert device_info is not None
+
+
+async def test_sensor_extra_state_attributes(hass: HomeAssistant, mock_coordinator: MagicMock):
+    """Test sensor extra state attributes."""
+    mock_coordinator.host.os = "linux"
+    mock_coordinator.host.agent_service_manager = "systemd"
+    mock_coordinator.host.agent_version = "1.0.0"
+    mock_coordinator.host.activity_history = ["Activity 1"]
+
+    sensor = GrubStationManagerSensor(mock_coordinator)
+
+    assert sensor.extra_state_attributes == {
+        ATTR_HOST_OS: "linux",
+        ATTR_SERVICE_MANAGER: "systemd",
+        ATTR_VERSION: "1.0.0",
+        ATTR_RECENT_ACTIVITY: ["Activity 1"],
+    }
 
 
 async def test_async_setup_entry_with_agent_hosts(hass: HomeAssistant):

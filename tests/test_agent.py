@@ -7,6 +7,7 @@ import aiohttp
 import pytest
 
 from custom_components.grubstation.agent import async_get_agent_status, async_send_turn_off_command
+from custom_components.grubstation.const import ATTR_HOST_OS, ATTR_SERVICE_MANAGER, ATTR_VERSION
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
@@ -101,9 +102,9 @@ async def test_async_get_agent_status_success(hass: HomeAssistant) -> None:
         mock_response.status = HTTPStatus.OK
         mock_response.json = AsyncMock(
             return_value={
-                "os": "linux",
-                "service_manager": "systemd",
-                "version": "1.0.0",
+                ATTR_HOST_OS: "linux",
+                ATTR_SERVICE_MANAGER: "systemd",
+                ATTR_VERSION: "1.0.0",
             }
         )
         mock_session.get.return_value = AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
@@ -112,9 +113,9 @@ async def test_async_get_agent_status_success(hass: HomeAssistant) -> None:
         result = await async_get_agent_status(hass, "1.2.3.4", 8081, "secret_key")
 
         assert result == {
-            "os": "linux",
-            "service_manager": "systemd",
-            "version": "1.0.0",
+            ATTR_HOST_OS: "linux",
+            ATTR_SERVICE_MANAGER: "systemd",
+            ATTR_VERSION: "1.0.0",
         }
         mock_session.get.assert_called_once()
         args, kwargs = mock_session.get.call_args
@@ -130,6 +131,24 @@ async def test_async_get_agent_status_failure(hass: HomeAssistant) -> None:
     with patch("custom_components.grubstation.agent.async_get_clientsession") as mock_session_getter:
         mock_session = MagicMock()
         mock_session.get.side_effect = TimeoutError()
+        mock_session_getter.return_value = mock_session
+
+        result = await async_get_agent_status(hass, "1.2.3.4", 8081, "key")
+        assert result is None
+
+
+async def test_async_get_agent_status_invalid_schema(hass: HomeAssistant) -> None:
+    """Test status check handles invalid schema."""
+    with patch("custom_components.grubstation.agent.async_get_clientsession") as mock_session_getter:
+        mock_session = MagicMock()
+        mock_response = MagicMock()
+        mock_response.status = HTTPStatus.OK
+        mock_response.json = AsyncMock(
+            return_value={
+                "not_os": "something",
+            }
+        )
+        mock_session.get.return_value = AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
         mock_session_getter.return_value = mock_session
 
         result = await async_get_agent_status(hass, "1.2.3.4", 8081, "key")

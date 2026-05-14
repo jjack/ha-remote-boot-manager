@@ -6,15 +6,25 @@ import asyncio
 from typing import TYPE_CHECKING
 
 import aiohttp
+import voluptuous as vol
 from yarl import URL
 
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+import homeassistant.helpers.config_validation as cv
 
-from .const import LOGGER
+from .const import ATTR_HOST_OS, ATTR_SERVICE_MANAGER, ATTR_VERSION, LOGGER
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
+
+AGENT_STATUS_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_HOST_OS): cv.string,
+        vol.Optional(ATTR_SERVICE_MANAGER): cv.string,
+        vol.Optional(ATTR_VERSION): cv.string,
+    }
+)
 
 
 # send a POST request to the entry's address with the agent port to /shutdown
@@ -53,12 +63,9 @@ async def async_get_agent_status(
             async with session.get(url, headers=headers) as response:
                 response.raise_for_status()
                 data = await response.json()
-                LOGGER.debug("Got agent status: %s", data)
-                return {
-                    "os": data.get("os"),
-                    "service_manager": data.get("service_manager"),
-                    "version": data.get("version"),
-                }
+                validated_data = AGENT_STATUS_SCHEMA(data)
+                LOGGER.debug("Got agent status: %s", validated_data)
+                return validated_data
     except Exception as err:  # noqa: BLE001
         LOGGER.debug("Agent status check failed for %s: %s", address, err)
         return None

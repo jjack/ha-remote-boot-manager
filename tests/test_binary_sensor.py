@@ -6,7 +6,16 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from custom_components.grubstation.binary_sensor import GrubStationManagerBinarySensor, async_setup_entry
-from custom_components.grubstation.const import SIGNAL_HOST_REMOVED, SIGNAL_HOST_UPDATED, SIGNAL_NEW_HOST
+from custom_components.grubstation.const import (
+    ATTR_HOST_OS,
+    ATTR_LAST_AGENT_ACCESSIBLE,
+    ATTR_RECENT_ACTIVITY,
+    ATTR_SERVICE_MANAGER,
+    ATTR_VERSION,
+    SIGNAL_HOST_REMOVED,
+    SIGNAL_HOST_UPDATED,
+    SIGNAL_NEW_HOST,
+)
 from custom_components.grubstation.data import RemoteHost
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 from homeassistant.core import HomeAssistant
@@ -50,11 +59,11 @@ async def test_binary_sensor_properties(hass: HomeAssistant, mock_coordinator: M
     # The entity doesn't have an entity_id assigned yet, so we just check state properties
     assert sensor.is_on is True
     assert sensor.extra_state_attributes == {
-        "last_agent_accessible": "2023-01-01T12:00:00+00:00",
-        "recent_activity": [],
-        "os": "linux",
-        "service_manager": "systemd",
-        "version": "1.0.0",
+        ATTR_LAST_AGENT_ACCESSIBLE: "2023-01-01T12:00:00+00:00",
+        ATTR_RECENT_ACTIVITY: [],
+        ATTR_HOST_OS: "linux",
+        ATTR_SERVICE_MANAGER: "systemd",
+        ATTR_VERSION: "1.0.0",
     }
 
     # Test state change
