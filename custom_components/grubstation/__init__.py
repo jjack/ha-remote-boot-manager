@@ -181,7 +181,7 @@ async def async_setup_entry(
             # Any successful webhook action implies the host is on.
             # Find the switch entity and turn it on for immediate UI feedback.
             mac_address = payload[CONF_MAC]
-            entity_id = f"switch.{mac_address.replace(':', '_')}_wake_switch"
+            entity_id = f"switch.{mac_address.replace(':', '_')}_power"
             er = async_get_er(hass)
             if er.async_get(entity_id):
                 await hass.services.async_call(
@@ -189,7 +189,6 @@ async def async_setup_entry(
                     "turn_on",
                     {ATTR_ENTITY_ID: entity_id},
                     blocking=False,
-                    context=request.context,  # type: ignore[attr-defined]
                 )
 
             return web.Response(status=HTTPStatus.OK, text="OK")
