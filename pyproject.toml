@@ -40,10 +40,10 @@ hass = [
 default-groups = ["dev", "hass"]
 
 [tool.setuptools]
-packages = ["custom_components.ha_integration_domain"]
+packages = ["custom_components.grubstation"]
 
 [tool.pyright]
-include = ["custom_components/ha_integration_domain"]
+include = ["custom_components/grubstation"]
 exclude = [
     "**/.*",
     "**/__pycache__",
@@ -52,10 +52,6 @@ exclude = [
     "**/node_modules",
     "**/venv",
 ]
-# venvPath is relative to workspace root. A symlink is created by script/setup/bootstrap
-# This works in VSCode (uses .local/ha-venv) and GitHub Actions (uses active venv)
-venvPath = ".local"
-venv = "ha-venv"
 typeCheckingMode = "basic"
 reportUnusedImport = "none"
 reportUnusedVariable = "none"
