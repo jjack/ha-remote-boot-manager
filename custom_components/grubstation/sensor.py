@@ -16,8 +16,6 @@ from .const import (
     ATTR_AGENT_VERSION,
     ATTR_HOST_OS,
     ATTR_RECENT_ACTIVITY,
-    LOGGER,
-    SIGNAL_HOST_REMOVED,
     SIGNAL_HOST_UPDATED,
     SIGNAL_NEW_HOST,
 )
@@ -31,6 +29,35 @@ if TYPE_CHECKING:
     from .data import GrubStationManagerConfigEntry
 
 
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: GrubStationManagerConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up the sensor platform."""
+    manager = entry.runtime_data
+
+    @callback
+    def async_discover_entities(mac_address: str | None = None) -> None:
+        """Add sensor entities for discovered hosts."""
+        if mac_address:
+            if coordinator := manager.coordinators.get(mac_address):
+                if coordinator.host.agent_is_configured():
+                    async_add_entities([GrubStationManagerSensor(coordinator)])
+        else:
+            async_add_entities(
+                [
+                    GrubStationManagerSensor(coord)
+                    for coord in manager.coordinators.values()
+                    if coord.host.agent_is_configured()
+                ]
+            )
+
+    entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_NEW_HOST, async_discover_entities))
+    entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_HOST_UPDATED, async_discover_entities))
+    async_discover_entities()
+
+
 class GrubStationManagerSensor(CoordinatorEntity[GrubStationCoordinator], SensorEntity):
     """GrubStation sensor class."""
 
@@ -39,73 +66,29 @@ class GrubStationManagerSensor(CoordinatorEntity[GrubStationCoordinator], Sensor
     _attr_entity_registry_enabled_default = False
     _attr_should_poll = False
 
-    def __init__(
-        self,
-        coordinator: GrubStationCoordinator,
-    ) -> None:
-        """Initialize the sensor class."""
+    def __init__(self, coordinator: GrubStationCoordinator) -> None:
+        """Initialize the sensor."""
         super().__init__(coordinator)
         self.host = coordinator.host
 
         self._attr_unique_id = f"{self.host.mac}_last_agent_accessible"
         self._attr_translation_key = "last_agent_accessible"
         self._attr_icon = "mdi:heart-pulse"
-
         self._attr_device_info = generate_device_info(self.host)
 
     @property
     def native_value(self) -> str | None:
         """Return the value of the sensor."""
-        return self.coordinator.host.last_agent_accessible
+        return self.coordinator.data.last_agent_accessible
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return the state attributes."""
+        host = self.coordinator.data
         return {
-            ATTR_AGENT_STATUS: self.coordinator.host.agent_status,
-            ATTR_HOST_OS: self.coordinator.host.os,
-            ATTR_AGENT_SERVICE_MANAGER: self.coordinator.host.agent_service_manager,
-            ATTR_AGENT_VERSION: self.coordinator.host.agent_version,
-            ATTR_RECENT_ACTIVITY: self.coordinator.host.activity_history,
+            ATTR_AGENT_STATUS: host.agent_status,
+            ATTR_HOST_OS: host.os,
+            ATTR_AGENT_SERVICE_MANAGER: host.agent_service_manager,
+            ATTR_AGENT_VERSION: host.agent_version,
+            ATTR_RECENT_ACTIVITY: host.activity_history,
         }
-
-
-async def async_setup_entry(
-    hass: HomeAssistant,
-    entry: GrubStationManagerConfigEntry,
-    async_add_entities: AddEntitiesCallback,
-) -> None:
-    """Set up the sensor platform from a config entry."""
-    manager = entry.runtime_data
-    added_hosts: set[str] = set()
-
-    @callback
-    def async_add_host_sensor(mac_address: str) -> None:
-        """Add a sensor entity for a newly discovered host."""
-        if mac_address in added_hosts:
-            return
-
-        coordinator = manager.coordinators.get(mac_address)
-        if not coordinator:
-            return
-
-        host = coordinator.host
-        # Only add sensor if host has agent configuration
-        if host.agent_is_configured():
-            LOGGER.debug("Adding healthcheck sensor for %s", mac_address)
-            async_add_entities([GrubStationManagerSensor(coordinator)])
-            added_hosts.add(mac_address)
-
-    @callback
-    def async_remove_host_sensor(mac_address: str) -> None:
-        """Remove a MAC from the tracking set when the host is deleted."""
-        added_hosts.discard(mac_address)
-
-    # Add entities for hosts that already exist in the manager
-    for mac in manager.hosts:
-        async_add_host_sensor(mac)
-
-    # Listen for the signal to add new hosts discovered via webhook
-    entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_NEW_HOST, async_add_host_sensor))
-    entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_HOST_UPDATED, async_add_host_sensor))
-    entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_HOST_REMOVED, async_remove_host_sensor))

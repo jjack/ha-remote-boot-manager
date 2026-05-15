@@ -9,7 +9,7 @@ from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DEFAULT_BOOT_OPTION_NONE, LOGGER, SIGNAL_HOST_REMOVED, SIGNAL_NEW_HOST
+from .const import SIGNAL_NEW_HOST
 from .coordinator import GrubStationCoordinator
 from .utils import generate_device_info
 
@@ -18,7 +18,6 @@ if TYPE_CHECKING:
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
     from .data import GrubStationManagerConfigEntry
-    from .manager import GrubStationManager
 
 
 async def async_setup_entry(
@@ -28,70 +27,43 @@ async def async_setup_entry(
 ) -> None:
     """Set up the select platform."""
     manager = entry.runtime_data
-    added_hosts: set[str] = set()
 
     @callback
-    def async_add_host_select(mac_address: str) -> None:
-        """Add a select entity for a newly discovered host."""
-        if mac_address in added_hosts:
-            return
+    def async_discover_entities(mac_address: str | None = None) -> None:
+        """Add select entities for discovered hosts."""
+        if mac_address:
+            if coordinator := manager.coordinators.get(mac_address):
+                async_add_entities([GrubStationManagerSelect(coordinator)])
+        else:
+            async_add_entities([GrubStationManagerSelect(coord) for coord in manager.coordinators.values()])
 
-        coordinator = manager.coordinators.get(mac_address)
-        if not coordinator:
-            return
-
-        LOGGER.debug("Adding select entity for %s", mac_address)
-        async_add_entities([GrubStationManagerSelect(manager, coordinator)])
-        added_hosts.add(mac_address)
-
-    @callback
-    def async_remove_host_select(mac_address: str) -> None:
-        """Remove a MAC from the tracking set when the host is deleted."""
-        added_hosts.discard(mac_address)
-
-    # Add entities for hosts that already exist in the manager
-    for mac in manager.hosts:
-        async_add_host_select(mac)
-
-    # Listen for the signal to add new hosts discovered via webhook
-    entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_NEW_HOST, async_add_host_select))
-    entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_HOST_REMOVED, async_remove_host_select))
+    entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_NEW_HOST, async_discover_entities))
+    async_discover_entities()
 
 
 class GrubStationManagerSelect(CoordinatorEntity[GrubStationCoordinator], SelectEntity):
     """GrubStation select class."""
 
-    def __init__(self, manager: GrubStationManager, coordinator: GrubStationCoordinator) -> None:
+    def __init__(self, coordinator: GrubStationCoordinator) -> None:
         """Initialize the select entity."""
         super().__init__(coordinator)
-        self.manager = manager
         self.mac_address = self.coordinator.host.mac
 
-        # This ties the entity to a specific hardware device in HA
         self._attr_unique_id = f"{self.mac_address}_boot_option_select"
         self._attr_name = "Next Boot Option"
         self._attr_has_entity_name = True
-
         self._attr_device_info = generate_device_info(self.coordinator.host)
 
     @property
     def options(self) -> list[str]:
         """Return the list of available boot options."""
-        host_data = self.coordinator.host
-        opts = host_data.boot_options if host_data and host_data.boot_options else []
-
-        # Ensure the default "(none)" is always a valid option
-        if DEFAULT_BOOT_OPTION_NONE not in opts:
-            opts = [DEFAULT_BOOT_OPTION_NONE, *opts]
-
-        return opts
+        return self.coordinator.host.formatted_boot_options
 
     @property
     def current_option(self) -> str | None:
         """Return the currently pending boot option."""
-        host_data = self.coordinator.host
-        return host_data.next_boot_option if host_data and host_data.next_boot_option else DEFAULT_BOOT_OPTION_NONE
+        return self.coordinator.host.next_boot_option
 
     async def async_select_option(self, option: str) -> None:
         """Change the selected option."""
-        self.manager.async_set_next_boot_option(self.mac_address, option)
+        self.coordinator.manager.async_set_next_boot_option(self.mac_address, option)
