@@ -109,10 +109,9 @@ class GrubStationManager:
     def async_register_agent_token(self, mac_address: str, payload: dict[str, Any]) -> None:
         """Update the agent token for a host."""
         mac_address = format_mac(mac_address)
-        is_new_host = False
+        is_new_host = mac_address not in self.hosts
 
-        if mac_address not in self.hosts:
-            is_new_host = True
+        if is_new_host:
             host = RemoteHost(
                 mac=mac_address,
                 address=payload[CONF_ADDRESS],
@@ -125,7 +124,6 @@ class GrubStationManager:
         else:
             self.hosts[mac_address].update_from_payload(payload)
 
-        # Sync the updated data with the coordinator
         self.coordinators[mac_address].async_set_updated_data(self.hosts[mac_address])
 
         if is_new_host:
@@ -137,10 +135,9 @@ class GrubStationManager:
     def async_update_boot_options(self, mac_address: str, payload: dict[str, Any]) -> None:
         """Update the boot options for a host."""
         mac_address = format_mac(mac_address)
-        is_new_host = False
+        is_new_host = mac_address not in self.hosts
 
-        if mac_address not in self.hosts:
-            is_new_host = True
+        if is_new_host:
             host = RemoteHost(
                 mac=mac_address,
                 address=payload[CONF_ADDRESS],
@@ -152,52 +149,36 @@ class GrubStationManager:
         else:
             self.hosts[mac_address].update_from_payload(payload)
 
-        # add "(none)" option to the front of the list if it's not already there
         host = self.hosts[mac_address]
-        if not host.boot_options:
-            host.boot_options = [DEFAULT_BOOT_OPTION_NONE]
-        elif host.boot_options[0] != DEFAULT_BOOT_OPTION_NONE:
-            host.boot_options = [DEFAULT_BOOT_OPTION_NONE, *host.boot_options]
-
-        # If the selected boot option is no longer in the list, reset it
-        if host.next_boot_option not in host.boot_options and host.next_boot_option != DEFAULT_BOOT_OPTION_NONE:
+        # Reset selection if it's no longer valid
+        if host.next_boot_option not in host.formatted_boot_options:
             host.next_boot_option = DEFAULT_BOOT_OPTION_NONE
 
-        # Sync the updated data with the coordinator
         self.coordinators[mac_address].async_set_updated_data(host)
 
         if is_new_host:
             async_dispatcher_send(self.hass, SIGNAL_NEW_HOST, mac_address)
 
         async_dispatcher_send(self.hass, SIGNAL_HOST_UPDATED, mac_address)
-
         self.save()
 
     @callback
     def async_set_next_boot_option(self, mac_address: str, next_boot_option: str) -> None:
-        """Notify listeners that the selected boot option has changed."""
+        """Set the pending boot option."""
         mac_address = format_mac(mac_address)
-        if mac_address in self.hosts:
-            self.hosts[mac_address].next_boot_option = next_boot_option
+        if host := self.hosts.get(mac_address):
+            host.next_boot_option = next_boot_option
             self.save()
-            self.coordinators[mac_address].async_set_updated_data(self.hosts[mac_address])
-            LOGGER.debug(
-                "Set selected boot option for %s to %s",
-                mac_address,
-                next_boot_option,
-            )
+            self.coordinators[mac_address].async_set_updated_data(host)
 
     @callback
     def async_consume_next_boot_option(self, mac_address: str) -> str:
-        """Retrieve the requested boot option and immediately resets the state."""
+        """Consume the pending boot option and reset state."""
         mac_address = format_mac(mac_address)
-        if mac_address not in self.hosts:
+        if not (host := self.hosts.get(mac_address)):
             LOGGER.warning("GRUB requested boot option for unknown MAC address: %s", mac_address)
             return DEFAULT_BOOT_OPTION_NONE
 
-        host = self.hosts[mac_address]
-        # grab the selected boot option and reset the state for next boot to
-        # prevent boot loops
         next_boot_option = host.next_boot_option
         host.next_boot_option = DEFAULT_BOOT_OPTION_NONE
 
@@ -205,11 +186,7 @@ class GrubStationManager:
             self.async_log_activity(mac_address, f"Booting into: {next_boot_option}")
 
         self.save()
-
-        # Push the updated data to the coordinator
-        # This will notify the UI to revert the dropdown back to "(none)"
         self.coordinators[mac_address].async_set_updated_data(host)
-
         return next_boot_option
 
     @callback

@@ -2,25 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, cast
-
-from icmplib import async_ping
+from typing import TYPE_CHECKING
 
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 import homeassistant.util.dt as dt_util
 
 from .agent import async_get_agent_status
-from .const import (
-    API_KEY_OS,
-    API_KEY_SERVICE_MANAGER,
-    API_KEY_STATUS,
-    API_KEY_VERSION,
-    DOMAIN,
-    LOGGER,
-    PING_COUNT,
-    PING_TIMEOUT_SECONDS,
-)
+from .const import API_KEY_OS, API_KEY_SERVICE_MANAGER, API_KEY_STATUS, API_KEY_VERSION, DOMAIN, LOGGER
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -29,25 +19,20 @@ if TYPE_CHECKING:
     from .manager import GrubStationManager
 
 
-async def _async_ping_host(address: str) -> bool:
-    """Ping the given host asynchronously."""
+async def async_check_tcp_reachability(address: str, port: int) -> bool:
+    """Check if a host is reachable via TCP socket (Tier 1)."""
     try:
-        # privileged=False allows pinging without root privileges on most modern systems
-        # We cast to Any because icmplib lacks type hints, causing Pylance to
-        # misidentify the return type
-        result = await cast("Any", async_ping)(
-            address, count=PING_COUNT, timeout=PING_TIMEOUT_SECONDS, privileged=False
-        )
-        LOGGER.debug("Ping result for %s: %s", address, result.is_alive)
-    except Exception as err:  # noqa: BLE001
-        LOGGER.debug("Ping failed for %s: %s", address, err)
+        async with asyncio.timeout(2):
+            _, writer = await asyncio.open_connection(address, port)
+            writer.close()
+            await writer.wait_closed()
+            return True
+    except TimeoutError, OSError:
         return False
-    else:
-        return result.is_alive
 
 
 class GrubStationCoordinator(DataUpdateCoordinator["RemoteHost"]):
-    """Class to manage fetching GrubStation data for a single host."""
+    """Manage fetching GrubStation data for a single host."""
 
     def __init__(
         self,
@@ -66,42 +51,37 @@ class GrubStationCoordinator(DataUpdateCoordinator["RemoteHost"]):
         )
 
     async def _async_update_data(self) -> RemoteHost:
-        """Fetch data from the host."""
-        if not self.host.address:
-            LOGGER.debug("Skipping update for %s: no address", self.host.mac)
+        """Fetch data from the host using two-tiered polling."""
+        if not self.host.address or not self.host.agent_port:
             return self.host
 
-        # 1. Check if host is alive via ICMP
-        is_alive = await _async_ping_host(self.host.address)
+        # Tier 1: TCP Reachability
+        is_powered_on = await async_check_tcp_reachability(self.host.address, self.host.agent_port)
 
-        # 2. If alive and has agent config, check the agent status
+        # Tier 2: Daemon Health (only if Tier 1 succeeds)
         is_accessible = False
         agent_status = None
-        if is_alive and self.host.agent_port and self.host.agent_token:
-            agent_status = await async_get_agent_status(
-                self.hass,
-                self.host.address,
-                self.host.agent_port,
-                self.host.agent_token,
-            )
-            is_accessible = agent_status is not None
-            LOGGER.debug(
-                "Agent status for %s (%s): %s",
-                self.host.mac,
-                self.host.address,
-                "accessible" if is_accessible else "not accessible",
-            )
-        elif is_alive:
-            LOGGER.debug("Skipping agent check for %s: missing port or token", self.host.mac)
 
-        # Log accessibility transitions
+        if is_powered_on and self.host.agent_token:
+            try:
+                agent_status = await async_get_agent_status(
+                    self.hass,
+                    self.host.address,
+                    self.host.agent_port,
+                    self.host.agent_token,
+                )
+                is_accessible = True
+            except Exception as err:  # noqa: BLE001
+                LOGGER.warning("Agent unhealthy for %s (%s): %s", self.host.mac, self.host.address, err)
+                # We don't raise UpdateFailed here because the host is technically "up"
+                # but the daemon is failing. Entities can handle this via availability.
+
         if is_accessible != self.host.is_agent_accessible:
             status = "Online" if is_accessible else "Offline"
             self.manager.async_log_activity(self.host.mac, f"Agent is {status}")
 
-        # Update the host state
         self.host.is_agent_accessible = is_accessible
-        self.host.is_powered_on = is_alive
+        self.host.is_powered_on = is_powered_on
 
         if is_accessible and agent_status:
             self.host.last_agent_accessible = dt_util.utcnow().isoformat()

@@ -30,19 +30,21 @@ class RemoteHost:
     os: str | None = None
     agent_service_manager: str | None = None
 
-    # Agent accessibility status
     is_agent_accessible: bool = False
     is_powered_on: bool = False
     last_agent_accessible: str | None = None
-
-    # this comes from the UI, not the webhook
     next_boot_option: str = DEFAULT_BOOT_OPTION_NONE
-
-    # this also comes from the UI
     off_action: list[dict[str, Any]] | None = None
-
-    # recent activity log
     activity_history: list[str] = field(default_factory=list)
+
+    @property
+    def formatted_boot_options(self) -> list[str]:
+        """Return boot options with (none) prepended for the UI."""
+        if not self.boot_options:
+            return [DEFAULT_BOOT_OPTION_NONE]
+        if self.boot_options[0] == DEFAULT_BOOT_OPTION_NONE:
+            return self.boot_options
+        return [DEFAULT_BOOT_OPTION_NONE, *self.boot_options]
 
     def update_from_payload(self, payload: dict[str, Any]) -> None:
         """Safely update the host state from incoming webhook data."""
@@ -54,7 +56,7 @@ class RemoteHost:
         self.broadcast_port = payload.get(CONF_BROADCAST_PORT, self.broadcast_port)
 
     def agent_is_configured(self) -> bool:
-        """Determine whether or not the host has a agent configured."""
+        """Check if the host has an agent configured."""
         return bool(self.address and self.agent_port and self.agent_token)
 
 
