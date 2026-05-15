@@ -79,7 +79,8 @@ async def test_async_update_boot_options_new_host(manager, hass, mock_coordinato
 
         assert "00:11:22:33:44:55" in manager.hosts
         host = manager.hosts["00:11:22:33:44:55"]
-        assert host.boot_options == [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "windows"]
+        assert host.boot_options == ["ubuntu", "windows"]
+        assert host.formatted_boot_options == [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "windows"]
         assert mock_dispatch.call_count == 2
         mock_coordinator.async_set_updated_data.assert_called()
 
@@ -107,12 +108,13 @@ async def test_async_update_boot_options_none_option_already_present(manager, ha
 
     host = manager.hosts["00:11:22:33:44:55"]
     assert host.boot_options == [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "windows"]
+    assert host.formatted_boot_options == [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "windows"]
     # Once for registration, once for push
     assert mock_coordinator.async_set_updated_data.call_count == 2
 
 
 async def test_async_update_boot_options_empty_boot_options(manager, hass, mock_coordinator):
-    """Test that DEFAULT_BOOT_OPTION_NONE is added when boot_options is empty."""
+    """Test that formatted_boot_options handles empty boot_options."""
     # Setup host
     reg_payload = {
         "action": "register_agent_token",
@@ -133,7 +135,8 @@ async def test_async_update_boot_options_empty_boot_options(manager, hass, mock_
     manager.async_update_boot_options("00:11:22:33:44:55", push_payload)
 
     host = manager.hosts["00:11:22:33:44:55"]
-    assert host.boot_options == [DEFAULT_BOOT_OPTION_NONE]
+    assert host.boot_options == []
+    assert host.formatted_boot_options == [DEFAULT_BOOT_OPTION_NONE]
 
 
 async def test_async_update_boot_options_update_existing_host(manager, hass, mock_coordinator):
@@ -159,7 +162,8 @@ async def test_async_update_boot_options_update_existing_host(manager, hass, moc
     manager.async_update_boot_options(mac, payload)
 
     assert host.address == "new-hostname.local"
-    assert host.boot_options == [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "arch"]
+    assert host.boot_options == ["ubuntu", "arch"]
+    assert host.formatted_boot_options == [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "arch"]
     mock_coordinator.async_set_updated_data.assert_called_once_with(host)
 
 
@@ -169,7 +173,7 @@ async def test_async_set_and_consume_next_boot_option(manager, hass, mock_coordi
     host = RemoteHost(
         mac=mac,
         address="test.local",
-        boot_options=[DEFAULT_BOOT_OPTION_NONE, "ubuntu", "windows"],
+        boot_options=["ubuntu", "windows"],
     )
     manager.hosts[mac] = host
     manager.coordinators[mac] = mock_coordinator
@@ -291,7 +295,8 @@ async def test_async_update_boot_options_resets_invalid_next_boot(manager, hass,
 
     manager.async_update_boot_options(mac, payload)
 
-    assert host.boot_options == [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "fedora"]
+    assert host.boot_options == ["ubuntu", "fedora"]
+    assert host.formatted_boot_options == [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "fedora"]
     assert host.next_boot_option == DEFAULT_BOOT_OPTION_NONE
     mock_coordinator.async_set_updated_data.assert_called_once_with(host)
 

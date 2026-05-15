@@ -4,9 +4,9 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from custom_components.grubstation.const import SIGNAL_NEW_HOST
-from custom_components.grubstation.coordinator import GrubStationCoordinator
+from custom_components.grubstation.coordinator import GrubStationCoordinator, async_check_tcp_reachability
 from custom_components.grubstation.data import RemoteHost
-from custom_components.grubstation.switch import GrubStationManagerSwitch, _async_ping_host, async_setup_entry
+from custom_components.grubstation.switch import GrubStationManagerSwitch, async_setup_entry
 from homeassistant.core import HomeAssistant
 
 
@@ -22,24 +22,25 @@ def get_mock_coordinator(hass: HomeAssistant, host: RemoteHost) -> MagicMock:
     return coordinator
 
 
-async def test_async_ping_host_alive():
-    """Test the async ping command when host is alive."""
-    mock_result = MagicMock()
-    mock_result.is_alive = True
+async def test_async_check_tcp_reachability_alive():
+    """Test the TCP reachability command when host is alive."""
     with patch(
-        "custom_components.grubstation.coordinator.async_ping",
-        return_value=mock_result,
-    ):
-        assert await _async_ping_host("192.168.1.10") is True
+        "asyncio.open_connection",
+        new_callable=AsyncMock,
+    ) as mock_connect:
+        mock_writer = MagicMock()
+        mock_writer.wait_closed = AsyncMock()
+        mock_connect.return_value = (MagicMock(), mock_writer)
+        assert await async_check_tcp_reachability("192.168.1.10", 8081) is True
 
 
-async def test_async_ping_host_dead():
-    """Test the async ping command when host is dead or throws an error."""
+async def test_async_check_tcp_reachability_dead():
+    """Test the TCP reachability command when host is dead or throws an error."""
     with patch(
-        "custom_components.grubstation.coordinator.async_ping",
-        side_effect=Exception("Boom"),
+        "asyncio.open_connection",
+        side_effect=OSError("Boom"),
     ):
-        assert await _async_ping_host("192.168.1.10") is False
+        assert await async_check_tcp_reachability("192.168.1.10", 8081) is False
 
 
 async def test_switch_device_info(hass: HomeAssistant):
@@ -56,10 +57,11 @@ async def test_switch_device_info(hass: HomeAssistant):
 
 
 async def test_switch_async_turn_on_starts_task(hass):
-    """Test switch async_turn_on sends packet and starts the background ping loop."""
+    """Test switch async_turn_on sends packet and starts the background verification loop."""
     host = RemoteHost(
         mac="00:11:22:33:44:55",
         address="test.local",
+        agent_port=8081,
     )
     coordinator = get_mock_coordinator(hass, host)
     switch = GrubStationManagerSwitch(hass, coordinator)
@@ -68,7 +70,6 @@ async def test_switch_async_turn_on_starts_task(hass):
     with (
         patch("custom_components.grubstation.switch.wakeonlan.send_magic_packet") as mock_send,
         patch.object(hass, "async_create_background_task") as mock_task_creator,
-        patch.object(switch, "async_write_ha_state") as mock_write,
     ):
         mock_task = MagicMock()
         mock_task.done.return_value = False
@@ -79,8 +80,7 @@ async def test_switch_async_turn_on_starts_task(hass):
 
         mock_send.assert_called_once_with("00:11:22:33:44:55")
         mock_task_creator.assert_called_once()
-        assert switch.is_on is True
-        mock_write.assert_called_once()
+        assert switch.is_on is False  # Still False because it comes from coordinator.data
 
         # Close the coroutine that was passed into the mock to prevent RuntimeWarnings
         mock_task_creator.call_args[0][0].close()
@@ -105,6 +105,7 @@ async def test_switch_async_turn_on_with_broadcast_and_cancels_task(hass):
     host = RemoteHost(
         mac="00:11:22:33:44:55",
         address="test.local",
+        agent_port=8081,
         broadcast_address="192.168.1.255",
         broadcast_port=9,
     )
@@ -112,7 +113,7 @@ async def test_switch_async_turn_on_with_broadcast_and_cancels_task(hass):
     switch = GrubStationManagerSwitch(hass, coordinator)
     switch.hass = hass
 
-    # Mock an existing active ping task
+    # Mock an existing active task
     mock_task = MagicMock()
     mock_task.done.return_value = False
     switch._ping_task = mock_task
@@ -120,7 +121,6 @@ async def test_switch_async_turn_on_with_broadcast_and_cancels_task(hass):
     with (
         patch("custom_components.grubstation.switch.wakeonlan.send_magic_packet") as mock_send,
         patch.object(hass, "async_create_background_task") as mock_create_task,
-        patch.object(switch, "async_write_ha_state") as mock_write,
     ):
         new_mock_task = MagicMock()
         new_mock_task.done.return_value = False
@@ -132,8 +132,6 @@ async def test_switch_async_turn_on_with_broadcast_and_cancels_task(hass):
         mock_send.assert_called_once_with("00:11:22:33:44:55", ip_address="192.168.1.255", port=9)
         mock_task.cancel.assert_called_once()
         mock_create_task.assert_called_once()
-        assert switch.is_on is True
-        mock_write.assert_called_once()
 
         # Close the coroutine that was passed into the mock to prevent RuntimeWarnings
         mock_create_task.call_args[0][0].close()
@@ -144,12 +142,12 @@ async def test_switch_async_turn_off(hass):
     host = RemoteHost(
         mac="00:11:22:33:44:55",
         address="test.local",
-        off_action={"service": "test.service"},
+        agent_port=8081,
+        off_action=[{"service": "test.service"}],
     )
     coordinator = get_mock_coordinator(hass, host)
     switch = GrubStationManagerSwitch(hass, coordinator)
     switch.hass = hass
-    switch._attr_is_on = True
 
     mock_script = MagicMock()
     mock_script.async_run = AsyncMock()
@@ -157,15 +155,12 @@ async def test_switch_async_turn_off(hass):
 
     with (
         patch.object(hass, "async_create_background_task") as mock_task_creator,
-        patch.object(switch, "async_write_ha_state") as mock_write,
     ):
         mock_task = MagicMock()
         mock_task.done.return_value = False
         mock_task_creator.return_value = mock_task
 
         await switch.async_turn_off()
-        assert switch.is_on is False
-        mock_write.assert_called_once()
         mock_script.async_run.assert_called_once()
         mock_task_creator.assert_called_once()
         mock_task_creator.call_args[0][0].close()
@@ -183,14 +178,12 @@ async def test_switch_async_turn_off_via_agent(hass: HomeAssistant) -> None:
     coordinator = get_mock_coordinator(hass, host)
     switch = GrubStationManagerSwitch(hass, coordinator)
     switch.hass = hass
-    switch._attr_is_on = True
 
     with (
         patch(
             "custom_components.grubstation.switch.async_send_turn_off_command",
             new_callable=AsyncMock,
         ) as mock_agent_call,
-        patch.object(switch, "async_write_ha_state") as mock_write,
         patch.object(hass, "async_create_background_task") as mock_task_creator,
     ):
         mock_task = MagicMock()
@@ -199,10 +192,8 @@ async def test_switch_async_turn_off_via_agent(hass: HomeAssistant) -> None:
 
         await switch.async_turn_off()
 
-        assert switch.is_on is False
         mock_agent_call.assert_called_once_with(hass, "192.168.1.50", 8081, "agent_secret")
         mock_task_creator.assert_called_once()
-        mock_write.assert_called_once()
         mock_task_creator.call_args[0][0].close()
 
 
@@ -211,6 +202,7 @@ async def test_switch_async_turn_off_cancels_task(hass):
     host = RemoteHost(
         mac="00:11:22:33:44:55",
         address="test.local",
+        agent_port=8081,
     )
     coordinator = get_mock_coordinator(hass, host)
     with patch("custom_components.grubstation.switch.Script") as mock_script_class:
@@ -225,7 +217,6 @@ async def test_switch_async_turn_off_cancels_task(hass):
 
     with (
         patch.object(hass, "async_create_background_task") as mock_task_creator,
-        patch.object(switch, "async_write_ha_state") as mock_write,
     ):
         new_mock_task = MagicMock()
         new_mock_task.done.return_value = False
@@ -234,110 +225,97 @@ async def test_switch_async_turn_off_cancels_task(hass):
         await switch.async_turn_off()
         mock_task.cancel.assert_called_once()
         mock_task_creator.assert_called_once()
-        mock_write.assert_called_once()
         mock_task_creator.call_args[0][0].close()
 
 
-async def test_switch_async_ping_loop_success(hass):
-    """Test the background ping loop resolving successfully."""
+async def test_switch_async_verify_state_success(hass):
+    """Test the background verification loop resolving successfully."""
     host = RemoteHost(
         mac="00:11:22:33:44:55",
         address="test.local",
+        agent_port=8081,
     )
     coordinator = get_mock_coordinator(hass, host)
     switch = GrubStationManagerSwitch(hass, coordinator)
     switch.hass = hass
-    switch._attr_is_on = True
 
     with (
         patch("asyncio.sleep"),
-        patch.object(switch, "async_write_ha_state") as mock_write,
         patch(
-            "custom_components.grubstation.switch._async_ping_host",
+            "custom_components.grubstation.switch.async_check_tcp_reachability",
             side_effect=[False, True],
-        ) as mock_ping,
+        ) as mock_reachability,
     ):
-        await switch._async_ping_loop("192.168.1.100", target_state=True)
-        assert mock_ping.call_count == 2
-        assert switch._attr_is_on is True
-        mock_write.assert_not_called()
+        await switch._async_verify_state(target_state=True)
+        assert mock_reachability.call_count == 2
         coordinator.async_request_refresh.assert_called_once()
 
 
-async def test_switch_async_ping_loop_timeout(hass):
-    """Test the background ping loop timing out after 3 minutes."""
+async def test_switch_async_verify_state_timeout(hass):
+    """Test the background verification loop timing out after 3 minutes."""
     host = RemoteHost(
         mac="00:11:22:33:44:55",
         address="test.local",
+        agent_port=8081,
     )
     coordinator = get_mock_coordinator(hass, host)
     switch = GrubStationManagerSwitch(hass, coordinator)
     switch.hass = hass
-    switch._attr_is_on = True
 
     with (
         patch("asyncio.sleep"),
-        patch.object(switch, "async_write_ha_state") as mock_write,
         patch(
-            "custom_components.grubstation.switch._async_ping_host",
+            "custom_components.grubstation.switch.async_check_tcp_reachability",
             return_value=False,
-        ) as mock_ping,
+        ) as mock_reachability,
     ):
-        await switch._async_ping_loop("192.168.1.100", target_state=True)
-        assert mock_ping.call_count == 36
-        assert switch._attr_is_on is False
-        mock_write.assert_called_once()
+        await switch._async_verify_state(target_state=True)
+        assert mock_reachability.call_count == 36
 
 
-async def test_switch_async_ping_loop_off_success(hass):
-    """Test the background ping off loop resolving successfully."""
+async def test_switch_async_verify_state_off_success(hass):
+    """Test the background verification off loop resolving successfully."""
     host = RemoteHost(
         mac="00:11:22:33:44:55",
         address="test.local",
+        agent_port=8081,
     )
     coordinator = get_mock_coordinator(hass, host)
     switch = GrubStationManagerSwitch(hass, coordinator)
     switch.hass = hass
-    switch._attr_is_on = False
 
     with (
         patch("asyncio.sleep"),
-        patch.object(switch, "async_write_ha_state") as mock_write,
         patch(
-            "custom_components.grubstation.switch._async_ping_host",
+            "custom_components.grubstation.switch.async_check_tcp_reachability",
             side_effect=[True, False],
-        ) as mock_ping,
+        ) as mock_reachability,
     ):
-        await switch._async_ping_loop("192.168.1.100", target_state=False)
-        assert mock_ping.call_count == 2
-        assert switch._attr_is_on is False
-        mock_write.assert_not_called()
+        await switch._async_verify_state(target_state=False)
+        assert mock_reachability.call_count == 2
         coordinator.async_request_refresh.assert_called_once()
 
 
-async def test_switch_async_ping_loop_off_timeout(hass):
-    """Test the background ping off loop timing out after 3 minutes."""
+async def test_switch_async_verify_state_off_timeout(hass):
+    """Test the background verification off loop timing out after 3 minutes."""
     host = RemoteHost(
         mac="00:11:22:33:44:55",
         address="test.local",
+        agent_port=8081,
     )
     coordinator = get_mock_coordinator(hass, host)
     switch = GrubStationManagerSwitch(hass, coordinator)
     switch.hass = hass
-    switch._attr_is_on = False
 
     with (
         patch("asyncio.sleep"),
-        patch.object(switch, "async_write_ha_state") as mock_write,
         patch(
-            "custom_components.grubstation.switch._async_ping_host",
+            "custom_components.grubstation.switch.async_check_tcp_reachability",
             return_value=True,
-        ) as mock_ping,
+        ) as mock_reachability,
     ):
-        await switch._async_ping_loop("192.168.1.100", target_state=False)
-        assert mock_ping.call_count == 36
-        assert switch._attr_is_on is True
-        mock_write.assert_called_once()
+        await switch._async_verify_state(target_state=False)
+        assert mock_reachability.call_count == 36
 
 
 async def test_async_setup_entry(hass):
@@ -362,10 +340,10 @@ async def test_async_setup_entry(hass):
     with patch("custom_components.grubstation.switch.async_dispatcher_connect") as mock_connect:
         await async_setup_entry(hass, mock_entry, async_add_entities)
 
-        # Both switch entities should be added
-        assert async_add_entities.call_count == 2
-        assert mock_connect.call_count == 2
-        assert mock_entry.async_on_unload.call_count == 2
+        # In simplified logic, it calls async_add_entities once with all entities
+        assert async_add_entities.call_count == 1
+        assert mock_connect.call_count == 1
+        assert mock_entry.async_on_unload.call_count == 1
 
         # Verify the dispatcher callback adds the new entity
         callback = next(call[0][2] for call in mock_connect.call_args_list if call[0][1] == SIGNAL_NEW_HOST)
@@ -374,7 +352,7 @@ async def test_async_setup_entry(hass):
         mock_manager.coordinators[host3.mac] = get_mock_coordinator(hass, host3)
 
         callback(host3.mac)
-        assert async_add_entities.call_count == 3
+        assert async_add_entities.call_count == 2
 
 
 async def test_async_setup_entry_no_coordinator(hass):
@@ -388,13 +366,16 @@ async def test_async_setup_entry_no_coordinator(hass):
 
     with patch("custom_components.grubstation.switch.async_dispatcher_connect") as mock_connect:
         await async_setup_entry(hass, mock_entry, async_add_entities)
+        # Initial call should not have added anything since coordinators is empty
+        assert async_add_entities.call_count == 0
+
         callback = next(call[0][2] for call in mock_connect.call_args_list if call[0][1] == SIGNAL_NEW_HOST)
         callback("00:AA:BB:CC:DD:EE")
         assert async_add_entities.call_count == 0
 
 
 async def test_switch_will_remove_from_hass_cancels_task(hass):
-    """Test that removing the entity cancels an active ping task."""
+    """Test that removing the entity cancels an active task."""
     host = RemoteHost(
         mac="00:11:22:33:44:55",
         address="test.local",
@@ -413,7 +394,7 @@ async def test_switch_will_remove_from_hass_cancels_task(hass):
 
 
 async def test_switch_will_remove_from_hass_ignores_done_task(hass):
-    """Test that removing the entity ignores an already done ping task."""
+    """Test that removing the entity ignores an already done task."""
     host = RemoteHost(
         mac="00:11:22:33:44:55",
         address="test.local",
@@ -432,10 +413,11 @@ async def test_switch_will_remove_from_hass_ignores_done_task(hass):
 
 
 async def test_switch_async_ping_loop_cancelled_initial_sleep(hass):
-    """Test the background ping loop handles cancellation correctly during initial sleep."""
+    """Test the background verification loop handles cancellation correctly during initial sleep."""
     host = RemoteHost(
         mac="00:11:22:33:44:55",
         address="test.local",
+        agent_port=8081,
     )
     coordinator = get_mock_coordinator(hass, host)
     switch = GrubStationManagerSwitch(hass, coordinator)
@@ -443,18 +425,17 @@ async def test_switch_async_ping_loop_cancelled_initial_sleep(hass):
 
     with (
         patch("asyncio.sleep", side_effect=asyncio.CancelledError),
-        patch.object(switch, "async_write_ha_state") as mock_write,
     ):
-        await switch._async_ping_loop("192.168.1.100", target_state=True)
-        # Should exit cleanly without throwing an exception or writing state
-        mock_write.assert_not_called()
+        await switch._async_verify_state(target_state=True)
+        # Should exit cleanly without throwing an exception
 
 
 async def test_switch_async_ping_loop_cancelled_inner_sleep(hass):
-    """Test the background ping loop handles cancellation correctly during loop sleep."""
+    """Test the background verification loop handles cancellation correctly during loop sleep."""
     host = RemoteHost(
         mac="00:11:22:33:44:55",
         address="test.local",
+        agent_port=8081,
     )
     coordinator = get_mock_coordinator(hass, host)
     switch = GrubStationManagerSwitch(hass, coordinator)
@@ -462,13 +443,11 @@ async def test_switch_async_ping_loop_cancelled_inner_sleep(hass):
 
     with (
         patch("asyncio.sleep", side_effect=[None, asyncio.CancelledError]),
-        patch.object(switch, "async_write_ha_state") as mock_write,
         patch(
-            "custom_components.grubstation.switch._async_ping_host",
+            "custom_components.grubstation.switch.async_check_tcp_reachability",
             return_value=False,
-        ) as mock_ping,
+        ) as mock_reachability,
     ):
-        await switch._async_ping_loop("192.168.1.100", target_state=True)
-        # Ping should be called once, then CancelledError breaks the loop cleanly
-        mock_ping.assert_called_once()
-        mock_write.assert_not_called()
+        await switch._async_verify_state(target_state=True)
+        # reachability should be called once, then CancelledError breaks the loop cleanly
+        mock_reachability.assert_called_once()

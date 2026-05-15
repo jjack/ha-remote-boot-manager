@@ -13,7 +13,6 @@ from custom_components.grubstation.const import (
     ATTR_HOST_OS,
     ATTR_LAST_AGENT_ACCESSIBLE,
     ATTR_RECENT_ACTIVITY,
-    SIGNAL_HOST_REMOVED,
     SIGNAL_HOST_UPDATED,
     SIGNAL_NEW_HOST,
 )
@@ -94,11 +93,10 @@ async def test_async_setup_entry(hass: HomeAssistant, mock_coordinator: MagicMoc
         assert isinstance(added_entities[0], GrubStationManagerBinarySensor)
         assert added_entities[0].host.mac == mac
 
-        assert mock_dispatch.call_count == 3
+        assert mock_dispatch.call_count == 2
         mock_dispatch.assert_any_call(hass, SIGNAL_NEW_HOST, mock.ANY)
         mock_dispatch.assert_any_call(hass, SIGNAL_HOST_UPDATED, mock.ANY)
-        mock_dispatch.assert_any_call(hass, SIGNAL_HOST_REMOVED, mock.ANY)
-        assert mock_entry.async_on_unload.call_count == 3
+        assert mock_entry.async_on_unload.call_count == 2
 
         # Test signal callback with agent
         callback = next(call[0][2] for call in mock_dispatch.call_args_list if call[0][1] == SIGNAL_NEW_HOST)
@@ -148,6 +146,9 @@ async def test_async_setup_entry_no_coordinator(hass: HomeAssistant):
 
     with patch("custom_components.grubstation.binary_sensor.async_dispatcher_connect") as mock_dispatch:
         await async_setup_entry(hass, mock_entry, mock_add_entities)
+        # Initial call should not have added anything
+        assert mock_add_entities.call_count == 0
+
         callback = next(call[0][2] for call in mock_dispatch.call_args_list if call[0][1] == SIGNAL_NEW_HOST)
         callback("00:AA:BB:CC:DD:EE")
         assert mock_add_entities.call_count == 0

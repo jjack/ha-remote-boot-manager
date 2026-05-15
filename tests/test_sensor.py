@@ -39,6 +39,7 @@ def mock_coordinator(mock_host):
     """Return a mock coordinator."""
     coordinator = MagicMock()
     coordinator.host = mock_host
+    coordinator.data = mock_host
     return coordinator
 
 
@@ -61,18 +62,17 @@ async def test_sensor_native_value(hass: HomeAssistant, mock_coordinator: MagicM
 async def test_sensor_device_info(hass: HomeAssistant, mock_coordinator: MagicMock):
     """Test sensor device info."""
     sensor = GrubStationManagerSensor(mock_coordinator)
-    # (Home Assistant converts DeviceInfo to dict)
     device_info = sensor._attr_device_info
     assert device_info is not None
 
 
 async def test_sensor_extra_state_attributes(hass: HomeAssistant, mock_coordinator: MagicMock):
     """Test sensor extra state attributes."""
-    mock_coordinator.host.os = "linux"
-    mock_coordinator.host.agent_service_manager = "systemd"
-    mock_coordinator.host.agent_version = "1.0.0"
-    mock_coordinator.host.agent_status = "ok"
-    mock_coordinator.host.activity_history = ["Activity 1"]
+    mock_coordinator.data.os = "linux"
+    mock_coordinator.data.agent_service_manager = "systemd"
+    mock_coordinator.data.agent_version = "1.0.0"
+    mock_coordinator.data.agent_status = "ok"
+    mock_coordinator.data.activity_history = ["Activity 1"]
 
     sensor = GrubStationManagerSensor(mock_coordinator)
 
@@ -130,6 +130,7 @@ async def test_async_setup_entry_no_agent_hosts(hass: HomeAssistant):
 
     with patch("custom_components.grubstation.sensor.async_dispatcher_connect"):
         await async_setup_entry(hass, mock_entry, mock_add_entities)
+        # Should not be called if entities list is empty
         mock_add_entities.assert_not_called()
 
 
@@ -178,6 +179,9 @@ async def test_async_setup_entry_no_coordinator(hass: HomeAssistant):
 
     with patch("custom_components.grubstation.sensor.async_dispatcher_connect") as mock_dispatch:
         await async_setup_entry(hass, mock_entry, mock_add_entities)
+        # Initial call should not have added anything
+        assert mock_add_entities.call_count == 0
+
         callback = next(call[0][2] for call in mock_dispatch.call_args_list if call[0][1] == SIGNAL_NEW_HOST)
         callback("00:AA:BB:CC:DD:EE")
         assert mock_add_entities.call_count == 0

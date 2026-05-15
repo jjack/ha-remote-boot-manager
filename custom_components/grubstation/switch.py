@@ -40,8 +40,8 @@ async def async_setup_entry(
         if mac_address:
             if coordinator := manager.coordinators.get(mac_address):
                 async_add_entities([GrubStationManagerSwitch(hass, coordinator)])
-        else:
-            async_add_entities([GrubStationManagerSwitch(hass, coord) for coord in manager.coordinators.values()])
+        elif entities := [GrubStationManagerSwitch(hass, coord) for coord in manager.coordinators.values()]:
+            async_add_entities(entities)
 
     entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_NEW_HOST, async_discover_entities))
     async_discover_entities()
@@ -72,6 +72,11 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
     def is_on(self) -> bool:
         """Return true if the host is powered on."""
         return self.coordinator.data.is_powered_on
+
+    @property
+    def assumed_state(self) -> bool:
+        """Return True if we can't reliably check the host state."""
+        return not (self.coordinator.host.address and self.coordinator.host.agent_port)
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the entity on."""

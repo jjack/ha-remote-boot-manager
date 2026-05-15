@@ -44,14 +44,12 @@ async def async_setup_entry(
             if coordinator := manager.coordinators.get(mac_address):
                 if coordinator.host.agent_is_configured():
                     async_add_entities([GrubStationManagerSensor(coordinator)])
-        else:
-            async_add_entities(
-                [
-                    GrubStationManagerSensor(coord)
-                    for coord in manager.coordinators.values()
-                    if coord.host.agent_is_configured()
-                ]
-            )
+        elif entities := [
+            GrubStationManagerSensor(coord)
+            for coord in manager.coordinators.values()
+            if coord.host.agent_is_configured()
+        ]:
+            async_add_entities(entities)
 
     entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_NEW_HOST, async_discover_entities))
     entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_HOST_UPDATED, async_discover_entities))

@@ -1,10 +1,12 @@
 """Tests for the GrubStation agent communication."""
 
+import asyncio
 from http import HTTPStatus
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiohttp
 import pytest
+import voluptuous as vol
 
 from custom_components.grubstation.agent import async_get_agent_status, async_send_turn_off_command
 from custom_components.grubstation.const import API_KEY_OS, API_KEY_SERVICE_MANAGER, API_KEY_STATUS, API_KEY_VERSION
@@ -130,18 +132,18 @@ async def test_async_get_agent_status_success(hass: HomeAssistant) -> None:
 
 
 async def test_async_get_agent_status_failure(hass: HomeAssistant) -> None:
-    """Test status check handles failures gracefully."""
+    """Test status check handles failures by raising."""
     with patch("custom_components.grubstation.agent.async_get_clientsession") as mock_session_getter:
         mock_session = MagicMock()
         mock_session.get.side_effect = TimeoutError()
         mock_session_getter.return_value = mock_session
 
-        result = await async_get_agent_status(hass, "1.2.3.4", 8081, "key")
-        assert result is None
+        with pytest.raises(asyncio.TimeoutError):
+            await async_get_agent_status(hass, "1.2.3.4", 8081, "key")
 
 
 async def test_async_get_agent_status_invalid_schema(hass: HomeAssistant) -> None:
-    """Test status check handles invalid schema."""
+    """Test status check handles invalid schema by raising."""
     with patch("custom_components.grubstation.agent.async_get_clientsession") as mock_session_getter:
         mock_session = MagicMock()
         mock_response = MagicMock()
@@ -154,5 +156,5 @@ async def test_async_get_agent_status_invalid_schema(hass: HomeAssistant) -> Non
         mock_session.get.return_value = AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
         mock_session_getter.return_value = mock_session
 
-        result = await async_get_agent_status(hass, "1.2.3.4", 8081, "key")
-        assert result is None
+        with pytest.raises(vol.Invalid):
+            await async_get_agent_status(hass, "1.2.3.4", 8081, "key")

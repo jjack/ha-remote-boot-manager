@@ -34,8 +34,8 @@ async def async_setup_entry(
         if mac_address:
             if coordinator := manager.coordinators.get(mac_address):
                 async_add_entities([GrubStationManagerSelect(coordinator)])
-        else:
-            async_add_entities([GrubStationManagerSelect(coord) for coord in manager.coordinators.values()])
+        elif entities := [GrubStationManagerSelect(coord) for coord in manager.coordinators.values()]:
+            async_add_entities(entities)
 
     entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_NEW_HOST, async_discover_entities))
     async_discover_entities()
