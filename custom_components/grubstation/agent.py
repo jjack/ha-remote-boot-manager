@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, cast
 
+import aiohttp
 import voluptuous as vol
 from yarl import URL
 
@@ -12,7 +13,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
 
-from .const import API_KEY_OS, API_KEY_SERVICE_MANAGER, API_KEY_STATUS, API_KEY_VERSION
+from .const import API_KEY_OS, API_KEY_SERVICE_MANAGER, API_KEY_STATUS, API_KEY_VERSION, LOGGER
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -34,10 +35,15 @@ async def async_send_turn_off_command(hass: HomeAssistant, address: str, agent_p
     url = URL.build(scheme="http", host=address, port=agent_port, path="/shutdown")
     headers = {"Authorization": f"Bearer {api_key}"}
 
-    async with asyncio.timeout(5):
-        async with session.post(url, headers=headers) as response:
-            response.raise_for_status()
-            data = await response.json()
+    try:
+        async with asyncio.timeout(5):
+            async with session.post(url, headers=headers) as response:
+                response.raise_for_status()
+                data = await response.json()
+    except Exception as err:
+        if not isinstance(err, (aiohttp.ClientError, asyncio.TimeoutError)):
+            LOGGER.exception("Unexpected error sending shutdown command to %s", address)
+        raise HomeAssistantError(f"Shutdown command failed: {err}") from err
 
     if data.get("status") == "error":
         raise HomeAssistantError(data.get("error", "Unknown error from agent"))
