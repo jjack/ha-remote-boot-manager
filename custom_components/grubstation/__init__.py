@@ -61,26 +61,24 @@ if TYPE_CHECKING:
 
     from .data import GrubStationManagerConfigEntry
 
+from homeassistant.helpers.service import async_extract_config_entry_ids
+
+...
 SERVICE_SEND_TURN_ON_COMMAND = "send_turn_on_command"
 SERVICE_SEND_TURN_OFF_COMMAND = "send_turn_off_command"
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
-TURN_ON_COMMAND_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_MAC): cv.string,
-        vol.Optional(CONF_BROADCAST_ADDRESS, default=DEFAULT_BROADCAST_ADDRESS): cv.string,
-        vol.Optional(CONF_BROADCAST_PORT, default=DEFAULT_BROADCAST_PORT): cv.port,
-    }
+TURN_ON_COMMAND_SCHEMA = vol.All(
+    cv.make_entity_service_schema(
+        {
+            vol.Optional(CONF_BROADCAST_ADDRESS): cv.string,
+            vol.Optional(CONF_BROADCAST_PORT): cv.port,
+        }
+    )
 )
 
-TURN_OFF_COMMAND_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_ADDRESS): cv.string,
-        vol.Optional(CONF_AGENT_PORT, default=DEFAULT_AGENT_PORT): cv.port,
-        vol.Required(CONF_AGENT_TOKEN): cv.string,
-    }
-)
+TURN_OFF_COMMAND_SCHEMA = cv.make_entity_service_schema({})
 
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
@@ -88,8 +86,6 @@ PLATFORMS: list[Platform] = [
     Platform.SENSOR,
     Platform.SWITCH,
 ]
-
-
 async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     """Set up the GrubStation component."""
     # Note: GrubConfigView requires a functioning http component
@@ -98,22 +94,56 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
 
     async def send_turn_on_command(call: ServiceCall) -> None:
         """Handle service call to send wake-on-LAN command to a host."""
-        mac_address = call.data[CONF_MAC]
-        kwargs = {}
-        if CONF_BROADCAST_ADDRESS in call.data:
-            kwargs["ip_address"] = call.data[CONF_BROADCAST_ADDRESS]
-        if CONF_BROADCAST_PORT in call.data:
-            kwargs["port"] = call.data[CONF_BROADCAST_PORT]
+        entry_ids = await async_extract_config_entry_ids(hass, call)
+        
+        for entry_id in entry_ids:
+            entry = hass.config_entries.async_get_entry(entry_id)
+            if not entry or entry.domain != DOMAIN:
+                continue
+            
+            # Get coordinator or manager depending on entry type
+            if not entry.data.get(CONF_MAC):
+                continue # Skip global entry
+            
+            coordinator: GrubStationCoordinator = entry.runtime_data
+            mac_address = coordinator.host.mac
+            
+            kwargs = {}
+            if CONF_BROADCAST_ADDRESS in call.data:
+                kwargs["ip_address"] = call.data[CONF_BROADCAST_ADDRESS]
+            elif coordinator.host.broadcast_address:
+                kwargs["ip_address"] = coordinator.host.broadcast_address
+                
+            if CONF_BROADCAST_PORT in call.data:
+                kwargs["port"] = call.data[CONF_BROADCAST_PORT]
+            elif coordinator.host.broadcast_port:
+                kwargs["port"] = coordinator.host.broadcast_port
 
-        await hass.async_add_executor_job(partial(wakeonlan.send_magic_packet, mac_address, **kwargs))
+            await hass.async_add_executor_job(partial(wakeonlan.send_magic_packet, mac_address, **kwargs))
 
     async def send_turn_off_command(call: ServiceCall) -> None:
         """Handle service call to send shutdown command to a host."""
-        address: str = call.data[CONF_ADDRESS]
-        agent_port: int = call.data[CONF_AGENT_PORT]
-        agent_token: str = call.data[CONF_AGENT_TOKEN]
+        entry_ids = await async_extract_config_entry_ids(hass, call)
+        
+        for entry_id in entry_ids:
+            entry = hass.config_entries.async_get_entry(entry_id)
+            if not entry or entry.domain != DOMAIN:
+                continue
+            
+            if not entry.data.get(CONF_MAC):
+                continue # Skip global entry
 
-        await async_send_turn_off_command(hass, address, agent_port, agent_token)
+            coordinator: GrubStationCoordinator = entry.runtime_data
+            
+            if coordinator.host.address and coordinator.host.agent_port and coordinator.host.agent_token:
+                await async_send_turn_off_command(
+                    hass, 
+                    coordinator.host.address, 
+                    coordinator.host.agent_port, 
+                    coordinator.host.agent_token
+                )
+            else:
+                LOGGER.warning("Host %s is not configured for agent shutdown", coordinator.host.mac)
 
     hass.services.async_register(
         DOMAIN,

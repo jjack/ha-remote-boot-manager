@@ -47,23 +47,31 @@ async def test_async_turn_on(hass, mock_coordinator):
     """Test turning the switch on (Wake-on-LAN)."""
     switch = GrubStationManagerSwitch(hass, mock_coordinator)
     
-    with patch.object(hass, "async_add_executor_job", new_callable=AsyncMock) as mock_job:
-        with patch("wakeonlan.send_magic_packet") as mock_send_packet:
-            await switch.async_turn_on()
-            mock_job.assert_called_once()
-            mock_coordinator.async_log_activity.assert_called_with("Sending Wake-on-LAN command")
+    with (
+        patch.object(hass, "async_add_executor_job", new_callable=AsyncMock) as mock_job,
+        patch.object(hass, "async_create_background_task", return_value=MagicMock()) as mock_task,
+        patch("wakeonlan.send_magic_packet") as mock_send_packet,
+    ):
+        await switch.async_turn_on()
+        mock_job.assert_called_once()
+        mock_task.assert_called_once()
+        mock_task.call_args.args[0].close() # Close unawaited coroutine
+        mock_coordinator.async_log_activity.assert_called_with("Sending Wake-on-LAN command")
 
 
 async def test_async_turn_off_agent(hass, mock_coordinator):
     """Test turning the switch off via agent."""
     switch = GrubStationManagerSwitch(hass, mock_coordinator)
     
-    with patch.object(hass, "async_create_background_task", return_value=MagicMock()) as mock_task:
-        with patch("custom_components.grubstation.switch.async_send_turn_off_command", new_callable=AsyncMock) as mock_send_off:
-            await switch.async_turn_off()
-            mock_send_off.assert_called_once()
-            mock_task.assert_called_once()
-            mock_coordinator.async_log_activity.assert_called_with("Sending shutdown command to agent")
+    with (
+        patch.object(hass, "async_create_background_task", return_value=MagicMock()) as mock_task,
+        patch("custom_components.grubstation.switch.async_send_turn_off_command", new_callable=AsyncMock) as mock_send_off,
+    ):
+        await switch.async_turn_off()
+        mock_send_off.assert_called_once()
+        mock_task.assert_called_once()
+        mock_task.call_args.args[0].close() # Close unawaited coroutine
+        mock_coordinator.async_log_activity.assert_called_with("Sending shutdown command to agent")
 
 
 async def test_async_setup_entry(hass: HomeAssistant, mock_coordinator):

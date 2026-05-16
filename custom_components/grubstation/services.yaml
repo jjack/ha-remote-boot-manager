@@ -1,10 +1,8 @@
 send_turn_on_command:
+  target:
+    entity:
+      integration: grubstation
   fields:
-    mac:
-      required: true
-      example: "00:01:02:03:04:05"
-      selector:
-        text:
     broadcast_address:
       required: false
       example: "255.255.255.255"
@@ -20,22 +18,6 @@ send_turn_on_command:
           max: 65535
 
 send_turn_off_command:
-  fields:
-    address:
-      required: true
-      example: "example.local"
-      selector:
-        text:
-    port:
-      required: true
-      example: 8081
-      default: 8081
-      selector:
-        number:
-          min: 0
-          max: 65535
-    api_key:
-      required: true
-      example: "my_secret_api_key"
-      selector:
-        text:
+  target:
+    entity:
+      integration: grubstation

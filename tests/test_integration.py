@@ -228,14 +228,15 @@ async def test_remove_integration_cleans_up(hass: HomeAssistant, discovered_clie
     assert device is None
 
 
-async def test_global_send_magic_packet_service(hass: HomeAssistant, setup_integration) -> None:
-    """Test that the global send_turn_on_command service works."""
+async def test_global_send_magic_packet_service(hass: HomeAssistant, discovered_client) -> None:
+    """Test that the global send_turn_on_command service works with entity targeting."""
+    entity_id_switch = "switch.aa_bb_cc_dd_ee_ff_power"
     with patch("custom_components.grubstation.wakeonlan.send_magic_packet") as mock_wake:
         await hass.services.async_call(
             DOMAIN,
             "send_turn_on_command",
             {
-                "mac": "aa:bb:cc:dd:ee:ff",
+                "entity_id": entity_id_switch,
                 "broadcast_address": "192.168.1.255",
                 "broadcast_port": 9,
             },
@@ -245,8 +246,24 @@ async def test_global_send_magic_packet_service(hass: HomeAssistant, setup_integ
         mock_wake.assert_called_once_with("aa:bb:cc:dd:ee:ff", ip_address="192.168.1.255", port=9)
 
 
-async def test_global_send_turn_off_command_service(hass: HomeAssistant, setup_integration) -> None:
-    """Test that the global send_turn_off_command service works."""
+async def test_global_send_turn_off_command_service(hass: HomeAssistant, discovered_client) -> None:
+    """Test that the global send_turn_off_command service works with entity targeting."""
+    # We need to ensure the host has agent details configured for this test
+    entity_id_select = "select.aa_bb_cc_dd_ee_ff_next_boot_option"
+    
+    # Update host data via webhook to include agent details
+    client = discovered_client
+    webhook_url = "/api/webhook/test_webhook_id"
+    payload = {
+        "action": "register_agent_token",
+        "mac": "aa:bb:cc:dd:ee:ff",
+        "address": "1.2.3.4",
+        "agent_port": 8081,
+        "agent_token": "secret",
+    }
+    await client.post(webhook_url, json=payload)
+    await hass.async_block_till_done()
+
     with patch(
         "custom_components.grubstation.async_send_turn_off_command",
         new_callable=AsyncMock,
@@ -255,9 +272,7 @@ async def test_global_send_turn_off_command_service(hass: HomeAssistant, setup_i
             DOMAIN,
             "send_turn_off_command",
             {
-                "address": "1.2.3.4",
-                "agent_port": 8081,
-                "agent_token": "secret",
+                "entity_id": entity_id_select,
             },
             blocking=True,
         )
@@ -381,14 +396,15 @@ async def test_webhook_update_boot_options_unregistered_host(hass: HomeAssistant
     assert state.attributes.get("options") == [DEFAULT_BOOT_OPTION_NONE, "ubuntu"]
 
 
-async def test_global_send_magic_packet_service_minimal(hass: HomeAssistant, setup_integration) -> None:
-    """Test that the global send_turn_on_command service works with minimal data."""
+async def test_global_send_magic_packet_service_minimal(hass: HomeAssistant, discovered_client) -> None:
+    """Test that the global send_turn_on_command service works with minimal data and targeting."""
+    entity_id_switch = "switch.aa_bb_cc_dd_ee_ff_power"
     with patch("custom_components.grubstation.wakeonlan.send_magic_packet") as mock_wake:
         await hass.services.async_call(
             DOMAIN,
             "send_turn_on_command",
             {
-                "mac": "aa:bb:cc:dd:ee:ff",
+                "entity_id": entity_id_switch,
             },
             blocking=True,
         )
