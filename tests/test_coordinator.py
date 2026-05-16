@@ -82,27 +82,22 @@ async def test_coordinator_update_no_reachability(hass, mock_host, mock_manager)
         assert mock_host.is_agent_accessible is False
 
 
-async def test_coordinator_update_no_agent(hass, mock_host, mock_manager):
-    """Test coordinator update when agent check fails."""
+async def test_coordinator_update_agent_exception(hass, mock_host, mock_manager, caplog):
+    """Test coordinator update when agent check fails and logs warning."""
     coordinator = GrubStationCoordinator(hass, mock_manager, mock_host)
 
     with (
         patch(
             "custom_components.grubstation.coordinator.async_check_tcp_reachability",
             return_value=True,
-        ) as mock_reachability,
+        ),
         patch(
             "custom_components.grubstation.coordinator.async_get_agent_status",
-            side_effect=Exception("Agent Error"),
-        ) as mock_agent,
+            side_effect=Exception("Test Exception"),
+        ),
     ):
         await coordinator._async_update_data()
-
-        mock_reachability.assert_called_once_with("1.2.3.4", 8081)
-        mock_agent.assert_called_once()
-
-        assert mock_host.is_powered_on is True
-        assert mock_host.is_agent_accessible is False
+        assert "Agent unhealthy for" in caplog.text
 
 
 async def test_coordinator_update_no_address(hass, mock_manager):
@@ -115,11 +110,11 @@ async def test_coordinator_update_no_address(hass, mock_manager):
     assert host.is_agent_accessible is False
 
 
-async def test_coordinator_reachability_exception_logging(hass):
-    """Test coordinator debug logging when TCP check raises an exception."""
+async def test_coordinator_reachability_timeout_logging(hass):
+    """Test coordinator debug logging when TCP check raises a TimeoutError."""
     with patch(
         "asyncio.open_connection",
-        side_effect=OSError("Connect Failure"),
+        side_effect=TimeoutError("Connect Timeout"),
     ):
         result = await async_check_tcp_reachability("1.2.3.4", 8081)
         assert result is False

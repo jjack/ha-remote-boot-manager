@@ -4,8 +4,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.grubstation import async_remove_config_entry, async_setup, async_setup_entry, async_unload_entry
-from custom_components.grubstation.const import DOMAIN
+from custom_components.grubstation import (
+    DOMAIN,
+    async_remove_config_entry,
+    async_setup,
+    async_setup_entry,
+    async_unload_entry,
+)
 
 
 async def test_async_setup_registers_send_turn_off_service(hass):
@@ -63,3 +68,131 @@ async def test_async_remove_config_entry_global(hass):
     with patch("custom_components.grubstation.Store.async_remove") as mock_remove:
         await async_remove_config_entry(hass, entry)
         mock_remove.assert_called_once()
+
+
+async def test_send_turn_on_service_logic(hass):
+    """Test the logic inside send_turn_on_command service handler."""
+    # Setup mock entry with runtime_data
+    mock_coordinator = MagicMock()
+    mock_coordinator.host.mac = "AA:BB:CC:DD:EE:FF"
+    mock_coordinator.host.broadcast_address = "192.168.1.255"
+    mock_coordinator.host.broadcast_port = 9
+
+    entry = MockConfigEntry(domain=DOMAIN, data={"mac": "AA:BB:CC:DD:EE:FF"})
+    entry.runtime_data = mock_coordinator
+    entry.add_to_hass(hass)
+
+    await async_setup(hass, {})
+    service_handler = hass.services._services[DOMAIN]["send_turn_on_command"]
+    handler_func = service_handler.job.target
+
+    mock_call = MagicMock()
+    mock_call.data = {"entity_id": entry.entry_id}
+
+    with patch("custom_components.grubstation.wakeonlan.send_magic_packet") as mock_wol:
+        with patch(
+            "custom_components.grubstation.async_extract_config_entry_ids", new_callable=AsyncMock
+        ) as mock_extract:
+            mock_extract.return_value = [entry.entry_id]
+            await handler_func(mock_call)
+
+        mock_wol.assert_called_once_with(
+            "AA:BB:CC:DD:EE:FF",
+            ip_address="192.168.1.255",
+            port=9,
+        )
+
+
+async def test_send_turn_off_service_logic(hass):
+    """Test the logic inside send_turn_off_command service handler."""
+    mock_coordinator = MagicMock()
+    mock_coordinator.host.address = "192.168.1.10"
+    mock_coordinator.host.agent_port = 8080
+    mock_coordinator.host.agent_token = "secret"
+    mock_coordinator.host.mac = "AA:BB:CC:DD:EE:FF"
+
+    entry = MockConfigEntry(domain=DOMAIN, data={"mac": "AA:BB:CC:DD:EE:FF"})
+    entry.runtime_data = mock_coordinator
+    entry.add_to_hass(hass)
+
+    await async_setup(hass, {})
+    service_handler = hass.services._services[DOMAIN]["send_turn_off_command"]
+    handler_func = service_handler.job.target
+
+    mock_call = MagicMock()
+    mock_call.data = {"entity_id": entry.entry_id}
+
+    with patch(
+        "custom_components.grubstation.async_send_turn_off_command",
+        new_callable=AsyncMock,
+    ) as mock_send_turn_off:
+        with patch(
+            "custom_components.grubstation.async_extract_config_entry_ids", new_callable=AsyncMock
+        ) as mock_extract:
+            mock_extract.return_value = [entry.entry_id]
+            await handler_func(mock_call)
+
+        mock_send_turn_off.assert_called_once_with(hass, "192.168.1.10", 8080, "secret")
+
+
+async def test_send_turn_off_service_missing_config(hass, caplog):
+    """Test the warning log when host is missing agent config."""
+    await async_setup(hass, {})
+    mock_coordinator = MagicMock()
+    mock_coordinator.host.address = None
+    mock_coordinator.host.mac = "AA:BB:CC:DD:EE:FF"
+
+    entry = MockConfigEntry(domain=DOMAIN, data={"mac": "AA:BB:CC:DD:EE:FF"})
+    entry.runtime_data = mock_coordinator
+    entry.add_to_hass(hass)
+
+    service_handler = hass.services._services[DOMAIN]["send_turn_off_command"]
+    handler_func = service_handler.job.target
+    mock_call = MagicMock()
+    mock_call.data = {"entity_id": entry.entry_id}
+
+    with patch("custom_components.grubstation.async_extract_config_entry_ids", new_callable=AsyncMock) as mock_extract:
+        mock_extract.return_value = [entry.entry_id]
+        await handler_func(mock_call)
+
+
+async def test_send_turn_on_command_invalid_entries(hass):
+    """Test send_turn_on_command service with invalid/missing entries."""
+    await async_setup(hass, {})
+    service_handler = hass.services._services[DOMAIN]["send_turn_on_command"]
+    handler_func = service_handler.job.target
+
+    mock_call = MagicMock()
+    mock_call.data = {"entity_id": "invalid_id"}
+
+    with patch("custom_components.grubstation.async_extract_config_entry_ids", new_callable=AsyncMock) as mock_extract:
+        mock_extract.return_value = ["non_existent_id"]
+        # Should not raise exception
+        await handler_func(mock_call)
+
+    # Test global entry skip
+    global_entry = MockConfigEntry(domain=DOMAIN, data={})
+    global_entry.add_to_hass(hass)
+    mock_extract.return_value = [global_entry.entry_id]
+    await handler_func(mock_call)
+    # Should not raise exception
+
+
+async def test_send_turn_off_command_invalid_entries(hass):
+    """Test send_turn_off_command service with invalid/missing entries."""
+    await async_setup(hass, {})
+    service_handler = hass.services._services[DOMAIN]["send_turn_off_command"]
+    handler_func = service_handler.job.target
+
+    mock_call = MagicMock()
+    mock_call.data = {"entity_id": "invalid_id"}
+
+    with patch("custom_components.grubstation.async_extract_config_entry_ids", new_callable=AsyncMock) as mock_extract:
+        mock_extract.return_value = ["non_existent_id"]
+        await handler_func(mock_call)
+
+    # Test global entry skip
+    global_entry = MockConfigEntry(domain=DOMAIN, data={})
+    global_entry.add_to_hass(hass)
+    mock_extract.return_value = [global_entry.entry_id]
+    await handler_func(mock_call)

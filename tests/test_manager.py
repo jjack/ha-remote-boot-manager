@@ -56,6 +56,21 @@ async def test_async_process_payload_existing_host(manager, hass, mock_coordinat
     mock_coordinator.async_update_host_data.assert_called_once_with(payload)
 
 
+async def test_async_process_payload_new_host(manager, hass):
+    """Test that a new host initiates a config flow."""
+    mac = "AA:BB:CC:DD:EE:FF"
+    payload = {"some_key": "some_value"}
+
+    with patch.object(hass.config_entries.flow, "async_init", new_callable=AsyncMock) as mock_flow_init:
+        await manager.async_process_payload(mac, payload)
+
+        mock_flow_init.assert_awaited_once_with(
+            "grubstation",
+            context={"source": "import"},
+            data={"mac": "aa:bb:cc:dd:ee:ff", **payload},
+        )
+
+
 async def test_async_remove_host_invalid_mac(manager, hass):
     """Test removing a non-existent host does nothing."""
     manager.hosts["00:11:22:33:44:55"] = RemoteHost(
@@ -114,3 +129,20 @@ async def test_save(manager, mock_store):
     save_callback = mock_store.async_delay_save.call_args[0][0]
     data = save_callback()
     assert "00:11:22:33:44:55" in data["hosts"]
+
+
+async def test_async_load_with_data(manager, hass, mock_store):
+    """Test loading from store with valid host data."""
+    mock_store.async_load.return_value = {
+        "hosts": {"00:11:22:33:44:55": {"mac": "00:11:22:33:44:55", "address": "test.local"}}
+    }
+
+    with patch.object(hass.config_entries.flow, "async_init", new_callable=AsyncMock) as mock_flow_init:
+        await manager.async_load()
+        # The migration logic creates a task for each host
+        await hass.async_block_till_done()
+
+        mock_flow_init.assert_awaited()
+        # Verify call arguments
+        assert mock_flow_init.call_args[0][0] == "grubstation"
+        assert mock_flow_init.call_args[1]["data"]["mac"] == "00:11:22:33:44:55"
