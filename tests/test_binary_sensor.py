@@ -12,7 +12,6 @@ from custom_components.grubstation.const import (
     ATTR_AGENT_VERSION,
     ATTR_HOST_OS,
     ATTR_LAST_AGENT_ACCESSIBLE,
-    ATTR_RECENT_ACTIVITY,
     SIGNAL_HOST_UPDATED,
     SIGNAL_NEW_HOST,
 )
@@ -60,7 +59,6 @@ async def test_binary_sensor_properties(hass: HomeAssistant, mock_coordinator: M
     assert sensor.is_on is True
     assert sensor.extra_state_attributes == {
         ATTR_LAST_AGENT_ACCESSIBLE: "2023-01-01T12:00:00+00:00",
-        ATTR_RECENT_ACTIVITY: [],
         ATTR_HOST_OS: "linux",
         ATTR_AGENT_SERVICE_MANAGER: "systemd",
         ATTR_AGENT_VERSION: "1.0.0",

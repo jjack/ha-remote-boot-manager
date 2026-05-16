@@ -10,7 +10,6 @@ from homeassistant.core import callback
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.storage import Store
-import homeassistant.util.dt as dt_util
 
 from .const import (
     CONF_AGENT_PORT,
@@ -198,10 +197,6 @@ class GrubStationManager:
 
         host = self.hosts[mac_address]
         LOGGER.info("[%s] %s", mac_address, message)
-
-        # Add to history, keeping only the last 5 entries
-        host.activity_history.insert(0, f"{dt_util.now().strftime('%Y-%m-%d %H:%M:%S')}: {message}")
-        host.activity_history = host.activity_history[:5]
 
         # Dispatch event for logbook
         self.hass.bus.async_fire(

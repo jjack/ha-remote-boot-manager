@@ -118,9 +118,6 @@
                     "last_agent_accessible": {
                         "name": "Last successful check"
                     },
-                    "recent_activity": {
-                        "name": "Recent activity"
-                    },
                     "host_os": {
                         "name": "Host OS"
                     },
@@ -148,9 +145,6 @@
                     },
                     "agent_version": {
                         "name": "Agent version"
-                    },
-                    "recent_activity": {
-                        "name": "Recent activity"
                     }
                 }
             }

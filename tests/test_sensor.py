@@ -9,7 +9,6 @@ from custom_components.grubstation.const import (
     ATTR_AGENT_STATUS,
     ATTR_AGENT_VERSION,
     ATTR_HOST_OS,
-    ATTR_RECENT_ACTIVITY,
     SIGNAL_NEW_HOST,
 )
 from custom_components.grubstation.data import RemoteHost
@@ -72,7 +71,6 @@ async def test_sensor_extra_state_attributes(hass: HomeAssistant, mock_coordinat
     mock_coordinator.data.agent_service_manager = "systemd"
     mock_coordinator.data.agent_version = "1.0.0"
     mock_coordinator.data.agent_status = "ok"
-    mock_coordinator.data.activity_history = ["Activity 1"]
 
     sensor = GrubStationManagerSensor(mock_coordinator)
 
@@ -81,7 +79,6 @@ async def test_sensor_extra_state_attributes(hass: HomeAssistant, mock_coordinat
         ATTR_HOST_OS: "linux",
         ATTR_AGENT_SERVICE_MANAGER: "systemd",
         ATTR_AGENT_VERSION: "1.0.0",
-        ATTR_RECENT_ACTIVITY: ["Activity 1"],
     }
 
 

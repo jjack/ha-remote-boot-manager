@@ -35,7 +35,6 @@ class RemoteHost:
     last_agent_accessible: str | None = None
     next_boot_option: str = DEFAULT_BOOT_OPTION_NONE
     off_action: list[dict[str, Any]] | None = None
-    activity_history: list[str] = field(default_factory=list)
 
     @property
     def formatted_boot_options(self) -> list[str]:

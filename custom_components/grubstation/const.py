@@ -21,7 +21,6 @@ ATTR_AGENT_STATUS: Final = "agent_status"
 ATTR_AGENT_VERSION: Final = "agent_version"
 ATTR_HOST_OS: Final = "host_os"
 ATTR_LAST_AGENT_ACCESSIBLE: Final = "last_agent_accessible"
-ATTR_RECENT_ACTIVITY: Final = "recent_activity"
 
 CONF_AGENT_PORT: Final = "agent_port"
 CONF_AGENT_TOKEN: Final = "agent_token"

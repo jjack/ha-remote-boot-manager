@@ -16,7 +16,6 @@ from .const import (
     ATTR_AGENT_VERSION,
     ATTR_HOST_OS,
     ATTR_LAST_AGENT_ACCESSIBLE,
-    ATTR_RECENT_ACTIVITY,
     SIGNAL_HOST_UPDATED,
     SIGNAL_NEW_HOST,
 )
@@ -89,5 +88,4 @@ class GrubStationManagerBinarySensor(CoordinatorEntity[GrubStationCoordinator], 
             ATTR_HOST_OS: host.os,
             ATTR_AGENT_SERVICE_MANAGER: host.agent_service_manager,
             ATTR_AGENT_VERSION: host.agent_version,
-            ATTR_RECENT_ACTIVITY: host.activity_history,
         }
