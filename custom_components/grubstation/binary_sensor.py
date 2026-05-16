@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
+from homeassistant.components.binary_sensor import (
+    BinarySensorDeviceClass,
+    BinarySensorEntity,
+    BinarySensorEntityDescription,
+)
 from homeassistant.const import CONF_MAC, EntityCategory
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -24,6 +29,21 @@ if TYPE_CHECKING:
     from .data import GrubStationManagerConfigEntry
 
 
+@dataclass(frozen=True, kw_only=True)
+class GrubStationBinarySensorEntityDescription(BinarySensorEntityDescription):
+    """Class to describe a GrubStation binary sensor."""
+
+
+BINARY_SENSOR_DESCRIPTIONS = (
+    GrubStationBinarySensorEntityDescription(
+        key="health_status",
+        translation_key="agent_status",
+        device_class=BinarySensorDeviceClass.CONNECTIVITY,
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: GrubStationManagerConfigEntry,
@@ -36,24 +56,24 @@ async def async_setup_entry(
 
     coordinator = entry.runtime_data
     if coordinator.host.agent_is_configured():
-        async_add_entities([GrubStationManagerBinarySensor(coordinator)])
+        async_add_entities(
+            [GrubStationManagerBinarySensor(coordinator, description) for description in BINARY_SENSOR_DESCRIPTIONS]
+        )
 
 
 class GrubStationManagerBinarySensor(CoordinatorEntity, BinarySensorEntity):
     """GrubStation binary sensor class."""
 
     _attr_has_entity_name = True
-    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_should_poll = False
 
-    def __init__(self, coordinator) -> None:
+    def __init__(self, coordinator: Any, description: GrubStationBinarySensorEntityDescription) -> None:
         """Initialize the binary sensor."""
         super().__init__(coordinator)
+        self.entity_description = description
         self.host = coordinator.host
 
-        self._attr_unique_id = f"{self.host.mac}_health_status"
-        self._attr_translation_key = "agent_status"
+        self._attr_unique_id = f"{self.host.mac}_{description.key}"
         self._attr_device_info = generate_device_info(self.host)
 
     @property

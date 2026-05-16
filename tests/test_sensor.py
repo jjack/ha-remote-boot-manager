@@ -11,7 +11,7 @@ from custom_components.grubstation.const import (
     ATTR_HOST_OS,
 )
 from custom_components.grubstation.data import RemoteHost
-from custom_components.grubstation.sensor import GrubStationManagerSensor, async_setup_entry
+from custom_components.grubstation.sensor import SENSOR_DESCRIPTIONS, GrubStationManagerSensor, async_setup_entry
 from homeassistant.const import CONF_MAC
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -45,7 +45,8 @@ def mock_coordinator(mock_host):
 
 async def test_sensor_properties(mock_coordinator):
     """Test the properties of the sensor."""
-    sensor = GrubStationManagerSensor(mock_coordinator)
+    description = SENSOR_DESCRIPTIONS[0]
+    sensor = GrubStationManagerSensor(mock_coordinator, description)
 
     assert sensor.unique_id == "00:11:22:33:44:55_last_agent_accessible"
     assert sensor.native_value == "2023-01-01T12:00:00+00:00"
@@ -53,7 +54,8 @@ async def test_sensor_properties(mock_coordinator):
 
 async def test_sensor_extra_state_attributes(mock_coordinator):
     """Test sensor extra state attributes."""
-    sensor = GrubStationManagerSensor(mock_coordinator)
+    description = SENSOR_DESCRIPTIONS[0]
+    sensor = GrubStationManagerSensor(mock_coordinator, description)
 
     assert sensor.extra_state_attributes == {
         ATTR_AGENT_STATUS: "ok",

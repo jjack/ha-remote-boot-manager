@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
 from homeassistant.const import CONF_MAC, EntityCategory
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -16,6 +17,21 @@ if TYPE_CHECKING:
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
     from .data import GrubStationManagerConfigEntry
+
+
+@dataclass(frozen=True, kw_only=True)
+class GrubStationSensorEntityDescription(SensorEntityDescription):
+    """Class to describe a GrubStation sensor."""
+
+
+SENSOR_DESCRIPTIONS = (
+    GrubStationSensorEntityDescription(
+        key="last_agent_accessible",
+        translation_key="last_agent_accessible",
+        icon="mdi:heart-pulse",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+)
 
 
 async def async_setup_entry(
@@ -30,25 +46,23 @@ async def async_setup_entry(
 
     coordinator = entry.runtime_data
     if coordinator.host.agent_is_configured():
-        async_add_entities([GrubStationManagerSensor(coordinator)])
+        async_add_entities([GrubStationManagerSensor(coordinator, description) for description in SENSOR_DESCRIPTIONS])
 
 
 class GrubStationManagerSensor(CoordinatorEntity, SensorEntity):
     """GrubStation sensor class."""
 
     _attr_has_entity_name = True
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_entity_registry_enabled_default = False
     _attr_should_poll = False
 
-    def __init__(self, coordinator) -> None:
+    def __init__(self, coordinator: Any, description: GrubStationSensorEntityDescription) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
+        self.entity_description = description
         self.host = coordinator.host
 
-        self._attr_unique_id = f"{self.host.mac}_last_agent_accessible"
-        self._attr_translation_key = "last_agent_accessible"
-        self._attr_icon = "mdi:heart-pulse"
+        self._attr_unique_id = f"{self.host.mac}_{description.key}"
         self._attr_device_info = generate_device_info(self.host)
 
     @property

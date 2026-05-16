@@ -4,7 +4,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from custom_components.grubstation.binary_sensor import GrubStationManagerBinarySensor, async_setup_entry
+from custom_components.grubstation.binary_sensor import (
+    BINARY_SENSOR_DESCRIPTIONS,
+    GrubStationManagerBinarySensor,
+    async_setup_entry,
+)
 from custom_components.grubstation.const import (
     ATTR_AGENT_SERVICE_MANAGER,
     ATTR_AGENT_STATUS,
@@ -47,7 +51,8 @@ def mock_coordinator(mock_host):
 
 async def test_binary_sensor_properties(mock_coordinator):
     """Test the properties of the binary sensor."""
-    sensor = GrubStationManagerBinarySensor(mock_coordinator)
+    description = BINARY_SENSOR_DESCRIPTIONS[0]
+    sensor = GrubStationManagerBinarySensor(mock_coordinator, description)
 
     assert sensor.unique_id == "00:11:22:33:44:55_health_status"
     assert sensor.device_class == BinarySensorDeviceClass.CONNECTIVITY
