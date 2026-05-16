@@ -25,7 +25,6 @@ from homeassistant.const import (
     Platform,
 )
 import homeassistant.helpers.config_validation as cv
-from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.storage import Store
 
 from .agent import async_send_turn_off_command
@@ -36,7 +35,6 @@ from .const import (
     CONF_TURN_OFF_ACTION,
     DOMAIN,
     LOGGER,
-    SIGNAL_NEW_HOST,
     WEBHOOK_NAME,
 )
 from .coordinator import GrubStationCoordinator
@@ -243,9 +241,6 @@ async def async_setup_entry(
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
 
-    # Notify listeners that a new host is available (for compatibility)
-    async_dispatcher_send(hass, SIGNAL_NEW_HOST, mac_address)
-
     return True
 
 
@@ -311,3 +306,4 @@ async def async_remove_config_entry_device(
                 break
 
     return True
+

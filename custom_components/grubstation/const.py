@@ -44,10 +44,6 @@ GRUB_VIEW_URL: Final = "/api/grubstation/{mac_address}"
 
 SAVE_DELAY: Final = 15.0  # seconds to debounce saving to storage after changes
 
-SIGNAL_NEW_HOST: Final = f"{DOMAIN}_new_host"
-SIGNAL_HOST_UPDATED: Final = f"{DOMAIN}_host_updated"
-SIGNAL_HOST_REMOVED: Final = f"{DOMAIN}_host_removed"
-
 WAIT_FOR_HOST_POWER_SECONDS: Final = 10
 
 PING_COUNT: Final = 1

@@ -133,13 +133,11 @@ async def test_async_update_host_data(hass, mock_host, mock_manager):
         "boot_options": ["a", "b"],
     }
 
-    with patch("custom_components.grubstation.coordinator.async_dispatcher_send") as mock_dispatch:
-        await coordinator.async_update_host_data(payload)
+    await coordinator.async_update_host_data(payload)
 
-        assert mock_host.address == "new.address"
-        assert mock_host.boot_options == ["a", "b"]
-        mock_manager.save.assert_called_once()
-        mock_dispatch.assert_called_once()
+    assert mock_host.address == "new.address"
+    assert mock_host.boot_options == ["a", "b"]
+    mock_manager.save.assert_called_once()
 
 
 async def test_async_set_next_boot_option(hass, mock_host, mock_manager):

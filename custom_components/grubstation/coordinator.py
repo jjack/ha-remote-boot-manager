@@ -7,7 +7,6 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 import homeassistant.util.dt as dt_util
 
@@ -20,7 +19,6 @@ from .const import (
     DEFAULT_BOOT_OPTION_NONE,
     DOMAIN,
     LOGGER,
-    SIGNAL_HOST_UPDATED,
 )
 
 if TYPE_CHECKING:
@@ -110,7 +108,6 @@ class GrubStationCoordinator(DataUpdateCoordinator["RemoteHost"]):
             self.host.next_boot_option = DEFAULT_BOOT_OPTION_NONE
 
         self.async_set_updated_data(self.host)
-        async_dispatcher_send(self.hass, SIGNAL_HOST_UPDATED, self.host.mac)
         self.manager.save()
 
     async def async_set_next_boot_option(self, next_boot_option: str) -> None:
