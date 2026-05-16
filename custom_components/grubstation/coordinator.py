@@ -4,17 +4,26 @@ from __future__ import annotations
 
 import asyncio
 from datetime import timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 import homeassistant.util.dt as dt_util
 
 from .agent import async_get_agent_status
-from .const import API_KEY_OS, API_KEY_SERVICE_MANAGER, API_KEY_STATUS, API_KEY_VERSION, DOMAIN, LOGGER
+from .const import (
+    API_KEY_OS,
+    API_KEY_SERVICE_MANAGER,
+    API_KEY_STATUS,
+    API_KEY_VERSION,
+    DEFAULT_BOOT_OPTION_NONE,
+    DOMAIN,
+    LOGGER,
+    SIGNAL_HOST_UPDATED,
+)
 
 if TYPE_CHECKING:
-    from homeassistant.core import HomeAssistant
-
     from .data import RemoteHost
     from .manager import GrubStationManager
 
@@ -78,7 +87,7 @@ class GrubStationCoordinator(DataUpdateCoordinator["RemoteHost"]):
 
         if is_accessible != self.host.is_agent_accessible:
             status = "Online" if is_accessible else "Offline"
-            self.manager.async_log_activity(self.host.mac, f"Agent is {status}")
+            self.async_log_activity(f"Agent is {status}")
 
         self.host.is_agent_accessible = is_accessible
         self.host.is_powered_on = is_powered_on
@@ -91,3 +100,48 @@ class GrubStationCoordinator(DataUpdateCoordinator["RemoteHost"]):
             self.host.agent_version = agent_status.get(API_KEY_VERSION)
 
         return self.host
+
+    async def async_update_host_data(self, payload: dict[str, Any]) -> None:
+        """Update host data from a webhook payload."""
+        self.host.update_from_payload(payload)
+
+        # Reset selection if it's no longer valid
+        if self.host.next_boot_option not in self.host.formatted_boot_options:
+            self.host.next_boot_option = DEFAULT_BOOT_OPTION_NONE
+
+        self.async_set_updated_data(self.host)
+        async_dispatcher_send(self.hass, SIGNAL_HOST_UPDATED, self.host.mac)
+        self.manager.save()
+
+    async def async_set_next_boot_option(self, next_boot_option: str) -> None:
+        """Set the pending boot option."""
+        self.host.next_boot_option = next_boot_option
+        self.async_set_updated_data(self.host)
+        self.manager.save()
+
+    @callback
+    def async_log_activity(self, message: str) -> None:
+        """Log an activity message for this host."""
+        LOGGER.info("[%s] %s", self.host.mac, message)
+
+        # Dispatch event for logbook
+        self.hass.bus.async_fire(
+            f"{DOMAIN}_activity",
+            {
+                "mac": self.host.mac,
+                "message": message,
+                "host_name": self.host.os or self.host.mac,
+            },
+        )
+
+    async def async_consume_next_boot_option(self) -> str:
+        """Consume the pending boot option and reset state."""
+        next_boot_option = self.host.next_boot_option
+        self.host.next_boot_option = DEFAULT_BOOT_OPTION_NONE
+
+        if next_boot_option != DEFAULT_BOOT_OPTION_NONE:
+            self.async_log_activity(f"Booting into: {next_boot_option}")
+
+        self.async_set_updated_data(self.host)
+        self.manager.save()
+        return next_boot_option

@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from custom_components.grubstation.const import DEFAULT_BOOT_OPTION_NONE
 from custom_components.grubstation.data import RemoteHost
 from custom_components.grubstation.manager import GrubStationManager
 
@@ -26,7 +25,7 @@ def mock_coordinator():
     with patch("custom_components.grubstation.manager.GrubStationCoordinator") as mock_class:
         mock_instance = MagicMock()
         mock_instance.async_refresh = AsyncMock()
-        mock_instance.async_set_updated_data = MagicMock()
+        mock_instance.async_update_host_data = AsyncMock()
         mock_instance.host = MagicMock()
         mock_class.return_value = mock_instance
         yield mock_instance
@@ -40,8 +39,8 @@ def manager(hass, mock_store, mock_coordinator):
     manager.async_unload()
 
 
-async def test_async_register_agent_token_new_host(manager, hass, mock_coordinator):
-    """Test that a new host is registered correctly."""
+async def test_async_process_payload_new_host(manager, hass, mock_coordinator):
+    """Test that a new host is registered correctly via process_payload."""
     payload = {
         "action": "register_agent_token",
         "mac": "00:11:22:33:44:55",
@@ -51,7 +50,7 @@ async def test_async_register_agent_token_new_host(manager, hass, mock_coordinat
     }
 
     with patch("custom_components.grubstation.manager.async_dispatcher_send") as mock_dispatch:
-        manager.async_register_agent_token("00:11:22:33:44:55", payload)
+        await manager.async_process_payload("00:11:22:33:44:55", payload)
 
         assert "00:11:22:33:44:55" in manager.hosts
         assert "00:11:22:33:44:55" in manager.coordinators
@@ -62,132 +61,24 @@ async def test_async_register_agent_token_new_host(manager, hass, mock_coordinat
         assert host.agent_port == 8000
 
         mock_dispatch.assert_called_once()
-        mock_coordinator.async_set_updated_data.assert_called_once_with(host)
+        mock_coordinator.async_refresh.assert_called_once()
 
 
-async def test_async_update_boot_options_new_host(manager, hass, mock_coordinator):
-    """Test that receiving boot options for a new host creates it."""
-    payload = {
-        "action": "update_boot_options",
-        "mac": "00:11:22:33:44:55",
-        "address": "test.local",
-        "boot_options": ["ubuntu", "windows"],
-    }
-
-    with patch("custom_components.grubstation.manager.async_dispatcher_send") as mock_dispatch:
-        manager.async_update_boot_options("00:11:22:33:44:55", payload)
-
-        assert "00:11:22:33:44:55" in manager.hosts
-        host = manager.hosts["00:11:22:33:44:55"]
-        assert host.boot_options == ["ubuntu", "windows"]
-        assert host.formatted_boot_options == [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "windows"]
-        assert mock_dispatch.call_count == 2
-        mock_coordinator.async_set_updated_data.assert_called()
-
-
-async def test_async_update_boot_options_none_option_already_present(manager, hass, mock_coordinator):
-    """Test that the default none boot option is not duplicated if already present."""
-    # Setup host first via registration
-    reg_payload = {
-        "action": "register_agent_token",
-        "mac": "00:11:22:33:44:55",
-        "address": "test.local",
-        "agent_token": "secret",
-        "agent_port": 8000,
-    }
-    manager.async_register_agent_token("00:11:22:33:44:55", reg_payload)
-
-    push_payload = {
-        "action": "update_boot_options",
-        "mac": "00:11:22:33:44:55",
-        "address": "test.local",
-        "boot_options": [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "windows"],
-    }
-
-    manager.async_update_boot_options("00:11:22:33:44:55", push_payload)
-
-    host = manager.hosts["00:11:22:33:44:55"]
-    assert host.boot_options == [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "windows"]
-    assert host.formatted_boot_options == [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "windows"]
-    # Once for registration, once for push
-    assert mock_coordinator.async_set_updated_data.call_count == 2
-
-
-async def test_async_update_boot_options_empty_boot_options(manager, hass, mock_coordinator):
-    """Test that formatted_boot_options handles empty boot_options."""
-    # Setup host
-    reg_payload = {
-        "action": "register_agent_token",
-        "mac": "00:11:22:33:44:55",
-        "address": "test.local",
-        "agent_token": "secret",
-        "agent_port": 8000,
-    }
-    manager.async_register_agent_token("00:11:22:33:44:55", reg_payload)
-
-    push_payload = {
-        "action": "update_boot_options",
-        "mac": "00:11:22:33:44:55",
-        "address": "test.local",
-        "boot_options": [],
-    }
-
-    manager.async_update_boot_options("00:11:22:33:44:55", push_payload)
-
-    host = manager.hosts["00:11:22:33:44:55"]
-    assert host.boot_options == []
-    assert host.formatted_boot_options == [DEFAULT_BOOT_OPTION_NONE]
-
-
-async def test_async_update_boot_options_update_existing_host(manager, hass, mock_coordinator):
-    """Test that an existing host is updated correctly."""
-    # Setup existing host
+async def test_async_process_payload_existing_host(manager, hass, mock_coordinator):
+    """Test that an existing host is updated via process_payload."""
     mac = "00:11:22:33:44:55"
-    host = RemoteHost(
-        mac=mac,
-        address="old-hostname.local",
-        os="linux",
-        boot_options=["ubuntu"],
-    )
-    manager.hosts[mac] = host
+    manager.hosts[mac] = RemoteHost(mac=mac)
     manager.coordinators[mac] = mock_coordinator
 
     payload = {
         "action": "update_boot_options",
         "mac": mac,
-        "address": "new-hostname.local",
-        "boot_options": ["ubuntu", "arch"],
+        "address": "new.local",
     }
 
-    manager.async_update_boot_options(mac, payload)
+    await manager.async_process_payload(mac, payload)
 
-    assert host.address == "new-hostname.local"
-    assert host.boot_options == ["ubuntu", "arch"]
-    assert host.formatted_boot_options == [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "arch"]
-    mock_coordinator.async_set_updated_data.assert_called_once_with(host)
-
-
-async def test_async_set_and_consume_next_boot_option(manager, hass, mock_coordinator):
-    """Test setting and safely consuming the next boot option."""
-    mac = "00:11:22:33:44:55"
-    host = RemoteHost(
-        mac=mac,
-        address="test.local",
-        boot_options=["ubuntu", "windows"],
-    )
-    manager.hosts[mac] = host
-    manager.coordinators[mac] = mock_coordinator
-
-    # Set the option
-    manager.async_set_next_boot_option(mac, "windows")
-    assert host.next_boot_option == "windows"
-    mock_coordinator.async_set_updated_data.assert_called_with(host)
-
-    # Consume the option (should return it, and reset state)
-    consumed = manager.async_consume_next_boot_option(mac)
-    assert consumed == "windows"
-    assert host.next_boot_option == DEFAULT_BOOT_OPTION_NONE
-    mock_coordinator.async_set_updated_data.assert_called_with(host)
+    mock_coordinator.async_update_host_data.assert_called_once_with(payload)
 
 
 async def test_async_remove_host_invalid_mac(manager, hass):
@@ -272,47 +163,6 @@ async def test_async_purge_data(manager, mock_store):
     assert not manager.hosts
     assert not manager.coordinators
     mock_store.async_remove.assert_awaited_once()
-
-
-async def test_async_update_boot_options_resets_invalid_next_boot(manager, hass, mock_coordinator):
-    """Test that next_boot_option is reset if it becomes invalid after an update."""
-    mac = "00:11:22:33:44:55"
-    host = RemoteHost(
-        mac=mac,
-        address="test.local",
-        os="linux",
-        boot_options=["ubuntu", "windows"],
-        next_boot_option="windows",  # This will become invalid
-    )
-    manager.hosts[mac] = host
-    manager.coordinators[mac] = mock_coordinator
-    payload = {
-        "action": "update_boot_options",
-        "mac": mac,
-        "address": "test.local",
-        "boot_options": ["ubuntu", "fedora"],
-    }
-
-    manager.async_update_boot_options(mac, payload)
-
-    assert host.boot_options == ["ubuntu", "fedora"]
-    assert host.formatted_boot_options == [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "fedora"]
-    assert host.next_boot_option == DEFAULT_BOOT_OPTION_NONE
-    mock_coordinator.async_set_updated_data.assert_called_once_with(host)
-
-
-async def test_async_set_next_boot_option_invalid_mac(manager, hass):
-    """Test setting a boot option for a non-existent MAC does nothing."""
-    with patch("custom_components.grubstation.manager.async_dispatcher_send") as mock_dispatch:
-        manager.async_set_next_boot_option("FF:FF:FF:FF:FF:FF", "windows")
-        assert "FF:FF:FF:FF:FF:FF" not in manager.hosts
-        mock_dispatch.assert_not_called()
-
-
-async def test_async_consume_next_boot_option_invalid_mac(manager, hass):
-    """Test consuming a boot option for a non-existent MAC returns default."""
-    consumed = manager.async_consume_next_boot_option("FF:FF:FF:FF:FF:FF")
-    assert consumed == DEFAULT_BOOT_OPTION_NONE
 
 
 async def test_async_remove_host(manager, hass, mock_coordinator):

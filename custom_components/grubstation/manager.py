@@ -5,24 +5,12 @@ from __future__ import annotations
 import dataclasses
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import callback
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.storage import Store
 
-from .const import (
-    CONF_AGENT_PORT,
-    CONF_AGENT_TOKEN,
-    CONF_BOOT_OPTIONS,
-    DEFAULT_BOOT_OPTION_NONE,
-    DOMAIN,
-    LOGGER,
-    SAVE_DELAY,
-    SIGNAL_HOST_REMOVED,
-    SIGNAL_HOST_UPDATED,
-    SIGNAL_NEW_HOST,
-)
+from .const import DOMAIN, LOGGER, SAVE_DELAY, SIGNAL_HOST_REMOVED, SIGNAL_NEW_HOST
 from .coordinator import GrubStationCoordinator
 from .data import RemoteHost
 
@@ -104,110 +92,22 @@ class GrubStationManager:
         """Return data for storage."""
         return {"hosts": {mac: dataclasses.asdict(host) for mac, host in self.hosts.items()}}
 
-    @callback
-    def async_register_agent_token(self, mac_address: str, payload: dict[str, Any]) -> None:
-        """Update the agent token for a host."""
+    async def async_process_payload(self, mac_address: str, payload: dict[str, Any]) -> None:
+        """Process incoming payload and update host/coordinator."""
         mac_address = format_mac(mac_address)
         is_new_host = mac_address not in self.hosts
 
         if is_new_host:
-            host = RemoteHost(
-                mac=mac_address,
-                address=payload[CONF_ADDRESS],
-                agent_port=payload.get(CONF_AGENT_PORT),
-                agent_token=payload.get(CONF_AGENT_TOKEN),
-            )
+            host = RemoteHost(mac=mac_address)
+            # update_from_payload requires address to be in payload if it's new
+            host.update_from_payload(payload)
             self.hosts[mac_address] = host
-            self.coordinators[mac_address] = GrubStationCoordinator(self.hass, self, host)
-            self.hass.async_create_task(self.coordinators[mac_address].async_refresh())
-        else:
-            self.hosts[mac_address].update_from_payload(payload)
-
-        self.coordinators[mac_address].async_set_updated_data(self.hosts[mac_address])
-
-        if is_new_host:
+            coordinator = GrubStationCoordinator(self.hass, self, host)
+            self.coordinators[mac_address] = coordinator
+            # Fire signal first so entities can be discovered
             async_dispatcher_send(self.hass, SIGNAL_NEW_HOST, mac_address)
-
-        self.save()
-
-    @callback
-    def async_update_boot_options(self, mac_address: str, payload: dict[str, Any]) -> None:
-        """Update the boot options for a host."""
-        mac_address = format_mac(mac_address)
-        is_new_host = mac_address not in self.hosts
-
-        if is_new_host:
-            host = RemoteHost(
-                mac=mac_address,
-                address=payload[CONF_ADDRESS],
-                boot_options=payload[CONF_BOOT_OPTIONS],
-            )
-            self.hosts[mac_address] = host
-            self.coordinators[mac_address] = GrubStationCoordinator(self.hass, self, host)
-            self.hass.async_create_task(self.coordinators[mac_address].async_refresh())
+            await coordinator.async_refresh()
         else:
-            self.hosts[mac_address].update_from_payload(payload)
-
-        host = self.hosts[mac_address]
-        # Reset selection if it's no longer valid
-        if host.next_boot_option not in host.formatted_boot_options:
-            host.next_boot_option = DEFAULT_BOOT_OPTION_NONE
-
-        self.coordinators[mac_address].async_set_updated_data(host)
-
-        if is_new_host:
-            async_dispatcher_send(self.hass, SIGNAL_NEW_HOST, mac_address)
-
-        async_dispatcher_send(self.hass, SIGNAL_HOST_UPDATED, mac_address)
-        self.save()
-
-    @callback
-    def async_set_next_boot_option(self, mac_address: str, next_boot_option: str) -> None:
-        """Set the pending boot option."""
-        mac_address = format_mac(mac_address)
-        if host := self.hosts.get(mac_address):
-            host.next_boot_option = next_boot_option
-            self.save()
-            self.coordinators[mac_address].async_set_updated_data(host)
-
-    @callback
-    def async_consume_next_boot_option(self, mac_address: str) -> str:
-        """Consume the pending boot option and reset state."""
-        mac_address = format_mac(mac_address)
-        if not (host := self.hosts.get(mac_address)):
-            LOGGER.warning("GRUB requested boot option for unknown MAC address: %s", mac_address)
-            return DEFAULT_BOOT_OPTION_NONE
-
-        next_boot_option = host.next_boot_option
-        host.next_boot_option = DEFAULT_BOOT_OPTION_NONE
-
-        if next_boot_option != DEFAULT_BOOT_OPTION_NONE:
-            self.async_log_activity(mac_address, f"Booting into: {next_boot_option}")
+            await self.coordinators[mac_address].async_update_host_data(payload)
 
         self.save()
-        self.coordinators[mac_address].async_set_updated_data(host)
-        return next_boot_option
-
-    @callback
-    def async_log_activity(self, mac_address: str, message: str) -> None:
-        """Log an activity message for a host and update history."""
-        mac_address = format_mac(mac_address)
-        if mac_address not in self.hosts:
-            return
-
-        host = self.hosts[mac_address]
-        LOGGER.info("[%s] %s", mac_address, message)
-
-        # Dispatch event for logbook
-        self.hass.bus.async_fire(
-            f"{DOMAIN}_activity",
-            {
-                "mac": mac_address,
-                "message": message,
-                "host_name": host.os or mac_address,
-            },
-        )
-
-        self.save()
-        if mac_address in self.coordinators:
-            self.coordinators[mac_address].async_set_updated_data(host)

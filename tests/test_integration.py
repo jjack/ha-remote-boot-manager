@@ -198,7 +198,7 @@ async def test_switch_turn_on_does_not_reset_boot_option(hass: HomeAssistant, di
             blocking=True,
         )
         await hass.async_block_till_done()
-        mock_wake.assert_called_once_with("aa:bb:cc:dd:ee:ff")
+        mock_wake.assert_called_once_with("aa:bb:cc:dd:ee:ff", ip_address="255.255.255.255", port=9)
 
     # Verify boot option does not reset to default
     state = hass.states.get(entity_id_select)
@@ -444,7 +444,7 @@ async def test_webhook_internal_server_error(hass: HomeAssistant, setup_integrat
     }
 
     with patch(
-        "custom_components.grubstation.manager.GrubStationManager.async_update_boot_options",
+        "custom_components.grubstation.manager.GrubStationManager.async_process_payload",
         side_effect=Exception("Boom"),
     ):
         resp = await client.post(webhook_url, json=payload)

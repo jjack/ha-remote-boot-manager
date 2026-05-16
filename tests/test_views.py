@@ -1,7 +1,7 @@
 """Test views for grubstation."""
 
 from http import HTTPStatus
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from aiohttp import web
 
@@ -49,13 +49,14 @@ async def test_grub_config_view_exception(hass: HomeAssistant) -> None:
     mock_request.query = {"token": "test_webhook_id"}
 
     mock_manager = MagicMock()
-    mock_manager.hosts = {
-        "aa:bb:cc:dd:ee:ff": RemoteHost(
-            mac="aa:bb:cc:dd:ee:ff",
-            address="test.local",
-        )
-    }
-    mock_manager.async_consume_next_boot_option.side_effect = Exception("Boom")
+    mock_host = RemoteHost(
+        mac="aa:bb:cc:dd:ee:ff",
+        address="test.local",
+    )
+    mock_manager.hosts = {"aa:bb:cc:dd:ee:ff": mock_host}
+    mock_coordinator = MagicMock()
+    mock_coordinator.async_consume_next_boot_option = AsyncMock(side_effect=Exception("Boom"))
+    mock_manager.coordinators = {"aa:bb:cc:dd:ee:ff": mock_coordinator}
 
     mock_entry = MagicMock()
     mock_entry.data = {"webhook_id": "test_webhook_id"}
@@ -79,14 +80,15 @@ async def test_grub_config_view_success(hass: HomeAssistant) -> None:
     hass.config_entries.async_entries = MagicMock(return_value=[mock_entry])
 
     mock_manager = MagicMock()
-    mock_manager.hosts = {
-        "aa:bb:cc:dd:ee:ff": RemoteHost(
-            mac="aa:bb:cc:dd:ee:ff",
-            address="test.local",
-            next_boot_option="windows",
-        )
-    }
-    mock_manager.async_consume_next_boot_option.return_value = "windows"
+    mock_host = RemoteHost(
+        mac="aa:bb:cc:dd:ee:ff",
+        address="test.local",
+        next_boot_option="windows",
+    )
+    mock_manager.hosts = {"aa:bb:cc:dd:ee:ff": mock_host}
+    mock_coordinator = MagicMock()
+    mock_coordinator.async_consume_next_boot_option = AsyncMock(return_value="windows")
+    mock_manager.coordinators = {"aa:bb:cc:dd:ee:ff": mock_coordinator}
 
     mock_entry.runtime_data = mock_manager
     view = GrubConfigView()
@@ -94,7 +96,7 @@ async def test_grub_config_view_success(hass: HomeAssistant) -> None:
     resp = await view.get(mock_request, "aa:bb:cc:dd:ee:ff")
     assert resp.status == HTTPStatus.OK
     assert resp.text == "set default='windows'\n"
-    mock_manager.async_consume_next_boot_option.assert_called_once_with("aa:bb:cc:dd:ee:ff")
+    mock_coordinator.async_consume_next_boot_option.assert_called_once()
 
 
 async def test_grub_config_view_success_empty(hass: HomeAssistant) -> None:
@@ -108,14 +110,15 @@ async def test_grub_config_view_success_empty(hass: HomeAssistant) -> None:
     hass.config_entries.async_entries = MagicMock(return_value=[mock_entry])
 
     mock_manager = MagicMock()
-    mock_manager.hosts = {
-        "aa:bb:cc:dd:ee:ff": RemoteHost(
-            mac="aa:bb:cc:dd:ee:ff",
-            address="test.local",
-            next_boot_option=DEFAULT_BOOT_OPTION_NONE,
-        )
-    }
-    mock_manager.async_consume_next_boot_option.return_value = DEFAULT_BOOT_OPTION_NONE
+    mock_host = RemoteHost(
+        mac="aa:bb:cc:dd:ee:ff",
+        address="test.local",
+        next_boot_option=DEFAULT_BOOT_OPTION_NONE,
+    )
+    mock_manager.hosts = {"aa:bb:cc:dd:ee:ff": mock_host}
+    mock_coordinator = MagicMock()
+    mock_coordinator.async_consume_next_boot_option = AsyncMock(return_value=DEFAULT_BOOT_OPTION_NONE)
+    mock_manager.coordinators = {"aa:bb:cc:dd:ee:ff": mock_coordinator}
 
     mock_entry.runtime_data = mock_manager
     view = GrubConfigView()
@@ -123,7 +126,7 @@ async def test_grub_config_view_success_empty(hass: HomeAssistant) -> None:
     resp = await view.get(mock_request, "aa:bb:cc:dd:ee:ff")
     assert resp.status == HTTPStatus.OK
     assert resp.text == ""
-    mock_manager.async_consume_next_boot_option.assert_called_once_with("aa:bb:cc:dd:ee:ff")
+    mock_coordinator.async_consume_next_boot_option.assert_called_once()
 
 
 async def test_grub_config_view_integration_not_configured(hass: HomeAssistant) -> None:
@@ -182,13 +185,15 @@ async def test_grub_config_view_unauthorized(hass: HomeAssistant) -> None:
     hass.config_entries.async_entries = MagicMock(return_value=[mock_entry])
 
     mock_manager = MagicMock()
-    mock_manager.hosts = {
-        "aa:bb:cc:dd:ee:ff": RemoteHost(
-            mac="aa:bb:cc:dd:ee:ff",
-            address="test.local",
-            next_boot_option="windows",
-        )
-    }
+    mock_host = RemoteHost(
+        mac="aa:bb:cc:dd:ee:ff",
+        address="test.local",
+        next_boot_option="windows",
+    )
+    mock_manager.hosts = {"aa:bb:cc:dd:ee:ff": mock_host}
+    mock_coordinator = MagicMock()
+    mock_coordinator.async_consume_next_boot_option = AsyncMock()
+    mock_manager.coordinators = {"aa:bb:cc:dd:ee:ff": mock_coordinator}
 
     mock_entry.runtime_data = mock_manager
     view = GrubConfigView()
@@ -196,7 +201,7 @@ async def test_grub_config_view_unauthorized(hass: HomeAssistant) -> None:
     resp = await view.get(mock_request, "aa:bb:cc:dd:ee:ff")
     assert resp.status == HTTPStatus.OK
     assert resp.text == ""
-    mock_manager.async_consume_next_boot_option.assert_not_called()
+    mock_coordinator.async_consume_next_boot_option.assert_not_called()
 
 
 async def test_grub_config_view_escaping_quotes(hass: HomeAssistant) -> None:
@@ -206,9 +211,13 @@ async def test_grub_config_view_escaping_quotes(hass: HomeAssistant) -> None:
     mock_request.query = {"token": "test_webhook_id"}
 
     mock_manager = MagicMock()
+    mock_host = RemoteHost(mac="aa:bb:cc:dd:ee:ff")
+    mock_manager.hosts = {"aa:bb:cc:dd:ee:ff": mock_host}
+    mock_coordinator = MagicMock()
     # A boot option with a single quote that could break GRUB syntax if not escaped
     tricky_option = "Ubuntu 'Groggy' Edition"
-    mock_manager.async_consume_next_boot_option.return_value = tricky_option
+    mock_coordinator.async_consume_next_boot_option = AsyncMock(return_value=tricky_option)
+    mock_manager.coordinators = {"aa:bb:cc:dd:ee:ff": mock_coordinator}
 
     mock_entry = MagicMock()
     mock_entry.data = {"webhook_id": "test_webhook_id"}

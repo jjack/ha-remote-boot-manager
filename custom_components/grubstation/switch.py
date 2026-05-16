@@ -71,6 +71,8 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
     @property
     def is_on(self) -> bool:
         """Return true if the host is powered on."""
+        if self.coordinator.data is None:
+            return False
         return self.coordinator.data.is_powered_on
 
     @property
@@ -80,7 +82,7 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the entity on."""
-        self.coordinator.manager.async_log_activity(self.coordinator.host.mac, "Sending Wake-on-LAN command")
+        self.coordinator.async_log_activity("Sending Wake-on-LAN command")
 
         wol_kwargs = {}
         if self.coordinator.host.broadcast_address:
@@ -103,10 +105,10 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the entity off."""
         if self._turn_off_action:
-            self.coordinator.manager.async_log_activity(self.coordinator.host.mac, "Running shutdown script")
+            self.coordinator.async_log_activity("Running shutdown script")
             await self._turn_off_action.async_run(context=getattr(self, "_context", None))
         elif self.coordinator.host.agent_token and self.coordinator.host.address and self.coordinator.host.agent_port:
-            self.coordinator.manager.async_log_activity(self.coordinator.host.mac, "Sending shutdown command to agent")
+            self.coordinator.async_log_activity("Sending shutdown command to agent")
             await async_send_turn_off_command(
                 self.hass,
                 self.coordinator.host.address,
@@ -114,9 +116,7 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
                 self.coordinator.host.agent_token,
             )
         else:
-            self.coordinator.manager.async_log_activity(
-                self.coordinator.host.mac, "Shutdown requested (no action configured)"
-            )
+            self.coordinator.async_log_activity("Shutdown requested (no action configured)")
 
         if self.coordinator.host.address and self.coordinator.host.agent_port:
             if self._ping_task and not self._ping_task.done():
@@ -142,7 +142,7 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
                 )
                 if is_awake == target_state:
                     verb = "Power On" if target_state else "Power Off"
-                    self.coordinator.manager.async_log_activity(self.coordinator.host.mac, f"{verb} verified")
+                    self.coordinator.async_log_activity(f"{verb} verified")
                     await self.coordinator.async_request_refresh()
                     return
                 await asyncio.sleep(5)
@@ -150,7 +150,6 @@ class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], Switch
             return
 
         verb = "Turn On" if target_state else "Turn Off"
-        self.coordinator.manager.async_log_activity(
-            self.coordinator.host.mac,
+        self.coordinator.async_log_activity(
             f"Failed to {verb} within 3 minutes (Host did not respond)",
         )

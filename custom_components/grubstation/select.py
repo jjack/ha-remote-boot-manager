@@ -66,4 +66,4 @@ class GrubStationManagerSelect(CoordinatorEntity[GrubStationCoordinator], Select
 
     async def async_select_option(self, option: str) -> None:
         """Change the selected option."""
-        self.coordinator.manager.async_set_next_boot_option(self.mac_address, option)
+        await self.coordinator.async_set_next_boot_option(option)

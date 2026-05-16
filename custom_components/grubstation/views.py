@@ -70,7 +70,8 @@ class GrubConfigView(HomeAssistantView):
 
         try:
             # Strictly consume the boot option
-            next_boot_option = manager.async_consume_next_boot_option(mac_address)
+            coordinator = manager.coordinators[mac_address]
+            next_boot_option = await coordinator.async_consume_next_boot_option()
 
             if next_boot_option != DEFAULT_BOOT_OPTION_NONE:
                 # Escape single quotes to prevent GRUB command injection or syntax

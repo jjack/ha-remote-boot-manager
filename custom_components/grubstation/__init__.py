@@ -161,12 +161,12 @@ async def async_setup_entry(
                 return web.Response(status=HTTPStatus.BAD_REQUEST, text="Missing action in payload")
 
             try:
-                if action == "register_agent_token":
-                    payload = validate_register_agent_token_payload(raw_payload)
-                    manager.async_register_agent_token(payload[CONF_MAC], payload)
-                elif action == "update_boot_options":
-                    payload = validate_update_boot_options_payload(raw_payload)
-                    manager.async_update_boot_options(payload[CONF_MAC], payload)
+                if action in ("register_agent_token", "update_boot_options"):
+                    if action == "register_agent_token":
+                        payload = validate_register_agent_token_payload(raw_payload)
+                    else:
+                        payload = validate_update_boot_options_payload(raw_payload)
+                    await manager.async_process_payload(payload[CONF_MAC], payload)
                 else:
                     return web.Response(
                         status=HTTPStatus.BAD_REQUEST,

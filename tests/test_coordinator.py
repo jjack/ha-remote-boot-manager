@@ -123,3 +123,44 @@ async def test_coordinator_reachability_exception_logging(hass):
     ):
         result = await async_check_tcp_reachability("1.2.3.4", 8081)
         assert result is False
+
+
+async def test_async_update_host_data(hass, mock_host, mock_manager):
+    """Test updating host data from payload."""
+    coordinator = GrubStationCoordinator(hass, mock_manager, mock_host)
+    payload = {
+        "address": "new.address",
+        "boot_options": ["a", "b"],
+    }
+
+    with patch("custom_components.grubstation.coordinator.async_dispatcher_send") as mock_dispatch:
+        await coordinator.async_update_host_data(payload)
+
+        assert mock_host.address == "new.address"
+        assert mock_host.boot_options == ["a", "b"]
+        mock_manager.save.assert_called_once()
+        mock_dispatch.assert_called_once()
+
+
+async def test_async_set_next_boot_option(hass, mock_host, mock_manager):
+    """Test setting next boot option."""
+    coordinator = GrubStationCoordinator(hass, mock_manager, mock_host)
+
+    await coordinator.async_set_next_boot_option("option_a")
+
+    assert mock_host.next_boot_option == "option_a"
+    mock_manager.save.assert_called_once()
+
+
+async def test_async_consume_next_boot_option(hass, mock_host, mock_manager):
+    """Test consuming next boot option."""
+    mock_host.next_boot_option = "option_b"
+    coordinator = GrubStationCoordinator(hass, mock_manager, mock_host)
+    coordinator.async_log_activity = MagicMock()
+
+    consumed = await coordinator.async_consume_next_boot_option()
+
+    assert consumed == "option_b"
+    assert mock_host.next_boot_option == "(none)"
+    mock_manager.save.assert_called_once()
+    coordinator.async_log_activity.assert_called_once()

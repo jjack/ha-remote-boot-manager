@@ -1,6 +1,6 @@
 """Tests for GrubStation select platform."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from custom_components.grubstation.const import DEFAULT_BOOT_OPTION_NONE, SIGNAL_NEW_HOST
 from custom_components.grubstation.data import RemoteHost
@@ -170,9 +170,9 @@ async def test_async_select_option(hass):
     coordinator = MagicMock()
     coordinator.data = host
     coordinator.host = host
-    coordinator.manager = MagicMock()
+    coordinator.async_set_next_boot_option = AsyncMock()
 
     select = GrubStationManagerSelect(coordinator)
 
     await select.async_select_option("ubuntu")
-    coordinator.manager.async_set_next_boot_option.assert_called_once_with("00:11:22:33:44:55", "ubuntu")
+    coordinator.async_set_next_boot_option.assert_called_once_with("ubuntu")
