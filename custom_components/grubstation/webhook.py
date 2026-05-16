@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from http import HTTPStatus
 import json
-from typing import Any, cast
+from typing import Any
 
 from aiohttp import web
 import voluptuous as vol
@@ -23,6 +23,7 @@ from .const import (
     LOGGER,
     WEBHOOK_MAX_PAYLOAD_BYTES,
 )
+from .data import WebhookPayload
 
 BASE_SCHEMA = vol.Schema(
     {
@@ -50,7 +51,7 @@ UPDATE_BOOT_OPTIONS_SCHEMA = BASE_SCHEMA.extend(
 
 async def async_parse_webhook_request(
     request: web.Request,
-) -> tuple[dict[str, Any] | None, web.Response | None]:
+) -> tuple[WebhookPayload | None, web.Response | None]:
     """Parse and perform basic validation on the incoming webhook request."""
     body = await request.text()
     if not body:
@@ -76,11 +77,11 @@ async def async_parse_webhook_request(
     return raw_payload, None
 
 
-def validate_register_agent_token_payload(payload: dict[str, Any]) -> dict[str, Any]:
+def validate_register_agent_token_payload(payload: dict[str, Any]) -> WebhookPayload:
     """Validate a register_agent_token webhook payload."""
-    return cast("dict[str, Any]", REGISTER_AGENT_TOKEN_SCHEMA(payload))
+    return REGISTER_AGENT_TOKEN_SCHEMA(payload)
 
 
-def validate_update_boot_options_payload(payload: dict[str, Any]) -> dict[str, Any]:
+def validate_update_boot_options_payload(payload: dict[str, Any]) -> WebhookPayload:
     """Validate a update_boot_options webhook payload."""
-    return cast("dict[str, Any]", UPDATE_BOOT_OPTIONS_SCHEMA(payload))
+    return UPDATE_BOOT_OPTIONS_SCHEMA(payload)

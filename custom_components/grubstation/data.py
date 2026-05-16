@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ADDRESS, CONF_BROADCAST_ADDRESS, CONF_BROADCAST_PORT
@@ -12,6 +12,19 @@ from .const import CONF_AGENT_PORT, CONF_AGENT_TOKEN, CONF_BOOT_OPTIONS, DEFAULT
 
 if TYPE_CHECKING:
     from .manager import GrubStationManager
+
+
+class WebhookPayload(TypedDict):
+    """Payload received from a webhook."""
+
+    mac: str
+    action: str
+    address: NotRequired[str]
+    agent_port: NotRequired[int]
+    agent_token: NotRequired[str]
+    boot_options: NotRequired[list[str]]
+    broadcast_address: NotRequired[str]
+    broadcast_port: NotRequired[int]
 
 
 @dataclass(slots=True)
@@ -45,7 +58,7 @@ class RemoteHost:
             return self.boot_options
         return [DEFAULT_BOOT_OPTION_NONE, *self.boot_options]
 
-    def update_from_payload(self, payload: dict[str, Any]) -> None:
+    def update_from_payload(self, payload: WebhookPayload) -> None:
         """Safely update the host state from incoming webhook data."""
         self.address = payload.get(CONF_ADDRESS, self.address)
         self.agent_port = payload.get(CONF_AGENT_PORT, self.agent_port)

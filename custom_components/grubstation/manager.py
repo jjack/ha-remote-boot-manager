@@ -11,7 +11,7 @@ from homeassistant.helpers.storage import Store
 
 from .const import DOMAIN, SAVE_DELAY
 from .coordinator import GrubStationCoordinator
-from .data import RemoteHost
+from .data import RemoteHost, WebhookPayload
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -33,7 +33,7 @@ class GrubStationManager:
         """Stop polling and cleanup."""
         self.coordinators.clear()
 
-    async def async_process_payload(self, mac_address: str, payload: dict[str, Any]) -> None:
+    async def async_process_payload(self, mac_address: str, payload: WebhookPayload) -> None:
         """Process incoming payload and update host/coordinator."""
         mac_address = format_mac(mac_address)
 

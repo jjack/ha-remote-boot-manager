@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
@@ -22,7 +22,7 @@ from .const import (
 )
 
 if TYPE_CHECKING:
-    from .data import RemoteHost
+    from .data import RemoteHost, WebhookPayload
     from .manager import GrubStationManager
 
 
@@ -99,7 +99,7 @@ class GrubStationCoordinator(DataUpdateCoordinator["RemoteHost"]):
 
         return self.host
 
-    async def async_update_host_data(self, payload: dict[str, Any]) -> None:
+    async def async_update_host_data(self, payload: WebhookPayload) -> None:
         """Update host data from a webhook payload."""
         self.host.update_from_payload(payload)
 
