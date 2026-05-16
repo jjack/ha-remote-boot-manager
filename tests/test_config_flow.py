@@ -1,21 +1,18 @@
 """Tests for GrubStation config flow."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.grubstation.const import DOMAIN
 from homeassistant import config_entries, data_entry_flow
 from homeassistant.const import CONF_MAC
 from homeassistant.core import HomeAssistant
 
-from custom_components.grubstation.const import DOMAIN
-
 
 async def test_form(hass: HomeAssistant) -> None:
     """Test we get the form."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
     assert result["type"] == data_entry_flow.FlowResultType.FORM
     assert result["step_id"] == "user"
 

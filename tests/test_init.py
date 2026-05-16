@@ -4,16 +4,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.grubstation import (
-    PLATFORMS,
-    async_reload_entry,
-    async_remove_config_entry_device,
-    async_remove_config_entry,
-    async_setup,
-    async_setup_entry,
-    async_unload_entry,
-)
-from custom_components.grubstation.const import CONF_AGENT_PORT, CONF_AGENT_TOKEN, DOMAIN
+from custom_components.grubstation import async_remove_config_entry, async_setup, async_setup_entry, async_unload_entry
+from custom_components.grubstation.const import DOMAIN
 
 
 async def test_async_setup_registers_send_turn_off_service(hass):
@@ -27,7 +19,7 @@ async def test_async_setup_registers_send_turn_off_service(hass):
         patch(
             "custom_components.grubstation.async_send_turn_off_command",
             new_callable=AsyncMock,
-        ) as mock_send_off,
+        ),
     ):
         assert await async_setup(hass, {}) is True
 
@@ -47,7 +39,7 @@ async def test_async_setup_entry_global(hass):
         assert await async_setup_entry(hass, entry) is True
         mock_register.assert_called_once()
         mock_load.assert_called_once()
-        assert isinstance(entry.runtime_data, MagicMock) is False # It should be a real manager
+        assert isinstance(entry.runtime_data, MagicMock) is False  # It should be a real manager
 
 
 async def test_async_unload_entry_global(hass):

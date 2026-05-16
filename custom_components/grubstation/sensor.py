@@ -6,15 +6,9 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.const import CONF_MAC, EntityCategory
-from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import (
-    ATTR_AGENT_SERVICE_MANAGER,
-    ATTR_AGENT_STATUS,
-    ATTR_AGENT_VERSION,
-    ATTR_HOST_OS,
-)
+from .const import ATTR_AGENT_SERVICE_MANAGER, ATTR_AGENT_STATUS, ATTR_AGENT_VERSION, ATTR_HOST_OS
 from .utils import generate_device_info
 
 if TYPE_CHECKING:

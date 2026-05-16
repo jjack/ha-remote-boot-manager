@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from custom_components.grubstation.const import DEFAULT_BOOT_OPTION_NONE
 from custom_components.grubstation.data import RemoteHost
 from custom_components.grubstation.manager import GrubStationManager
 

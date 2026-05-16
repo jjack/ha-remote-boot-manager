@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 
 from homeassistant.components.select import SelectEntity
 from homeassistant.const import CONF_MAC
-from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .utils import generate_device_info

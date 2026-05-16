@@ -250,7 +250,7 @@ async def test_global_send_turn_off_command_service(hass: HomeAssistant, discove
     """Test that the global send_turn_off_command service works with entity targeting."""
     # We need to ensure the host has agent details configured for this test
     entity_id_select = "select.aa_bb_cc_dd_ee_ff_next_boot_option"
-    
+
     # Update host data via webhook to include agent details
     client = discovered_client
     webhook_url = "/api/webhook/test_webhook_id"

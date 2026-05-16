@@ -1,8 +1,7 @@
 """Tests for GrubStation select platform."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
-from custom_components.grubstation.const import DEFAULT_BOOT_OPTION_NONE, SIGNAL_NEW_HOST
 from custom_components.grubstation.data import RemoteHost
 from custom_components.grubstation.select import GrubStationManagerSelect, async_setup_entry
 from homeassistant.const import CONF_MAC
@@ -50,11 +49,11 @@ async def test_async_setup_entry(hass: HomeAssistant):
     mock_host = RemoteHost(mac="00:11:22:33:44:55")
     mock_coordinator = MagicMock()
     mock_coordinator.host = mock_host
-    
+
     mock_entry = MagicMock()
     mock_entry.data = {CONF_MAC: "00:11:22:33:44:55"}
     mock_entry.runtime_data = mock_coordinator
-    
+
     async_add_entities = MagicMock()
 
     await async_setup_entry(hass, mock_entry, async_add_entities)

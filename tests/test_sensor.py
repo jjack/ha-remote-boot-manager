@@ -1,6 +1,6 @@
 """Tests for the GrubStation sensor platform."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -9,7 +9,6 @@ from custom_components.grubstation.const import (
     ATTR_AGENT_STATUS,
     ATTR_AGENT_VERSION,
     ATTR_HOST_OS,
-    SIGNAL_NEW_HOST,
 )
 from custom_components.grubstation.data import RemoteHost
 from custom_components.grubstation.sensor import GrubStationManagerSensor, async_setup_entry
@@ -92,7 +91,7 @@ async def test_async_setup_entry_no_agent_hosts(hass: HomeAssistant):
     mock_host = RemoteHost(mac="00:11:22:33:44:55")  # No agent details
     mock_coordinator = MagicMock()
     mock_coordinator.host = mock_host
-    
+
     mock_entry = MagicMock()
     mock_entry.data = {CONF_MAC: "00:11:22:33:44:55"}
     mock_entry.runtime_data = mock_coordinator

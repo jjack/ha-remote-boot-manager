@@ -17,7 +17,6 @@ import wakeonlan
 
 from homeassistant.components import webhook as ha_webhook
 from homeassistant.const import (
-    ATTR_ENTITY_ID,
     CONF_ACTION,
     CONF_ADDRESS,
     CONF_BROADCAST_ADDRESS,
@@ -25,10 +24,8 @@ from homeassistant.const import (
     CONF_MAC,
     Platform,
 )
-from homeassistant.core import callback
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.dispatcher import async_dispatcher_send
-from homeassistant.helpers.entity_registry import async_get as async_get_er
 from homeassistant.helpers.storage import Store
 
 from .agent import async_send_turn_off_command
@@ -37,9 +34,6 @@ from .const import (
     CONF_AGENT_TOKEN,
     CONF_BOOT_OPTIONS,
     CONF_TURN_OFF_ACTION,
-    DEFAULT_AGENT_PORT,
-    DEFAULT_BROADCAST_ADDRESS,
-    DEFAULT_BROADCAST_PORT,
     DOMAIN,
     LOGGER,
     SIGNAL_NEW_HOST,
@@ -63,7 +57,6 @@ if TYPE_CHECKING:
 
 from homeassistant.helpers.service import async_extract_config_entry_ids
 
-...
 SERVICE_SEND_TURN_ON_COMMAND = "send_turn_on_command"
 SERVICE_SEND_TURN_OFF_COMMAND = "send_turn_off_command"
 
@@ -86,6 +79,8 @@ PLATFORMS: list[Platform] = [
     Platform.SENSOR,
     Platform.SWITCH,
 ]
+
+
 async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     """Set up the GrubStation component."""
     # Note: GrubConfigView requires a functioning http component
@@ -95,25 +90,25 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     async def send_turn_on_command(call: ServiceCall) -> None:
         """Handle service call to send wake-on-LAN command to a host."""
         entry_ids = await async_extract_config_entry_ids(hass, call)
-        
+
         for entry_id in entry_ids:
             entry = hass.config_entries.async_get_entry(entry_id)
             if not entry or entry.domain != DOMAIN:
                 continue
-            
+
             # Get coordinator or manager depending on entry type
             if not entry.data.get(CONF_MAC):
-                continue # Skip global entry
-            
+                continue  # Skip global entry
+
             coordinator: GrubStationCoordinator = entry.runtime_data
             mac_address = coordinator.host.mac
-            
+
             kwargs = {}
             if CONF_BROADCAST_ADDRESS in call.data:
                 kwargs["ip_address"] = call.data[CONF_BROADCAST_ADDRESS]
             elif coordinator.host.broadcast_address:
                 kwargs["ip_address"] = coordinator.host.broadcast_address
-                
+
             if CONF_BROADCAST_PORT in call.data:
                 kwargs["port"] = call.data[CONF_BROADCAST_PORT]
             elif coordinator.host.broadcast_port:
@@ -124,23 +119,20 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     async def send_turn_off_command(call: ServiceCall) -> None:
         """Handle service call to send shutdown command to a host."""
         entry_ids = await async_extract_config_entry_ids(hass, call)
-        
+
         for entry_id in entry_ids:
             entry = hass.config_entries.async_get_entry(entry_id)
             if not entry or entry.domain != DOMAIN:
                 continue
-            
+
             if not entry.data.get(CONF_MAC):
-                continue # Skip global entry
+                continue  # Skip global entry
 
             coordinator: GrubStationCoordinator = entry.runtime_data
-            
+
             if coordinator.host.address and coordinator.host.agent_port and coordinator.host.agent_token:
                 await async_send_turn_off_command(
-                    hass, 
-                    coordinator.host.address, 
-                    coordinator.host.agent_port, 
-                    coordinator.host.agent_token
+                    hass, coordinator.host.address, coordinator.host.agent_port, coordinator.host.agent_token
                 )
             else:
                 LOGGER.warning("Host %s is not configured for agent shutdown", coordinator.host.mac)

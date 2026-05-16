@@ -9,7 +9,7 @@ from homeassistant.core import callback
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.storage import Store
 
-from .const import DOMAIN, LOGGER, SAVE_DELAY, SIGNAL_HOST_REMOVED, SIGNAL_NEW_HOST
+from .const import DOMAIN, SAVE_DELAY
 from .coordinator import GrubStationCoordinator
 from .data import RemoteHost
 
@@ -79,7 +79,7 @@ class GrubStationManager:
         """Load data from storage and initialize coordinators."""
         data = await self._store.async_load()
         if data and "hosts" in data:
-            for mac, host_data in data["hosts"].items():
+            for host_data in data["hosts"].values():
                 if isinstance(host_data, dict):
                     valid_keys = {f.name for f in dataclasses.fields(RemoteHost)}
                     filtered_data = {k: v for k, v in host_data.items() if k in valid_keys}
@@ -106,7 +106,7 @@ class GrubStationManager:
             self.hosts.pop(mac_address)
             self.coordinators.pop(mac_address, None)
             self.save()
-            
+
             # Legacy: Find and remove the config entry for this host if it exists
             for entry in self.hass.config_entries.async_entries(DOMAIN):
                 if entry.data.get("mac") == mac_address:

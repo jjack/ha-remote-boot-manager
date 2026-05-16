@@ -10,7 +10,6 @@ import wakeonlan
 
 from homeassistant.components.switch import SwitchDeviceClass, SwitchEntity
 from homeassistant.const import CONF_MAC
-from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.script import Script
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 

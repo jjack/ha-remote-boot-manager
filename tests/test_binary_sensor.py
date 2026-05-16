@@ -1,7 +1,6 @@
 """Tests for the GrubStation binary sensor platform."""
 
-from unittest import mock
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -12,8 +11,6 @@ from custom_components.grubstation.const import (
     ATTR_AGENT_VERSION,
     ATTR_HOST_OS,
     ATTR_LAST_AGENT_ACCESSIBLE,
-    SIGNAL_HOST_UPDATED,
-    SIGNAL_NEW_HOST,
 )
 from custom_components.grubstation.data import RemoteHost
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass
@@ -74,7 +71,7 @@ async def test_async_setup_entry(hass: HomeAssistant, mock_coordinator: MagicMoc
     mock_entry = MagicMock()
     mock_entry.data = {CONF_MAC: "00:11:22:33:44:55"}
     mock_entry.runtime_data = mock_coordinator
-    
+
     mock_add_entities = MagicMock(spec=AddEntitiesCallback)
 
     await async_setup_entry(hass, mock_entry, mock_add_entities)
@@ -90,8 +87,8 @@ async def test_async_setup_entry(hass: HomeAssistant, mock_coordinator: MagicMoc
 async def test_async_setup_entry_global(hass: HomeAssistant):
     """Test that setup does nothing for the global entry."""
     mock_entry = MagicMock()
-    mock_entry.data = {} # Global entry has no MAC
-    
+    mock_entry.data = {}  # Global entry has no MAC
+
     mock_add_entities = MagicMock(spec=AddEntitiesCallback)
 
     await async_setup_entry(hass, mock_entry, mock_add_entities)
@@ -103,7 +100,7 @@ async def test_async_setup_entry_no_agent(hass: HomeAssistant):
     mock_host = RemoteHost(mac="00:11:22:33:44:55")  # No agent details
     mock_coordinator = MagicMock()
     mock_coordinator.host = mock_host
-    
+
     mock_entry = MagicMock()
     mock_entry.data = {CONF_MAC: "00:11:22:33:44:55"}
     mock_entry.runtime_data = mock_coordinator
