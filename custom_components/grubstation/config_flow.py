@@ -196,9 +196,7 @@ class GrubStationManagerOptionsFlow(config_entries.OptionsFlow):
             ): str,
             vol.Optional(
                 CONF_BROADCAST_ADDRESS,
-                description={
-                    "suggested_value": config.get(CONF_BROADCAST_ADDRESS, DEFAULT_BROADCAST_ADDRESS)
-                },
+                description={"suggested_value": config.get(CONF_BROADCAST_ADDRESS, DEFAULT_BROADCAST_ADDRESS)},
             ): str,
             vol.Optional(
                 CONF_BROADCAST_PORT,

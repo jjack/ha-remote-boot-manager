@@ -306,4 +306,3 @@ async def async_remove_config_entry_device(
                 break
 
     return True
-
