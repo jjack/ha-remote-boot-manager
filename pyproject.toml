@@ -1,6 +1,6 @@
 [project]
 name = "grubstation"
-version = "0.5.1"
+version = "0.5.2"
 description = "GrubStation for Home Assistant"
 license = "Apache-2.0"
 license-files = ["LICENSE"]

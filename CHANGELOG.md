@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.5.2](https://github.com/jjack/ha-grubstation/compare/v0.5.1...v0.5.2) (2026-05-15)
+
+
+### Features
+
+* adding entity name to list of hosts to make it easier to figure out what's what ([11f7d22](https://github.com/jjack/ha-grubstation/commit/11f7d22e38a8ca1ecee780868bb226c8edd1f452))
+* adding error handling for daemon /shutdown ([0ce27f9](https://github.com/jjack/ha-grubstation/commit/0ce27f9b901c1bc04e0f5ae75c9f2914a53b2f6a))
+* adding host os and version to sensors ([c5e366a](https://github.com/jjack/ha-grubstation/commit/c5e366a777263ee1b612d3382b7818709f6f2fa0))
+
+
+### Bug Fixes
+
+* adding error checking for turn off command ([97fd775](https://github.com/jjack/ha-grubstation/commit/97fd7756716bd255035e07faeb18767a114e673a))
+* correct use of ATTR vs CONST ([735bde0](https://github.com/jjack/ha-grubstation/commit/735bde02648d603d52c97df078640729f487f7f6))
+* removing useless context ([882a99f](https://github.com/jjack/ha-grubstation/commit/882a99fe31aca4b1ac990232ebfacedbf56226dd))
+
 ## [0.5.1](https://github.com/jjack/ha-grubstation/compare/v0.5.0...v0.5.1) (2026-05-13)
 
 
