@@ -5,8 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.const import EntityCategory
-from homeassistant.core import callback
+from homeassistant.const import CONF_MAC, EntityCategory
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -15,10 +14,7 @@ from .const import (
     ATTR_AGENT_STATUS,
     ATTR_AGENT_VERSION,
     ATTR_HOST_OS,
-    SIGNAL_HOST_UPDATED,
-    SIGNAL_NEW_HOST,
 )
-from .coordinator import GrubStationCoordinator
 from .utils import generate_device_info
 
 if TYPE_CHECKING:
@@ -34,28 +30,16 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the sensor platform."""
-    manager = entry.runtime_data
+    # Only set up if this is a per-host entry
+    if not entry.data.get(CONF_MAC):
+        return
 
-    @callback
-    def async_discover_entities(mac_address: str | None = None) -> None:
-        """Add sensor entities for discovered hosts."""
-        if mac_address:
-            if coordinator := manager.coordinators.get(mac_address):
-                if coordinator.host.agent_is_configured():
-                    async_add_entities([GrubStationManagerSensor(coordinator)])
-        elif entities := [
-            GrubStationManagerSensor(coord)
-            for coord in manager.coordinators.values()
-            if coord.host.agent_is_configured()
-        ]:
-            async_add_entities(entities)
-
-    entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_NEW_HOST, async_discover_entities))
-    entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_HOST_UPDATED, async_discover_entities))
-    async_discover_entities()
+    coordinator = entry.runtime_data
+    if coordinator.host.agent_is_configured():
+        async_add_entities([GrubStationManagerSensor(coordinator)])
 
 
-class GrubStationManagerSensor(CoordinatorEntity[GrubStationCoordinator], SensorEntity):
+class GrubStationManagerSensor(CoordinatorEntity, SensorEntity):
     """GrubStation sensor class."""
 
     _attr_has_entity_name = True
@@ -63,7 +47,7 @@ class GrubStationManagerSensor(CoordinatorEntity[GrubStationCoordinator], Sensor
     _attr_entity_registry_enabled_default = False
     _attr_should_poll = False
 
-    def __init__(self, coordinator: GrubStationCoordinator) -> None:
+    def __init__(self, coordinator) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
         self.host = coordinator.host

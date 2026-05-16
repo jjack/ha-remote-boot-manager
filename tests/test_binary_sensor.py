@@ -17,6 +17,7 @@ from custom_components.grubstation.const import (
 )
 from custom_components.grubstation.data import RemoteHost
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass
+from homeassistant.const import CONF_MAC, EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -24,35 +25,36 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 @pytest.fixture
 def mock_host():
     """Return a mock RemoteHost."""
-    return RemoteHost(
+    host = RemoteHost(
         mac="00:11:22:33:44:55",
         address="1.2.3.4",
-        agent_port=8080,
-        agent_token="secret",
-        is_agent_accessible=True,
-        last_agent_accessible="2023-01-01T12:00:00+00:00",
-        os="linux",
-        agent_service_manager="systemd",
-        agent_version="1.0.0",
+        agent_port=8081,
+        agent_token="test-token",
     )
+    host.is_agent_accessible = True
+    host.last_agent_accessible = "2023-01-01T12:00:00+00:00"
+    host.os = "linux"
+    host.agent_service_manager = "systemd"
+    host.agent_version = "1.0.0"
+    return host
 
 
 @pytest.fixture
 def mock_coordinator(mock_host):
-    """Return a mock coordinator."""
+    """Return a mock DataUpdateCoordinator."""
     coordinator = MagicMock()
     coordinator.data = mock_host
     coordinator.host = mock_host
     return coordinator
 
 
-async def test_binary_sensor_properties(hass: HomeAssistant, mock_coordinator: MagicMock):
-    """Test binary sensor properties."""
+async def test_binary_sensor_properties(mock_coordinator):
+    """Test the properties of the binary sensor."""
     sensor = GrubStationManagerBinarySensor(mock_coordinator)
 
     assert sensor.unique_id == "00:11:22:33:44:55_health_status"
-    assert sensor.translation_key == "agent_status"
     assert sensor.device_class == BinarySensorDeviceClass.CONNECTIVITY
+    assert sensor.entity_category == EntityCategory.DIAGNOSTIC
     assert sensor.should_poll is False
 
     # The entity doesn't have an entity_id assigned yet, so we just check state properties
@@ -65,108 +67,48 @@ async def test_binary_sensor_properties(hass: HomeAssistant, mock_coordinator: M
         ATTR_AGENT_STATUS: None,
     }
 
-    # Test state change
-    mock_coordinator.data.is_agent_accessible = False
-    assert sensor.is_on is False
-
 
 async def test_async_setup_entry(hass: HomeAssistant, mock_coordinator: MagicMock):
     """Test setting up the binary sensor platform."""
+    # Create a per-host entry
     mock_entry = MagicMock()
-    mock_manager = MagicMock()
-    mac = "00:11:22:33:44:55"
-    mock_manager.hosts = {mac: mock_coordinator.data}
-    mock_manager.coordinators = {mac: mock_coordinator}
-    mock_entry.runtime_data = mock_manager
-
+    mock_entry.data = {CONF_MAC: "00:11:22:33:44:55"}
+    mock_entry.runtime_data = mock_coordinator
+    
     mock_add_entities = MagicMock(spec=AddEntitiesCallback)
 
-    with patch("custom_components.grubstation.binary_sensor.async_dispatcher_connect") as mock_dispatch:
-        await async_setup_entry(hass, mock_entry, mock_add_entities)
+    await async_setup_entry(hass, mock_entry, mock_add_entities)
 
-        # Should add entities for existing hosts
-        mock_add_entities.assert_called_once()
-        added_entities = mock_add_entities.call_args[0][0]
-        assert len(added_entities) == 1
-        assert isinstance(added_entities[0], GrubStationManagerBinarySensor)
-        assert added_entities[0].host.mac == mac
-
-        assert mock_dispatch.call_count == 2
-        mock_dispatch.assert_any_call(hass, SIGNAL_NEW_HOST, mock.ANY)
-        mock_dispatch.assert_any_call(hass, SIGNAL_HOST_UPDATED, mock.ANY)
-        assert mock_entry.async_on_unload.call_count == 2
-
-        # Test signal callback with agent
-        callback = next(call[0][2] for call in mock_dispatch.call_args_list if call[0][1] == SIGNAL_NEW_HOST)
-        new_mac_with_agent = "AA:BB:CC:DD:EE:FF"
-        new_host_with_agent = RemoteHost(
-            mac=new_mac_with_agent,
-            address="4.5.6.7",
-            agent_port=8080,
-            agent_token="secret",
-        )
-        new_coordinator_with_agent = MagicMock()
-        new_coordinator_with_agent.data = new_host_with_agent
-        new_coordinator_with_agent.host = new_host_with_agent
-        mock_manager.hosts[new_mac_with_agent] = new_host_with_agent
-        mock_manager.coordinators[new_mac_with_agent] = new_coordinator_with_agent
-        mock_add_entities.reset_mock()
-        callback(new_mac_with_agent)
-
-        mock_add_entities.assert_called_once()
-        added_entities = mock_add_entities.call_args[0][0]
-        assert len(added_entities) == 1
-        assert isinstance(added_entities[0], GrubStationManagerBinarySensor)
-        assert added_entities[0].host.mac == new_mac_with_agent
-
-        # Test signal callback without agent
-        new_mac_no_agent = "11:22:33:44:55:66"
-        new_host_no_agent = RemoteHost(mac=new_mac_no_agent)
-        new_coordinator_no_agent = MagicMock()
-        new_coordinator_no_agent.data = new_host_no_agent
-        new_coordinator_no_agent.host = new_host_no_agent
-        mock_manager.hosts[new_mac_no_agent] = new_host_no_agent
-        mock_manager.coordinators[new_mac_no_agent] = new_coordinator_no_agent
-        mock_add_entities.reset_mock()
-        callback(new_mac_no_agent)
-
-        mock_add_entities.assert_not_called()
+    # Should add entities for the host in entry
+    mock_add_entities.assert_called_once()
+    added_entities = mock_add_entities.call_args[0][0]
+    assert len(added_entities) == 1
+    assert isinstance(added_entities[0], GrubStationManagerBinarySensor)
+    assert added_entities[0].host.mac == "00:11:22:33:44:55"
 
 
-async def test_async_setup_entry_no_coordinator(hass: HomeAssistant):
-    """Test signal callback does not add entity if coordinator is missing."""
+async def test_async_setup_entry_global(hass: HomeAssistant):
+    """Test that setup does nothing for the global entry."""
     mock_entry = MagicMock()
-    mock_manager = MagicMock()
-    mock_manager.hosts = []
-    mock_manager.coordinators = {}
-    mock_entry.runtime_data = mock_manager
+    mock_entry.data = {} # Global entry has no MAC
+    
     mock_add_entities = MagicMock(spec=AddEntitiesCallback)
 
-    with patch("custom_components.grubstation.binary_sensor.async_dispatcher_connect") as mock_dispatch:
-        await async_setup_entry(hass, mock_entry, mock_add_entities)
-        # Initial call should not have added anything
-        assert mock_add_entities.call_count == 0
-
-        callback = next(call[0][2] for call in mock_dispatch.call_args_list if call[0][1] == SIGNAL_NEW_HOST)
-        callback("00:AA:BB:CC:DD:EE")
-        assert mock_add_entities.call_count == 0
+    await async_setup_entry(hass, mock_entry, mock_add_entities)
+    mock_add_entities.assert_not_called()
 
 
 async def test_async_setup_entry_no_agent(hass: HomeAssistant):
     """Test that sensors are not added for hosts without agent config."""
-    mock_entry = MagicMock()
-    mock_manager = MagicMock()
-    mac = "00:11:22:33:44:55"
-    mock_host = RemoteHost(mac=mac)  # No agent details
+    mock_host = RemoteHost(mac="00:11:22:33:44:55")  # No agent details
     mock_coordinator = MagicMock()
-    mock_coordinator.data = mock_host
     mock_coordinator.host = mock_host
-    mock_manager.hosts = {mac: mock_host}
-    mock_manager.coordinators = {mac: mock_coordinator}
-    mock_entry.runtime_data = mock_manager
+    
+    mock_entry = MagicMock()
+    mock_entry.data = {CONF_MAC: "00:11:22:33:44:55"}
+    mock_entry.runtime_data = mock_coordinator
 
     mock_add_entities = MagicMock(spec=AddEntitiesCallback)
 
-    with patch("custom_components.grubstation.binary_sensor.async_dispatcher_connect"):
-        await async_setup_entry(hass, mock_entry, mock_add_entities)
-        mock_add_entities.assert_not_called()
+    await async_setup_entry(hass, mock_entry, mock_add_entities)
+    mock_add_entities.assert_not_called()

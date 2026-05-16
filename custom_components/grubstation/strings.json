@@ -31,17 +31,8 @@
         "step": {
             "init": {
                 "title": "GrubStation Options",
-                "description": "{menu_description}",
                 "menu_options": {
-                    "select_host": "Configure a Host",
                     "view_webhook": "View Webhook ID"
-                }
-            },
-            "select_host": {
-                "title": "Select Host",
-                "description": "Choose a host to configure:",
-                "data": {
-                    "host": "Host"
                 }
             },
             "view_webhook": {
@@ -64,9 +55,6 @@
                     "broadcast_port": "The port to send magic packets to. Defaults to `9` and is typically not changed."
                 }
             }
-        },
-        "abort": {
-            "no_hosts": "No hosts found. Please make sure your Grub OS Reporter is properly configured and has checked in at least once before trying to configure options."
         }
     },
     "services": {
@@ -118,9 +106,6 @@
                     "last_agent_accessible": {
                         "name": "Last successful check"
                     },
-                    "recent_activity": {
-                        "name": "Recent activity"
-                    },
                     "host_os": {
                         "name": "Host OS"
                     },
@@ -148,9 +133,6 @@
                     },
                     "agent_version": {
                         "name": "Agent version"
-                    },
-                    "recent_activity": {
-                        "name": "Recent activity"
                     }
                 }
             }

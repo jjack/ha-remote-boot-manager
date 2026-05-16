@@ -211,7 +211,9 @@ async def test_remove_integration_cleans_up(hass: HomeAssistant, discovered_clie
     entity_id_select = "select.aa_bb_cc_dd_ee_ff_next_boot_option"
     entity_id_switch = "switch.aa_bb_cc_dd_ee_ff_power"
 
-    assert await hass.config_entries.async_remove(mock_config_entry.entry_id)
+    # Remove ALL entries for the domain to simulate full removal
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        assert await hass.config_entries.async_remove(entry.entry_id)
     await hass.async_block_till_done()
 
     assert hass.states.get(entity_id_select) is None

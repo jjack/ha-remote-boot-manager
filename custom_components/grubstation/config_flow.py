@@ -2,19 +2,24 @@
 
 from __future__ import annotations
 
-import time
 from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.components import webhook
-from homeassistant.const import CONF_ADDRESS, CONF_BROADCAST_ADDRESS, CONF_BROADCAST_PORT
+from homeassistant.const import CONF_ADDRESS, CONF_BROADCAST_ADDRESS, CONF_BROADCAST_PORT, CONF_MAC
 from homeassistant.core import callback
-from homeassistant.helpers import device_registry as dr, selector
+from homeassistant.helpers import selector
 from homeassistant.loader import async_get_loaded_integration
 
-from .const import CONF_TURN_OFF_ACTION, DOMAIN, GRUBSTATION_AGENT_URL
+from .const import (
+    CONF_TURN_OFF_ACTION,
+    DEFAULT_BROADCAST_ADDRESS,
+    DEFAULT_BROADCAST_PORT,
+    DOMAIN,
+    GRUBSTATION_AGENT_URL,
+)
 
 if TYPE_CHECKING:
     from .data import GrubStationManagerConfigEntry
@@ -42,13 +47,15 @@ class GrubStationManagerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         user_input: dict[str, Any] | None = None,
     ) -> config_entries.ConfigFlowResult:
         """Handle a flow initialized by the user."""
+        # Check if the "Global" entry (which holds the webhook) exists
+        if any(not entry.data.get(CONF_MAC) for entry in self._async_current_entries()):
+            return self.async_abort(reason="already_configured")
+
         integration = async_get_loaded_integration(self.hass, DOMAIN)
         if integration.documentation is None:
             return self.async_abort(reason="missing_documentation")
 
         if user_input is not None:
-            # Form has no fields; clicking submit confirms intent and triggers webhook
-            # generation.
             self._webhook_id = webhook.async_generate_id()
             return await self.async_step_webhook_info()
 
@@ -81,14 +88,26 @@ class GrubStationManagerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             },
         )
 
+    async def async_step_import(self, import_data: dict[str, Any]) -> config_entries.ConfigFlowResult:
+        """Import a host as a config entry."""
+        mac = import_data.get(CONF_MAC)
+        if not mac:
+            return self.async_abort(reason="invalid_import_data")
+
+        await self.async_set_unique_id(mac)
+        self._abort_if_unique_id_configured()
+
+        return self.async_create_entry(
+            title=f"Host {mac}",
+            data=import_data,
+        )
+
     async def async_step_reconfigure(
         self,
         user_input: dict[str, Any] | None = None,
     ) -> config_entries.ConfigFlowResult:
         """Handle a reconfiguration flow initialized by the user."""
         if user_input is not None:
-            # Form has no fields; clicking submit confirms intent and triggers webhook
-            # sgeneration.
             self._webhook_id = webhook.async_generate_id()
             return await self.async_step_reconfigure_webhook_info()
 
@@ -126,53 +145,23 @@ class GrubStationManagerOptionsFlow(config_entries.OptionsFlow):
     def __init__(self, config_entry: GrubStationManagerConfigEntry) -> None:
         """Initialize options flow."""
         self._config_entry = config_entry
-        self.selected_mac: str | None = None
 
     async def async_step_init(
         self,
         user_input: dict[str, Any] | None = None,
     ) -> config_entries.ConfigFlowResult:
         """Manage the options."""
-        manager = self._config_entry.runtime_data
+        # If this is a per-host entry, show host config
+        if self._config_entry.data.get(CONF_MAC):
+            return await self.async_step_host_config(user_input)
 
-        menu_options = ["view_webhook"]
-        if manager and manager.hosts:
-            menu_options.insert(0, "select_host")
-            menu_description = "What would you like to do?"
-        else:
-            menu_description = (
-                "No hosts have checked in yet. Once a host pings Home Assistant "
-                "using the Webhook ID, it will appear here for configuration."
-            )
+        # Global entry menu - only show webhook info
+        if user_input is not None:
+            return await self.async_step_view_webhook()
 
         return self.async_show_menu(
             step_id="init",
-            menu_options=menu_options,
-            description_placeholders={"menu_description": menu_description},
-        )
-
-    async def async_step_select_host(self, user_input: dict[str, Any] | None = None) -> config_entries.ConfigFlowResult:
-        """Select a host to configure."""
-        manager = self._config_entry.runtime_data
-        registry = dr.async_get(self.hass)
-
-        if user_input is not None:
-            if host := user_input.get("host"):
-                self.selected_mac = host
-                return await self.async_step_host_config()
-            return self.async_create_entry(title="", data={})
-
-        hosts = {}
-        for mac in manager.hosts:
-            name = mac
-            if device := registry.async_get_device(identifiers={(DOMAIN, mac)}):
-                name = device.name_by_user or device.name
-
-            hosts[mac] = f"{name} ({mac})" if name != mac else mac
-
-        return self.async_show_form(
-            step_id="select_host",
-            data_schema=vol.Schema({vol.Required("host"): vol.In(hosts)}),
+            menu_options=["view_webhook"],
         )
 
     async def async_step_view_webhook(
@@ -190,46 +179,37 @@ class GrubStationManagerOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_host_config(self, user_input: dict[str, Any] | None = None) -> config_entries.ConfigFlowResult:
         """Configure specific host."""
-        manager = self._config_entry.runtime_data
-
-        if not self.selected_mac:
-            return self.async_abort(reason="no_hosts")
-
-        host = manager.hosts[self.selected_mac]
-
         if user_input is not None:
-            host.off_action = user_input.get(CONF_TURN_OFF_ACTION)
-            if not host.off_action:
-                host.off_action = None
+            return self.async_create_entry(title="", data=user_input)
 
-            host.address = user_input.get(CONF_ADDRESS)
-            host.broadcast_address = user_input.get(CONF_BROADCAST_ADDRESS)
-            host.broadcast_port = user_input.get(CONF_BROADCAST_PORT)
+        # Merge data and options to get the most relevant current values
+        config = {**self._config_entry.data, **self._config_entry.options}
 
-            # Persist the changes to storage
-            manager.save()
-
-            # Saving the entry data with a timestamp forces Home Assistant to trigger
-            # the reload listener
-            return self.async_create_entry(title="", data={"updated_at": time.time()})
-
-        data_schema = {}
-
-        def _add_optional(key: str, value: Any, type_: Any) -> None:
-            if value is not None:
-                data_schema[vol.Optional(key, description={"suggested_value": value})] = type_
-            else:
-                data_schema[vol.Optional(key)] = type_
-
-        _add_optional(CONF_TURN_OFF_ACTION, host.off_action, selector.ActionSelector({}))
-        _add_optional(CONF_ADDRESS, host.address, str)
-        _add_optional(CONF_BROADCAST_ADDRESS, host.broadcast_address, str)
-        _add_optional(CONF_BROADCAST_PORT, host.broadcast_port, int)
+        data_schema = {
+            vol.Optional(
+                CONF_TURN_OFF_ACTION,
+                description={"suggested_value": config.get(CONF_TURN_OFF_ACTION)},
+            ): selector.ActionSelector({}),
+            vol.Optional(
+                CONF_ADDRESS,
+                description={"suggested_value": config.get(CONF_ADDRESS)},
+            ): str,
+            vol.Optional(
+                CONF_BROADCAST_ADDRESS,
+                description={
+                    "suggested_value": config.get(CONF_BROADCAST_ADDRESS, DEFAULT_BROADCAST_ADDRESS)
+                },
+            ): str,
+            vol.Optional(
+                CONF_BROADCAST_PORT,
+                description={"suggested_value": config.get(CONF_BROADCAST_PORT, DEFAULT_BROADCAST_PORT)},
+            ): int,
+        }
 
         return self.async_show_form(
             step_id="host_config",
             data_schema=vol.Schema(data_schema),
             description_placeholders={
-                "host_name": self.selected_mac,
+                "host_name": self._config_entry.data.get(CONF_MAC, "Host"),
             },
         )

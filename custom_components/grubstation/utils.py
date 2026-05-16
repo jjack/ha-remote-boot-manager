@@ -13,9 +13,9 @@ def generate_device_info(host: RemoteHost) -> DeviceInfo:
     """Generate a DeviceInfo object with common values for all the platforms."""
     # Combine OS and Service Manager for the model name as requested
     model_parts = []
-    if host.os:
+    if host.os and isinstance(host.os, str):
         model_parts.append(host.os)
-    if host.agent_service_manager:
+    if host.agent_service_manager and isinstance(host.agent_service_manager, str):
         model_parts.append(host.agent_service_manager)
 
     model = "-".join(model_parts) if model_parts else generate_model_name(host)

@@ -9,14 +9,14 @@ from typing import TYPE_CHECKING, Any
 import wakeonlan
 
 from homeassistant.components.switch import SwitchDeviceClass, SwitchEntity
-from homeassistant.core import callback
+from homeassistant.const import CONF_MAC
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.script import Script
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .agent import async_send_turn_off_command
-from .const import DOMAIN, SIGNAL_NEW_HOST, WAIT_FOR_HOST_POWER_SECONDS
-from .coordinator import GrubStationCoordinator, async_check_tcp_reachability
+from .const import DOMAIN, WAIT_FOR_HOST_POWER_SECONDS
+from .coordinator import async_check_tcp_reachability
 from .utils import generate_device_info
 
 if TYPE_CHECKING:
@@ -32,27 +32,21 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the switch platform."""
-    manager = entry.runtime_data
+    # Only set up if this is a per-host entry
+    if not entry.data.get(CONF_MAC):
+        return
 
-    @callback
-    def async_discover_entities(mac_address: str | None = None) -> None:
-        """Add switch entities for discovered hosts."""
-        if mac_address:
-            if coordinator := manager.coordinators.get(mac_address):
-                async_add_entities([GrubStationManagerSwitch(hass, coordinator)])
-        elif entities := [GrubStationManagerSwitch(hass, coord) for coord in manager.coordinators.values()]:
-            async_add_entities(entities)
-
-    entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_NEW_HOST, async_discover_entities))
-    async_discover_entities()
+    coordinator = entry.runtime_data
+    async_add_entities([GrubStationManagerSwitch(hass, coordinator)])
 
 
-class GrubStationManagerSwitch(CoordinatorEntity[GrubStationCoordinator], SwitchEntity):
+class GrubStationManagerSwitch(CoordinatorEntity, SwitchEntity):
     """GrubStation power switch."""
 
-    def __init__(self, hass: HomeAssistant, coordinator: GrubStationCoordinator) -> None:
+    def __init__(self, hass: HomeAssistant, coordinator) -> None:
         """Initialize the switch."""
         super().__init__(coordinator)
+        self.hass = hass
 
         self._attr_unique_id = f"{self.coordinator.host.mac}_power_switch"
         self._attr_name = "Power"

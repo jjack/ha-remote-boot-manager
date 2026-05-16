@@ -5,12 +5,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from homeassistant.components.select import SelectEntity
-from homeassistant.core import callback
+from homeassistant.const import CONF_MAC
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import SIGNAL_NEW_HOST
-from .coordinator import GrubStationCoordinator
 from .utils import generate_device_info
 
 if TYPE_CHECKING:
@@ -26,25 +24,18 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the select platform."""
-    manager = entry.runtime_data
+    # Only set up if this is a per-host entry
+    if not entry.data.get(CONF_MAC):
+        return
 
-    @callback
-    def async_discover_entities(mac_address: str | None = None) -> None:
-        """Add select entities for discovered hosts."""
-        if mac_address:
-            if coordinator := manager.coordinators.get(mac_address):
-                async_add_entities([GrubStationManagerSelect(coordinator)])
-        elif entities := [GrubStationManagerSelect(coord) for coord in manager.coordinators.values()]:
-            async_add_entities(entities)
-
-    entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_NEW_HOST, async_discover_entities))
-    async_discover_entities()
+    coordinator = entry.runtime_data
+    async_add_entities([GrubStationManagerSelect(coordinator)])
 
 
-class GrubStationManagerSelect(CoordinatorEntity[GrubStationCoordinator], SelectEntity):
+class GrubStationManagerSelect(CoordinatorEntity, SelectEntity):
     """GrubStation select class."""
 
-    def __init__(self, coordinator: GrubStationCoordinator) -> None:
+    def __init__(self, coordinator) -> None:
         """Initialize the select entity."""
         super().__init__(coordinator)
         self.mac_address = self.coordinator.host.mac

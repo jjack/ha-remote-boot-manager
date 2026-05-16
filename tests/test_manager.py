@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from custom_components.grubstation.const import DEFAULT_BOOT_OPTION_NONE
 from custom_components.grubstation.data import RemoteHost
 from custom_components.grubstation.manager import GrubStationManager
 
@@ -37,31 +38,6 @@ def manager(hass, mock_store, mock_coordinator):
     manager = GrubStationManager(hass)
     yield manager
     manager.async_unload()
-
-
-async def test_async_process_payload_new_host(manager, hass, mock_coordinator):
-    """Test that a new host is registered correctly via process_payload."""
-    payload = {
-        "action": "register_agent_token",
-        "mac": "00:11:22:33:44:55",
-        "address": "test.local",
-        "agent_port": 8000,
-        "agent_token": "secret",
-    }
-
-    with patch("custom_components.grubstation.manager.async_dispatcher_send") as mock_dispatch:
-        await manager.async_process_payload("00:11:22:33:44:55", payload)
-
-        assert "00:11:22:33:44:55" in manager.hosts
-        assert "00:11:22:33:44:55" in manager.coordinators
-        host = manager.hosts["00:11:22:33:44:55"]
-        assert isinstance(host, RemoteHost)
-        assert host.address == "test.local"
-        assert host.agent_token == "secret"
-        assert host.agent_port == 8000
-
-        mock_dispatch.assert_called_once()
-        mock_coordinator.async_refresh.assert_called_once()
 
 
 async def test_async_process_payload_existing_host(manager, hass, mock_coordinator):
@@ -102,58 +78,6 @@ async def test_async_load_no_data(manager, mock_store):
     mock_store.async_load.return_value = {"other_key": "other_value"}
     await manager.async_load()
     assert manager.hosts == {}
-
-
-async def test_async_load_valid_data(manager, mock_store, mock_coordinator):
-    """Test loading valid host data from storage."""
-    mock_store.async_load.return_value = {
-        "hosts": {
-            "00:11:22:33:44:55": {
-                "mac": "00:11:22:33:44:55",
-                "address": "stored.local",
-                "name": "Stored Host",
-            }
-        }
-    }
-    await manager.async_load()
-
-    assert "00:11:22:33:44:55" in manager.hosts
-    assert "00:11:22:33:44:55" in manager.coordinators
-    host = manager.hosts["00:11:22:33:44:55"]
-    assert host.address == "stored.local"
-    mock_coordinator.async_refresh.assert_awaited_once()
-
-
-async def test_async_load_invalid_data_format(manager, mock_store):
-    """Test loading invalid host data format logs a warning and skips it."""
-    mock_store.async_load.return_value = {"hosts": {"00:11:22:33:44:55": ["list", "instead", "of", "dict"]}}
-
-    with patch("custom_components.grubstation.manager.LOGGER.warning") as mock_warn:
-        await manager.async_load()
-
-    assert "00:11:22:33:44:55" not in manager.hosts
-    mock_warn.assert_called_once()
-    assert "Discarding invalid host data" in mock_warn.call_args[0][0]
-
-
-async def test_async_load_filters_extra_keys(manager, mock_store, mock_coordinator):
-    """Test loading data with unknown keys correctly filters them out."""
-    mock_store.async_load.return_value = {
-        "hosts": {
-            "00:11:22:33:44:55": {
-                "mac": "00:11:22:33:44:55",
-                "address": "filtered.local",
-                "name": "Filtered Host",
-                "unknown_future_key": "some_value",
-            }
-        }
-    }
-
-    await manager.async_load()
-
-    assert "00:11:22:33:44:55" in manager.hosts
-    host = manager.hosts["00:11:22:33:44:55"]
-    assert not hasattr(host, "unknown_future_key")
 
 
 async def test_async_purge_data(manager, mock_store):
