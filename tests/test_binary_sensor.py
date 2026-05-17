@@ -101,7 +101,7 @@ async def test_async_setup_entry_global(hass: HomeAssistant):
 
 
 async def test_async_setup_entry_no_agent(hass: HomeAssistant):
-    """Test that sensors are not added for hosts without agent config."""
+    """Test that sensors are added even for hosts without agent config."""
     mock_host = RemoteHost(mac="00:11:22:33:44:55")  # No agent details
     mock_coordinator = MagicMock()
     mock_coordinator.host = mock_host
@@ -113,4 +113,4 @@ async def test_async_setup_entry_no_agent(hass: HomeAssistant):
     mock_add_entities = MagicMock(spec=AddEntitiesCallback)
 
     await async_setup_entry(hass, mock_entry, mock_add_entities)
-    mock_add_entities.assert_not_called()
+    mock_add_entities.assert_called_once()

@@ -55,10 +55,9 @@ async def async_setup_entry(
         return
 
     coordinator = entry.runtime_data
-    if coordinator.host.agent_is_configured():
-        async_add_entities(
-            [GrubStationManagerBinarySensor(coordinator, description) for description in BINARY_SENSOR_DESCRIPTIONS]
-        )
+    async_add_entities(
+        [GrubStationManagerBinarySensor(coordinator, description) for description in BINARY_SENSOR_DESCRIPTIONS]
+    )
 
 
 class GrubStationManagerBinarySensor(CoordinatorEntity, BinarySensorEntity):

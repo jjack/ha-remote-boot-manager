@@ -45,8 +45,7 @@ async def async_setup_entry(
         return
 
     coordinator = entry.runtime_data
-    if coordinator.host.agent_is_configured():
-        async_add_entities([GrubStationManagerSensor(coordinator, description) for description in SENSOR_DESCRIPTIONS])
+    async_add_entities([GrubStationManagerSensor(coordinator, description) for description in SENSOR_DESCRIPTIONS])
 
 
 class GrubStationManagerSensor(CoordinatorEntity, SensorEntity):
