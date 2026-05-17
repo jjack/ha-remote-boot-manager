@@ -44,6 +44,7 @@ from .views import GrubConfigView
 from .webhook import (
     async_parse_webhook_request,
     validate_register_agent_token_payload,
+    validate_unregister_host_payload,
     validate_update_boot_options_payload,
 )
 
@@ -183,12 +184,16 @@ async def async_setup_entry(
                     return web.Response(status=HTTPStatus.BAD_REQUEST, text="Missing action in payload")
 
                 try:
-                    if action in ("register_agent_token", "update_boot_options"):
+                    if action in ("register_agent_token", "update_boot_options", "unregister_host"):
                         if action == "register_agent_token":
                             payload = validate_register_agent_token_payload(raw_payload)
-                        else:
+                            await manager.async_process_payload(payload[CONF_MAC], payload)
+                        elif action == "update_boot_options":
                             payload = validate_update_boot_options_payload(raw_payload)
-                        await manager.async_process_payload(payload[CONF_MAC], payload)
+                            await manager.async_process_payload(payload[CONF_MAC], payload)
+                        elif action == "unregister_host":
+                            payload = validate_unregister_host_payload(raw_payload)
+                            manager.async_remove_host(payload[CONF_MAC])
                     else:
                         return web.Response(status=HTTPStatus.BAD_REQUEST, text=f"Unknown action: {action}")
                 except vol.Invalid as err:

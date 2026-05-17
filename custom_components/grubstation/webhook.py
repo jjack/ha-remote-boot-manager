@@ -48,6 +48,8 @@ UPDATE_BOOT_OPTIONS_SCHEMA = BASE_SCHEMA.extend(
     }
 )
 
+UNREGISTER_HOST_SCHEMA = BASE_SCHEMA.extend({})
+
 
 async def async_parse_webhook_request(
     request: web.Request,
@@ -85,3 +87,8 @@ def validate_register_agent_token_payload(payload: dict[str, Any]) -> WebhookPay
 def validate_update_boot_options_payload(payload: dict[str, Any]) -> WebhookPayload:
     """Validate a update_boot_options webhook payload."""
     return UPDATE_BOOT_OPTIONS_SCHEMA(payload)
+
+
+def validate_unregister_host_payload(payload: dict[str, Any]) -> WebhookPayload:
+    """Validate a unregister_host webhook payload."""
+    return UNREGISTER_HOST_SCHEMA(payload)
