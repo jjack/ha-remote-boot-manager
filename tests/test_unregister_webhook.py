@@ -1,10 +1,13 @@
 """Reproduction test for unregister_host webhook action."""
 from http import HTTPStatus
+
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+
 from custom_components.grubstation.const import DOMAIN
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
+
 
 @pytest.fixture
 def mock_config_entry():
@@ -31,7 +34,7 @@ async def test_webhook_unregister_host(hass: HomeAssistant, setup_integration) -
     client = setup_integration
     webhook_url = "/api/webhook/test_webhook_id"
     mac = "aa:bb:cc:dd:ee:ff"
-    
+
     # 1. Register a host first
     payload_reg = {
         "action": "update_boot_options",
