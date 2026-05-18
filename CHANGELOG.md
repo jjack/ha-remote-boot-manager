@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.5.3](https://github.com/jjack/ha-grubstation/compare/v0.5.2...v0.5.3) (2026-05-18)
+
+
+### Features
+
+* adding unregister_host webhook to make uninstalling easier ([7171aec](https://github.com/jjack/ha-grubstation/commit/7171aec68a1d0e91a1b8ba1321c64ba8f172befb))
+
+
+### Bug Fixes
+
+* adding 'Agent Status' sensor when the agent checks in, even if there aren't any boot options pushed yet ([93463ef](https://github.com/jjack/ha-grubstation/commit/93463eff4b0684e360abe3ecd06c5ec6105e4fe5))
+* formatting files ([836ae5f](https://github.com/jjack/ha-grubstation/commit/836ae5f7c07fa7337f3f46373faae123957506f0))
+* removing silly custom history because HA has it built in. how novel. ([828527d](https://github.com/jjack/ha-grubstation/commit/828527d1333c82b9a10284cc930e35fe786761e8))
+* running ruff ([e4cf18e](https://github.com/jjack/ha-grubstation/commit/e4cf18ef2cbaab5c9576f8623790cbc03168ad7c))
+* using host entity object instead of raw strings for the turn_off service to make it easier to work with ([84d115a](https://github.com/jjack/ha-grubstation/commit/84d115a4089d245c1c669284c339ec19318bb13d))
+
 ## [0.5.2](https://github.com/jjack/ha-grubstation/compare/v0.5.1...v0.5.2) (2026-05-15)
 
 
