@@ -1,4 +1,5 @@
 """Reproduction test for unregister_host webhook action."""
+
 from http import HTTPStatus
 
 import pytest
@@ -18,6 +19,7 @@ def mock_config_entry():
         data={"webhook_id": "test_webhook_id"},
     )
 
+
 @pytest.fixture
 async def setup_integration(hass: HomeAssistant, hass_client, mock_config_entry):
     """Set up the integration and return the web client."""
@@ -28,6 +30,7 @@ async def setup_integration(hass: HomeAssistant, hass_client, mock_config_entry)
     assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()
     return await hass_client()
+
 
 async def test_webhook_unregister_host(hass: HomeAssistant, setup_integration) -> None:
     """Test that the unregister_host action removes the host from Home Assistant."""
@@ -54,7 +57,7 @@ async def test_webhook_unregister_host(hass: HomeAssistant, setup_integration) -
     payload_unreg = {
         "action": "unregister_host",
         "mac": mac,
-        "address": "test.local", # Included because it's in BASE_SCHEMA
+        "address": "test.local",  # Included because it's in BASE_SCHEMA
     }
     resp = await client.post(webhook_url, json=payload_unreg)
     assert resp.status == HTTPStatus.OK
