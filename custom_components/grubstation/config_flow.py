@@ -11,10 +11,15 @@ from homeassistant.components import webhook
 from homeassistant.const import CONF_ADDRESS, CONF_BROADCAST_ADDRESS, CONF_BROADCAST_PORT, CONF_MAC
 from homeassistant.core import callback
 from homeassistant.helpers import selector
+from homeassistant.helpers.device_registry import format_mac
 from homeassistant.loader import async_get_loaded_integration
 
 from .const import (
+    CONF_AGENT_PORT,
+    CONF_AGENT_TOKEN,
+    CONF_BOOT_OPTIONS,
     CONF_TURN_OFF_ACTION,
+    DEFAULT_AGENT_PORT,
     DEFAULT_BROADCAST_ADDRESS,
     DEFAULT_BROADCAST_PORT,
     DOMAIN,
@@ -49,7 +54,7 @@ class GrubStationManagerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle a flow initialized by the user."""
         # Check if the "Global" entry (which holds the webhook) exists
         if any(not entry.data.get(CONF_MAC) for entry in self._async_current_entries()):
-            return self.async_abort(reason="already_configured")
+            return await self.async_step_add_host(user_input)
 
         integration = async_get_loaded_integration(self.hass, DOMAIN)
         if integration.documentation is None:
@@ -67,6 +72,45 @@ class GrubStationManagerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 "agent_url": GRUBSTATION_AGENT_URL,
                 "documentation_url": integration.documentation,
             },
+        )
+
+    async def async_step_add_host(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ) -> config_entries.ConfigFlowResult:
+        """Add a host manually."""
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            mac = format_mac(user_input[CONF_MAC])
+            if not mac:
+                errors[CONF_MAC] = "invalid_mac"
+            else:
+                await self.async_set_unique_id(mac)
+                self._abort_if_unique_id_configured(updates=user_input)
+
+                # Process boot options from string to list
+                if boot_options_str := user_input.get(CONF_BOOT_OPTIONS):
+                    user_input[CONF_BOOT_OPTIONS] = [
+                        line.strip() for line in boot_options_str.split("\n") if line.strip()
+                    ]
+
+                return self.async_create_entry(
+                    title=f"Host {mac}",
+                    data=user_input,
+                )
+
+        data_schema = {
+            vol.Required(CONF_MAC): str,
+            vol.Optional(CONF_ADDRESS): str,
+            vol.Optional(CONF_AGENT_PORT, default=DEFAULT_AGENT_PORT): int,
+            vol.Optional(CONF_AGENT_TOKEN): str,
+            vol.Optional(CONF_BOOT_OPTIONS): selector.TextSelector(selector.TextSelectorConfig(multiline=True)),
+        }
+
+        return self.async_show_form(
+            step_id="add_host",
+            data_schema=vol.Schema(data_schema),
+            errors=errors,
         )
 
     async def async_step_webhook_info(
@@ -180,10 +224,19 @@ class GrubStationManagerOptionsFlow(config_entries.OptionsFlow):
     async def async_step_host_config(self, user_input: dict[str, Any] | None = None) -> config_entries.ConfigFlowResult:
         """Configure specific host."""
         if user_input is not None:
+            # Process boot options from string to list
+            if boot_options_str := user_input.get(CONF_BOOT_OPTIONS):
+                user_input[CONF_BOOT_OPTIONS] = [line.strip() for line in boot_options_str.split("\n") if line.strip()]
+            else:
+                user_input[CONF_BOOT_OPTIONS] = []
             return self.async_create_entry(title="", data=user_input)
 
         # Merge data and options to get the most relevant current values
         config = {**self._config_entry.data, **self._config_entry.options}
+
+        # Convert boot options list to string for the UI
+        boot_options_list = config.get(CONF_BOOT_OPTIONS, [])
+        boot_options_str = "\n".join(boot_options_list)
 
         data_schema = {
             vol.Optional(
@@ -202,6 +255,10 @@ class GrubStationManagerOptionsFlow(config_entries.OptionsFlow):
                 CONF_BROADCAST_PORT,
                 description={"suggested_value": config.get(CONF_BROADCAST_PORT, DEFAULT_BROADCAST_PORT)},
             ): int,
+            vol.Optional(
+                CONF_BOOT_OPTIONS,
+                description={"suggested_value": boot_options_str},
+            ): selector.TextSelector(selector.TextSelectorConfig(multiline=True)),
         }
 
         return self.async_show_form(

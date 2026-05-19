@@ -18,10 +18,22 @@
             "reconfigure_webhook_info": {
                 "title": "New Webhook ID",
                 "description": "Here is your securely generated new Webhook ID. **Please copy this now as it will not be shown again.**\n\n```text\n{webhook_id}\n```\n\nRemember to update all your Grub OS Reporters with this new ID.\n\nFor full instructions on configuring and installing the Grub OS Reporter, visit the [Grub OS Reporter]({agent_url}) repository."
+            },
+            "add_host": {
+                "title": "Add Remote Host",
+                "description": "Enter the details for the remote host you want to manage. The MAC address is required to identify the host.\n\n**Note:** Using the [Grub OS Reporter]({agent_url}) is the preferred way to add hosts as it automates boot option discovery. Manual addition is recommended only when the agent cannot be used.",
+                "data": {
+                    "mac": "MAC Address",
+                    "address": "Network Address (IP or Hostname)",
+                    "agent_port": "Agent Port",
+                    "agent_token": "Agent Token",
+                    "boot_options": "Boot Options (One per line)"
+                }
             }
         },
         "error": {
-            "unknown": "Unknown error occurred."
+            "unknown": "Unknown error occurred.",
+            "invalid_mac": "Invalid MAC address."
         },
         "abort": {
             "already_configured": "This entry is already configured."
@@ -41,18 +53,20 @@
             },
             "host_config": {
                 "title": "Configure {host_name}",
-                "description": "Define an action to gracefully shut down the remote host. If no action is provided, the integration will attempt to use the built-in agent shutdown command.\n\n**Note:** You can also manually adjust the network settings below for troubleshooting, but these will be overwritten the next time the host checks in.",
+                "description": "Define an action to gracefully shut down the remote host. If no action is provided, the integration will attempt to use the built-in agent shutdown command.\n\n**Note:** You can also manually adjust the network settings and boot options below. Changes made here are permanent, while updates from the agent are temporary.",
                 "data": {
                     "turn_off_action": "Shutdown Action (Custom Override)",
                     "address": "Address for Ping Checks",
                     "broadcast_address": "Broadcast Address for Magic Packets",
-                    "broadcast_port": "Broadcast Port for Magic Packets"
+                    "broadcast_port": "Broadcast Port for Magic Packets",
+                    "boot_options": "Boot Options (One per line)"
                 },
                 "data_description": {
                     "turn_off_action": "An optional list of Home Assistant actions to perform for shutdown. If left as 'Add Action' (blank), the integration will use the built-in agent shutdown (requires Address and API Key).",
                     "address": "The network address that HA will ping to check to see if the host is online. This can be an IP address or hostname. If left blank, there will not be any ping checks.",
                     "broadcast_address": "The IP address to send magic packets to. Defaults to `255.255.255.255` (`ff02::1` for ipv6) and is typically not changed.",
-                    "broadcast_port": "The port to send magic packets to. Defaults to `9` and is typically not changed."
+                    "broadcast_port": "The port to send magic packets to. Defaults to `9` and is typically not changed.",
+                    "boot_options": "The list of available boot options for this host. Enter one option per line."
                 }
             }
         }

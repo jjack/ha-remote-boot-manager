@@ -74,12 +74,32 @@ async def test_options_flow_global(hass: HomeAssistant) -> None:
     assert result["step_id"] == "view_webhook"
 
 
-async def test_form_already_configured(hass: HomeAssistant) -> None:
-    """Test abort when already configured."""
+async def test_form_add_host_when_already_configured(hass: HomeAssistant) -> None:
+    """Test showing add_host form when already configured."""
     MockConfigEntry(domain=DOMAIN, data={}).add_to_hass(hass)
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
-    assert result["type"] == data_entry_flow.FlowResultType.ABORT
-    assert result["reason"] == "already_configured"
+    assert result["type"] == data_entry_flow.FlowResultType.FORM
+    assert result["step_id"] == "add_host"
+
+
+async def test_add_host_flow(hass: HomeAssistant) -> None:
+    """Test manual host addition flow."""
+    MockConfigEntry(domain=DOMAIN, data={}).add_to_hass(hass)
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {
+            CONF_MAC: "aa:bb:cc:dd:ee:ff",
+            "address": "192.168.1.10",
+            "boot_options": "Linux\nWindows",
+        },
+    )
+
+    assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
+    assert result["title"] == "Host aa:bb:cc:dd:ee:ff"
+    assert result["data"][CONF_MAC] == "aa:bb:cc:dd:ee:ff"
+    assert result["data"]["boot_options"] == ["Linux", "Windows"]
 
 
 async def test_import_invalid_data(hass: HomeAssistant) -> None:
