@@ -44,13 +44,13 @@
                 "description": "Define an action to gracefully shut down the remote host. If no action is provided, the integration will attempt to use the built-in agent shutdown command.\n\n**Note:** You can also manually adjust the network settings below for troubleshooting, but these will be overwritten the next time the host checks in.",
                 "data": {
                     "turn_off_action": "Shutdown Action (Custom Override)",
-                    "address": "Address for Ping Checks",
+                    "address": "Agent Address",
                     "broadcast_address": "Broadcast Address for Magic Packets",
                     "broadcast_port": "Broadcast Port for Magic Packets"
                 },
                 "data_description": {
                     "turn_off_action": "An optional list of Home Assistant actions to perform for shutdown. If left as 'Add Action' (blank), the integration will use the built-in agent shutdown (requires Address and API Key).",
-                    "address": "The network address that HA will ping to check to see if the host is online. This can be an IP address or hostname. If left blank, there will not be any ping checks.",
+                    "address": "The network address that HA will use to check the agent's status. This can be an IP address or hostname. If left blank, there will not be any periodic status checks.",
                     "broadcast_address": "The IP address to send magic packets to. Defaults to `255.255.255.255` (`ff02::1` for ipv6) and is typically not changed.",
                     "broadcast_port": "The port to send magic packets to. Defaults to `9` and is typically not changed."
                 }

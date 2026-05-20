@@ -11,7 +11,6 @@
   "issue_tracker": "https://github.com/jjack/ha-grubstation/issues",
   "requirements": [
     "aiohttp>=3.8.0",
-    "icmplib>=3.0",
     "wakeonlan>=3.1.0"
   ],
   "single_config_entry": false,

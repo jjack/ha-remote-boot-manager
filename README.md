@@ -12,7 +12,7 @@
 *   🚀 **Dynamic OS Discovery**: Hosts automatically report their available GRUB boot entries (e.g., Ubuntu, Windows, Fedora) to Home Assistant.
 *   🔄 **Next-Boot Selection**: Choose your next operating system via a simple dropdown `select` entity before you even turn the machine on.
 *   🔌 **Power Management**: Integrated Wake-on-LAN (WoL) to boot your machine and remote shutdown capabilities.
-*   📡 **Real-time Status**: Tracks host power state via ping and monitors the health of the remote agent.
+*   📡 **Real-time Status**: Monitors the health and status of the remote agent.
 *   🛡️ **Secure by Design**: Uses a unique Webhook ID for secure communication and a **Trust On First Use (TOFU)** model for effortless device registration.
 
 ## Who is GrubStation For?
@@ -86,7 +86,7 @@ By default, turning off the **Power** switch sends a command to the remote agent
 
 ### Troubleshooting Network Issues
 If your host is on a different subnet or VLAN, you may need to manually adjust network settings:
-1.  In the **Configure a Host** menu (see above), you can manually set the **Ping Address**, **Broadcast Address**, and **Broadcast Port**.
+1.  In the **Configure a Host** menu (see above), you can manually set the **Agent Address**, **Broadcast Address**, and **Broadcast Port**.
 2.  *Note: These manual overrides will be maintained until the agent next checks in and provides updated auto-discovered values.*
 
 ### Services
@@ -97,8 +97,6 @@ GrubStation exposes two services for advanced automation:
 
 ## Troubleshooting & Requirements
 
-*   **Ping (ICMP) Permissions**: This integration tracks power state via ping. If running Home Assistant in Docker/Container, you may need to grant ICMP permissions on the host:
-    `sysctl -w net.ipv4.ping_group_range="0 2147483647"`
 *   **GRUB Endpoint**: The GRUB endpoint (`/api/grubstation/{mac_address}`) is read-only for safety. To test it manually and allow state changes, append `?token=YOUR_WEBHOOK_ID`.
 
 ---

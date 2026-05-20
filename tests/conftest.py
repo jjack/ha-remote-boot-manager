@@ -13,16 +13,6 @@ def auto_enable_custom_integrations(enable_custom_integrations: Any) -> None:
 
 
 @pytest.fixture(autouse=True)
-def mock_reachability():
-    """Mock TCP reachability to succeed by default."""
-    with patch(
-        "custom_components.grubstation.coordinator.async_check_tcp_reachability",
-        return_value=True,
-    ) as mock:
-        yield mock
-
-
-@pytest.fixture(autouse=True)
 def mock_agent_status():
     """Mock agent status to succeed by default."""
     with patch(

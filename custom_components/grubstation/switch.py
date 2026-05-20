@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from functools import partial
 from typing import TYPE_CHECKING, Any
 
@@ -14,8 +13,7 @@ from homeassistant.helpers.script import Script
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .agent import async_send_turn_off_command
-from .const import DOMAIN, WAIT_FOR_HOST_POWER_SECONDS
-from .coordinator import async_check_tcp_reachability
+from .const import DOMAIN
 from .utils import generate_device_info
 
 if TYPE_CHECKING:
@@ -52,7 +50,6 @@ class GrubStationManagerSwitch(CoordinatorEntity, SwitchEntity):
         self._attr_has_entity_name = True
         self._attr_device_class = SwitchDeviceClass.SWITCH
 
-        self._ping_task: asyncio.Task | None = None
         self._turn_off_action = (
             Script(hass, self.coordinator.host.off_action, self.coordinator.host.mac, DOMAIN)
             if self.coordinator.host.off_action
@@ -87,14 +84,6 @@ class GrubStationManagerSwitch(CoordinatorEntity, SwitchEntity):
             partial(wakeonlan.send_magic_packet, self.coordinator.host.mac, **wol_kwargs)
         )
 
-        if self.coordinator.host.address and self.coordinator.host.agent_port:
-            if self._ping_task and not self._ping_task.done():
-                self._ping_task.cancel()
-            self._ping_task = self.hass.async_create_background_task(
-                self._async_verify_state(target_state=True),
-                "wol_verify_on",
-            )
-
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the entity off."""
         if self._turn_off_action:
@@ -110,39 +99,3 @@ class GrubStationManagerSwitch(CoordinatorEntity, SwitchEntity):
             )
         else:
             self.coordinator.async_log_activity("Shutdown requested (no action configured)")
-
-        if self.coordinator.host.address and self.coordinator.host.agent_port:
-            if self._ping_task and not self._ping_task.done():
-                self._ping_task.cancel()
-            self._ping_task = self.hass.async_create_background_task(
-                self._async_verify_state(target_state=False),
-                "wol_verify_off",
-            )
-
-    async def async_will_remove_from_hass(self) -> None:
-        """Clean up background tasks."""
-        if self._ping_task and not self._ping_task.done():
-            self._ping_task.cancel()
-        await super().async_will_remove_from_hass()
-
-    async def _async_verify_state(self, *, target_state: bool) -> None:
-        """Verify state change after command."""
-        try:
-            await asyncio.sleep(WAIT_FOR_HOST_POWER_SECONDS)
-            for _ in range(36):  # 3 minutes
-                is_awake = await async_check_tcp_reachability(
-                    self.coordinator.host.address, self.coordinator.host.agent_port
-                )
-                if is_awake == target_state:
-                    verb = "Power On" if target_state else "Power Off"
-                    self.coordinator.async_log_activity(f"{verb} verified")
-                    await self.coordinator.async_request_refresh()
-                    return
-                await asyncio.sleep(5)
-        except asyncio.CancelledError:
-            return
-
-        verb = "Turn On" if target_state else "Turn Off"
-        self.coordinator.async_log_activity(
-            f"Failed to {verb} within 3 minutes (Host did not respond)",
-        )

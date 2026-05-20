@@ -85,24 +85,8 @@ async def test_async_turn_off_with_script(hass, mock_coordinator):
 async def test_async_will_remove_from_hass(hass, mock_coordinator):
     """Test cleanup of background tasks."""
     switch = GrubStationManagerSwitch(hass, mock_coordinator)
-    mock_task = MagicMock()
-    mock_task.done.return_value = False
-    switch._ping_task = mock_task
 
     await switch.async_will_remove_from_hass()
-    mock_task.cancel.assert_called_once()
-
-
-async def test_async_verify_state(hass, mock_coordinator):
-    """Test state verification logic."""
-    switch = GrubStationManagerSwitch(hass, mock_coordinator)
-
-    with (
-        patch("custom_components.grubstation.switch.async_check_tcp_reachability", return_value=True),
-        patch("asyncio.sleep"),
-    ):
-        await switch._async_verify_state(target_state=True)
-        mock_coordinator.async_request_refresh.assert_awaited_once()
 
 
 async def test_async_setup_entry(hass: HomeAssistant, mock_coordinator):
@@ -139,47 +123,3 @@ async def test_async_turn_off_agent_failure(hass, mock_coordinator):
         pytest.raises(Exception, match="Failed"),
     ):
         await switch.async_turn_off()
-
-
-async def test_async_verify_state_failure(hass, mock_coordinator):
-    """Test state verification failure (timeout/no response)."""
-    switch = GrubStationManagerSwitch(hass, mock_coordinator)
-
-    with (
-        patch("custom_components.grubstation.switch.async_check_tcp_reachability", return_value=False),
-        patch("asyncio.sleep"),
-    ):
-        # Run verify state, it should complete without refreshing
-        await switch._async_verify_state(target_state=True)
-        mock_coordinator.async_request_refresh.assert_not_awaited()
-
-
-async def test_async_turn_on_verify_task_cancel(hass, mock_coordinator):
-    """Test that existing ping task is cancelled on new turn_on."""
-    switch = GrubStationManagerSwitch(hass, mock_coordinator)
-    mock_task = MagicMock()
-    mock_task.done.return_value = False
-    switch._ping_task = mock_task
-
-    with patch("wakeonlan.send_magic_packet"):
-        await switch.async_turn_on()
-        mock_task.cancel.assert_called_once()
-
-
-async def test_async_turn_off_no_address_no_ping(hass):
-    """Test shutdown command with no address (coverage for switch.py:116)."""
-    mock_host = RemoteHost(
-        mac="00:11:22:33:44:55",
-        address=None,
-        agent_port=None,
-        agent_token="test-token",
-    )
-    mock_coordinator = MagicMock()
-    mock_coordinator.host = mock_host
-    mock_coordinator.async_log_activity = MagicMock()
-    switch = GrubStationManagerSwitch(hass, mock_coordinator)
-
-    with patch("custom_components.grubstation.switch.async_send_turn_off_command", new_callable=AsyncMock):
-        await switch.async_turn_off()
-        # Verify ping task is not created because no address
-        assert switch._ping_task is None

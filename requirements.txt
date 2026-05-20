@@ -1,5 +1,4 @@
 # Authoritative requirements are in custom_components/grubstation/manifest.json
 # This file is used for local development and CI
 aiohttp>=3.8.0
-icmplib>=3.0
 wakeonlan>=3.1.0

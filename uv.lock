@@ -1103,7 +1103,6 @@ version = "0.5.3"
 source = { virtual = "." }
 dependencies = [
     { name = "aiohttp" },
-    { name = "icmplib" },
     { name = "wakeonlan" },
 ]
 
@@ -1133,8 +1132,7 @@ hass = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiohttp", specifier = ">=3.13.5" },
-    { name = "icmplib", specifier = ">=3.0" },
+    { name = "aiohttp", specifier = ">=3.8.0" },
     { name = "wakeonlan", specifier = ">=3.1.0" },
 ]
 

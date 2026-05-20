@@ -45,6 +45,3 @@ GRUB_VIEW_URL: Final = "/api/grubstation/{mac_address}"
 SAVE_DELAY: Final = 15.0  # seconds to debounce saving to storage after changes
 
 WAIT_FOR_HOST_POWER_SECONDS: Final = 10
-
-PING_COUNT: Final = 1
-PING_TIMEOUT_SECONDS: Final = 1
