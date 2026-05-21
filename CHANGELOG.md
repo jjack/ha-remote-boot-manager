@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.4](https://github.com/jjack/ha-grubstation/compare/v0.5.3...v0.5.4) (2026-05-21)
+
+
+### Features
+
+* can add hosts through ui and edit boot options for hosts added via agent ([90faa86](https://github.com/jjack/ha-grubstation/commit/90faa861b3df03d2561455958b8ca0bf281aa50a))
+
 ## [0.5.3](https://github.com/jjack/ha-grubstation/compare/v0.5.2...v0.5.3) (2026-05-18)
 
 
